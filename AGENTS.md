@@ -20,6 +20,10 @@ Electron + `mnemo-core` em Rust via napi-rs (ADR 0001). UI em React 19 + TS + Vi
 - `mnemo-core` não conhece Electron nem napi. Todo export napi usa `#[napi(catch_unwind)]`.
 - Git: executável do sistema (processo filho), verificado ao abrir. Nada de git embutido no MVP.
 
+## Argus (regra)
+
+Mnemo e Argus são apps diferentes e não correlatos. Nada do Argus entra no Mnemo: sem integração, feature, notificação, referência em docs ou dado de exemplo, nem na v2.
+
 ## Distribuição
 
 - Windows: NSIS (electron-builder), sem assinatura no MVP. `installer.nsh` oferece instalar o git via winget se faltar.
