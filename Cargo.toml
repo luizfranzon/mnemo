@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/mnemo-core"]
+members = ["crates/mnemo-core", "crates/mnemo-node"]
 
 [workspace.package]
 edition = "2021"

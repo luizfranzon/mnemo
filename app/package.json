@@ -1,0 +1,38 @@
+{
+  "name": "mnemo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Git client desktop visual, local",
+  "main": "dist-electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "native": "node scripts/build-native.mjs",
+    "dev:renderer": "vite",
+    "build:renderer": "vite build",
+    "build:electron": "node scripts/build-electron.mjs",
+    "build": "bun run native && bun run build:renderer && bun run build:electron",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.14.14",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "electron": "^44.7.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  },
+  "trustedDependencies": [
+    "electron",
+    "esbuild"
+  ]
+}

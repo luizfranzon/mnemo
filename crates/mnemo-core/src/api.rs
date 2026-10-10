@@ -48,6 +48,14 @@ pub struct RepositoryInfo {
     pub undo: UndoRedoState,
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BranchInfo {
+    pub name: String,
+    pub sha: String,
+    pub current: bool,
+}
+
 #[derive(Deserialize)]
 struct PathArgs {
     path: String,
@@ -102,6 +110,22 @@ impl Mnemo {
         };
         let name = session.workdir().file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         Ok(RepositoryInfo { path: session.workdir().to_path_buf(), name, head, undo: session.undo_state() })
+    }
+
+    /// Branches locais, para a paleta de checkout.
+    pub fn list_branches(&self, path: &str) -> Result<Vec<BranchInfo>> {
+        let session = self.session_for(Path::new(path))?;
+        let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+        let current = git.capture_state(false)?.head_ref;
+        Ok(git
+            .local_branches()?
+            .into_iter()
+            .map(|(name, sha)| BranchInfo {
+                current: current.as_deref() == Some(&format!("refs/heads/{name}")),
+                name,
+                sha,
+            })
+            .collect())
     }
 
     pub fn close_repository(&self, path: &str) {
@@ -163,6 +187,9 @@ impl Mnemo {
         let PathArgs { path } = parse(&args)?;
         if cmd == "open_repository" {
             return out(self.open_repository(&path)?);
+        }
+        if cmd == "list_branches" {
+            return out(self.list_branches(&path)?);
         }
         if cmd == "close_repository" {
             self.close_repository(&path);
