@@ -4,25 +4,57 @@ Git client desktop visual, local. Mostra o histórico como grafo e executa açõ
 
 ## Language
 
+### Janela
+
+**Aba**:
+Um diretório de trabalho aberto: o repositório principal ou um worktree. O mesmo diretório nunca fica aberto em duas abas, e abrir um worktree abre uma aba nova ou foca a que já existe. A única mudança de diretório permitida é entrar num submódulo e voltar ao pai. Cada nível (repositório e cada submódulo) tem HEAD, WIP e Histórico de Operações próprios, e a aba mostra o nível em que está.
+_Avoid_: janela, projeto
+
+**Favorito**:
+Repositório marcado pelo usuário como de interesse mesmo quando está fechado. Favoritos recebem fetch automático e notificações como se estivessem abertos.
+_Avoid_: fixado, pinned
+
 ### Histórico
 
 **Lane**:
 Coluna vertical do grafo onde corre uma linha de desenvolvimento. Cada lane tem uma cor fixa, tirada da sequência de cores do grafo.
 _Avoid_: trilha, coluna (coluna é do cabeçalho da tabela do grafo)
 
+**Visibilidade inteligente**:
+Modo do grafo que mostra só a branch atual e a Base dela. Commits mergeados nelas aparecem por fazerem parte da história; as outras branches não ganham pill.
+_Avoid_: filtro inteligente, modo foco
+
 **WIP**:
 As mudanças locais ainda não commitadas, mostradas como um nó tracejado acima do HEAD.
 _Avoid_: rascunho, pendências
 
+**Base**:
+A branch de onde uma branch saiu. O Mnemo registra a base quando cria a branch, sempre pelo nome sem o remoto (saiu de `origin/12.x` → base `12.x`). Se a branch foi criada fora do Mnemo ou a partir de um commit solto, vale a branch padrão do repositório. O usuário pode trocar a base.
+_Avoid_: upstream (upstream é a remota que a branch rastreia), branch pai
+
+### Identidade
+
+**Perfil**:
+Identidade de quem commita: nome, email e chave de assinatura. Um perfil fica ativo para todos os repositórios, e um repositório pode fixar outro. A escolha vale também para o git usado fora do Mnemo. O que vale no fim é a identidade configurada no git: se ela não bater com nenhum perfil, o Mnemo mostra essa identidade como está e não a sobrescreve.
+_Avoid_: conta, usuário
+
 ### Ações
 
 **Operação**:
-Uma ação git disparada pelo Mnemo (checkout, commit, reset, descartar…). Ela guarda o estado anterior dos refs e sabe como se inverter.
+Uma ação git disparada pelo Mnemo (checkout, commit, reset, descartar…). Ela guarda o estado anterior dos refs e sabe como se inverter. Cada repositório roda uma Operação por vez. Preparar e tirar arquivos do stage não são Operações. Um merge ou rebase parado em conflito ainda não é uma Operação: ele só entra no Histórico quando é concluído (e aí se desfaz inteiro) ou abortado.
 _Avoid_: comando, ação git (no código)
 
 **Desfazer**:
-Inverter a última Operação desfazível do repositório. Fica bloqueado quando o repositório mudou fora do Mnemo depois dela, e não existe para Operações que mexem no remoto (push, fetch, excluir remota).
+Inverter a última Operação desfazível do repositório. Operações de refs feitas antes de uma Mudança externa não podem mais ser desfeitas. Desfazer não existe para Operações que mexem no remoto (push, fetch, excluir remota). Descartar mudanças do WIP também é desfazível. Desfazer um pull volta só a branch local; as refs remotas ficam como o fetch deixou.
 _Avoid_: undo, reverter (revert é outra coisa no git)
 
+**Refazer**:
+Reaplicar a Operação que acabou de ser desfeita. Só existe logo depois de um Desfazer: qualquer Operação nova descarta o que havia para refazer. Segue o mesmo bloqueio por Mudança externa.
+_Avoid_: redo
+
+**Histórico de Operações**:
+As Operações recentes de um repositório, das quais o Desfazer tira a última. Continua existindo depois que o app fecha e abre de novo, e guarda só as mais recentes.
+_Avoid_: log, undo stack
+
 **Mudança externa**:
-Alteração de HEAD ou refs feita fora do Mnemo (terminal, outro app), detectada quando o estado atual não bate com o "depois" da última Operação.
+Alteração de HEAD ou refs feita fora do Mnemo (terminal, outro app), detectada quando o estado atual não bate com o "depois" da última Operação. Ela tira do Histórico de Operações as Operações de refs anteriores a ela. Descartes anteriores continuam desfazíveis, porque não dependem de refs.

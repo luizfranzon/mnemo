@@ -24,6 +24,10 @@ Electron + `mnemo-core` em Rust via napi-rs (ADR 0001). UI em React 19 + TS + Vi
 
 Mnemo e Argus são apps diferentes e não correlatos. Nada do Argus entra no Mnemo: sem integração, feature, notificação, referência em docs ou dado de exemplo, nem na v2.
 
+## Agentes de código (regra)
+
+Nada de integração com agentes de código (Claude Code, Codex etc.): sem aba Agentes, sem sessão de agente em worktree, sem notificação de agente, nem na v2. Worktrees continuam existindo como recurso de git puro. IA para explicar commit e gerar mensagem (v2) não é agente e continua no escopo.
+
 ## Distribuição
 
 - Windows: NSIS (electron-builder), sem assinatura no MVP. `installer.nsh` oferece instalar o git via winget se faltar.
