@@ -58,3 +58,7 @@ _Avoid_: log, undo stack
 
 **Mudança externa**:
 Alteração de HEAD ou refs feita fora do Mnemo (terminal, outro app), detectada quando o estado atual não bate com o "depois" da última Operação. Ela tira do Histórico de Operações as Operações de refs anteriores a ela. Descartes anteriores continuam desfazíveis, porque não dependem de refs.
+
+**Log de diagnóstico**:
+Arquivos de texto, um por dia, na pasta de dados do app, para depurar o que rodou e o que falhou. Registra as Operações, os comandos git executados (com credenciais de URL mascaradas) e os erros inesperados com stacktrace. É descartável: os de mais de 7 dias são apagados, e apagar a pasta não afeta nada. Não tem relação com o Histórico de Operações.
+_Avoid_: log (sozinho, confunde com Histórico de Operações)
