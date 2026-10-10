@@ -181,18 +181,13 @@ impl RepoSession {
     // ---- núcleo ----------------------------------------------------------------------------
 
     fn in_turn<T>(&self, label: &str, f: impl FnOnce() -> Result<T>) -> Result<T> {
-        let turn = self.queue.enter();
+        let _turn = self.queue.enter();
         *lock(&self.running) = Some(label.to_string());
         self.deps.events.emit(CoreEvent::OperationStarted { workdir: self.workdir.clone(), label: label.to_string() });
+        // O guarda roda mesmo com pânico em `f`: o rótulo "rodando" nunca fica preso na UI.
+        let mut done = RunGuard { session: self, label, ok: false };
         let result = f();
-        *lock(&self.running) = None;
-        self.deps.events.emit(CoreEvent::OperationFinished {
-            workdir: self.workdir.clone(),
-            label: label.to_string(),
-            ok: result.is_ok(),
-        });
-        self.emit_history();
-        drop(turn);
+        done.ok = result.is_ok();
         result
     }
 
@@ -213,7 +208,10 @@ impl RepoSession {
         let outcome = match self.deps.handlers.run(&mut ctx, &kind) {
             Ok(o) => o,
             Err(e) => {
-                self.git.delete_pinned(op_id);
+                // O snapshot é o único backup: só solta se o WIP continua igual ao guardado.
+                if snapshot::untouched_since_capture(&self.git, op_id) {
+                    self.git.delete_pinned(op_id);
+                }
                 return Err(e);
             }
         };
@@ -437,6 +435,25 @@ impl RepoSession {
 
     fn emit_history(&self) {
         self.deps.events.emit(CoreEvent::HistoryChanged { workdir: self.workdir.clone(), state: self.undo_state() });
+    }
+}
+
+struct RunGuard<'a> {
+    session: &'a RepoSession,
+    label: &'a str,
+    ok: bool,
+}
+
+impl Drop for RunGuard<'_> {
+    fn drop(&mut self) {
+        *lock(&self.session.running) = None;
+        let workdir = self.session.workdir.clone();
+        self.session.deps.events.emit(CoreEvent::OperationFinished {
+            workdir,
+            label: self.label.to_string(),
+            ok: self.ok,
+        });
+        self.session.emit_history();
     }
 }
 

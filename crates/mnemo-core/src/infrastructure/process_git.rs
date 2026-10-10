@@ -1,7 +1,7 @@
 use crate::application::git::failure;
 use crate::application::ports::{GitCmd, GitOutput, GitPort};
 use crate::domain::error::{CoreError, Result};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -31,6 +31,8 @@ impl GitPort for ProcessGit {
             .env("GIT_EDITOR", "true")
             .env("GIT_MERGE_AUTOEDIT", "no")
             .env("LC_ALL", "C")
+            .env("SSH_ASKPASS_REQUIRE", "never")
+            .env("GCM_INTERACTIVE", "never")
             .stdin(if cmd.stdin.is_some() { Stdio::piped() } else { Stdio::null() })
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -50,7 +52,7 @@ impl GitPort for ProcessGit {
                 let _ = stdin.write_all(&data);
             })
         });
-        let output = child.wait_with_output()?;
+        let output = wait(child, cmd.timeout)?;
         if let Some(w) = writer {
             let _ = w.join();
         }
@@ -77,3 +79,37 @@ fn hide_window(command: &mut Command) {
 
 #[cfg(not(windows))]
 fn hide_window(_command: &mut Command) {}
+
+/// Espera o processo. Sem prazo, `wait_with_output` (sem polling); com prazo, mata ao estourar.
+fn wait(mut child: std::process::Child, timeout: Option<std::time::Duration>) -> Result<std::process::Output> {
+    let Some(limit) = timeout else { return Ok(child.wait_with_output()?) };
+    let drain = |r: Option<Box<dyn std::io::Read + Send>>| {
+        std::thread::spawn(move || {
+            let mut buf = Vec::new();
+            if let Some(mut r) = r {
+                let _ = r.read_to_end(&mut buf);
+            }
+            buf
+        })
+    };
+    let stdout = drain(child.stdout.take().map(|s| Box::new(s) as _));
+    let stderr = drain(child.stderr.take().map(|s| Box::new(s) as _));
+    let start = std::time::Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
+        }
+        if start.elapsed() > limit {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(CoreError::GitFailed {
+                args: "(rede)".into(),
+                status: -1,
+                stderr: format!("o git não respondeu em {}s (autenticação pendente?)", limit.as_secs()),
+            });
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
+    let join = |h: std::thread::JoinHandle<Vec<u8>>| h.join().unwrap_or_default();
+    Ok(std::process::Output { status, stdout: join(stdout), stderr: join(stderr) })
+}

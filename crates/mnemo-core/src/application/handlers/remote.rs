@@ -2,6 +2,9 @@ use super::{ExecCtx, Handler, HandlerOutcome};
 use crate::domain::error::{CoreError, Result};
 use crate::domain::operation::{OperationKind, UndoPlan};
 
+use crate::application::ports::GitCmd;
+use crate::application::NETWORK_TIMEOUT;
+
 pub const REMOTE_REASON: &str = "mexe no remoto";
 
 /// Push, fetch e excluir branch remota: rodam, entram no histórico, mas não se desfazem.
@@ -35,7 +38,7 @@ impl Handler for RemoteHandler {
             }
             _ => return Err(CoreError::internal("kind fora do handler")),
         };
-        ctx.git.run(args)?;
+        ctx.git.exec(&GitCmd::new(args).timeout(NETWORK_TIMEOUT))?;
         Ok(HandlerOutcome::Done(UndoPlan::irreversible(REMOTE_REASON)))
     }
 }

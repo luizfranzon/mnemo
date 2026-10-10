@@ -2,6 +2,9 @@ use crate::application::ports::{HistoryStore, StoredSession};
 use crate::domain::error::{CoreError, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static TMP: AtomicU64 = AtomicU64::new(0);
 
 /// Um JSON por diretório de trabalho nos dados do app (ADR 0005). Escrita atômica.
 pub struct JsonHistoryStore {
@@ -49,7 +52,8 @@ impl HistoryStore for JsonHistoryStore {
     fn save(&self, workdir: &Path, session: &StoredSession) -> Result<()> {
         fs::create_dir_all(&self.dir).map_err(store_err)?;
         let target = self.file(workdir);
-        let tmp = target.with_extension("json.tmp");
+        let tmp =
+            target.with_extension(format!("json.{}.{}.tmp", std::process::id(), TMP.fetch_add(1, Ordering::Relaxed)));
         fs::write(&tmp, serde_json::to_vec(session).map_err(store_err)?).map_err(store_err)?;
         fs::rename(&tmp, &target).map_err(store_err)
     }

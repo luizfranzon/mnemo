@@ -44,7 +44,9 @@ const set = useApp.setState
 const get = useApp.getState
 
 let toastSeq = 0
-const norm = (p: string) => p.replace(/\\/g, '/').toLowerCase()
+// Windows não diferencia maiúsculas no caminho; Linux diferencia (igual ao `key()` do core).
+const CASE_INSENSITIVE = typeof navigator !== 'undefined' && /windows/i.test(navigator.userAgent)
+const norm = (p: string) => (CASE_INSENSITIVE ? p.replace(/\\/g, '/').toLowerCase() : p.replace(/\\/g, '/'))
 const same = (a: string, b: string) => norm(a) === norm(b)
 
 function patchTab(path: string, patch: Partial<Tab>) {
@@ -53,9 +55,12 @@ function patchTab(path: string, patch: Partial<Tab>) {
 
 function pushToast(toast: Omit<Toast, 'id'>) {
   const id = ++toastSeq
-  set((s) => ({ toasts: [...s.toasts, { ...toast, id }] }))
+  // O "Desfazer" do toast age na última Operação: toasts antigos perdem o botão.
+  set((s) => ({ toasts: [...s.toasts.map(stripUndo), { ...toast, id }] }))
   setTimeout(() => dismissToast(id), 6000)
 }
+
+const stripUndo = (t: Toast): Toast => ({ ...t, undoPath: undefined })
 
 export function dismissToast(id: number) {
   set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
@@ -151,6 +156,7 @@ export const actions = {
 }
 
 async function stepHistory(path: string, fn: (p: string) => Promise<UndoRedoState>) {
+  set((s) => ({ toasts: s.toasts.map(stripUndo) }))
   try {
     patchTab(path, { undo: await fn(path) })
     await refreshHead(path)
@@ -162,9 +168,20 @@ async function stepHistory(path: string, fn: (p: string) => Promise<UndoRedoStat
   }
 }
 
-async function refreshHead(path: string) {
-  const info = await core.openRepository(path)
-  patchTab(path, { head: info.head, undo: info.undo })
+const refreshing = new Map<string, Promise<void>>()
+
+/** Relê HEAD de uma aba aberta (aba fechada não reabre a sessão); chamadas simultâneas se juntam. */
+function refreshHead(path: string): Promise<void> {
+  if (!get().tabs.some((t) => same(t.path, path))) return Promise.resolve()
+  const key = norm(path)
+  const inflight = refreshing.get(key)
+  if (inflight) return inflight
+  const run = core
+    .openRepository(path)
+    .then((info) => patchTab(path, { head: info.head, undo: info.undo }))
+    .finally(() => refreshing.delete(key))
+  refreshing.set(key, run)
+  return run
 }
 
 function adoptRepository(info: RepositoryInfo) {

@@ -268,3 +268,37 @@ fn reset_hard_com_wip_conflitante_nao_muda_nada_ao_desfazer() {
     assert_eq!(repo.read("a.txt"), "outra coisa\ndois\ntres\n");
     let _ = second;
 }
+
+#[test]
+fn reset_hard_sem_snapshot_nao_vira_mudanca_externa() {
+    use mnemo_core::application::handlers::HandlerSet;
+    use mnemo_core::application::ports::NoEvents;
+    use mnemo_core::application::session::{RepoSession, SessionDeps};
+    use mnemo_core::infrastructure::json_history_store::JsonHistoryStore;
+    use mnemo_core::infrastructure::process_git::ProcessGit;
+    use std::sync::Arc;
+
+    let (repo, first, _second) = repo_com_dois_commits();
+    repo.git(&["branch", "x"]);
+    let session = RepoSession::open(
+        repo.path().to_path_buf(),
+        SessionDeps {
+            git: Arc::new(ProcessGit::from_path()),
+            store: Arc::new(JsonHistoryStore::new(repo.data.path())),
+            events: Arc::new(NoEvents),
+            handlers: Arc::new(HandlerSet::default()),
+            hooks: vec![],
+            snapshot_limit: 16,
+            history_limit: 50,
+        },
+    )
+    .expect("sessão");
+    session.execute(OperationKind::Checkout { target: "x".into() }).expect("checkout");
+    repo.write("grande.bin", &"x".repeat(2048));
+    session.execute(OperationKind::Reset { target: first, mode: ResetMode::Hard }).expect("reset sem snapshot");
+
+    // a própria Operação do Mnemo moveu os refs: não é Mudança externa
+    let state = session.sync_external().expect("sync");
+    assert_ne!(state.undo.reason.as_deref(), Some("O repositório mudou fora do Mnemo"));
+    assert!(state.undo.reason.expect("motivo").contains("reset"));
+}

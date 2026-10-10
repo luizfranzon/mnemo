@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
-pub const MIN_GIT: (u32, u32) = (2, 38); // `merge-tree --write-tree`
+pub const MIN_GIT: (u32, u32) = (2, 40); // `merge-tree --write-tree --merge-base`
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

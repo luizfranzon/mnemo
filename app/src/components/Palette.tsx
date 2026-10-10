@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import type { BranchInfo } from '../bridge/types'
 import { actions, selectActiveTab, useApp } from '../store/app'
@@ -18,12 +18,14 @@ export function Palette() {
     if (path) void core.listBranches(path).then(setBranches, () => setBranches([]))
   }, [path])
 
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return q ? branches.filter((b) => b.name.toLowerCase().includes(q)) : branches
-  }, [branches, query])
+  const q = query.trim().toLowerCase()
+  const shown = q ? branches.filter((b) => b.name.toLowerCase().includes(q)) : branches
 
   const virtual = useVirtualizer({ count: shown.length, getScrollElement: () => scroller.current, estimateSize: () => ROW, overscan: 8 })
+
+  useEffect(() => {
+    virtual.scrollToIndex(cursor) // a seleção por teclado acompanha a lista virtualizada
+  }, [cursor, virtual])
 
   const close = () => actions.setPalette(false)
   const choose = (b: BranchInfo | undefined) => {

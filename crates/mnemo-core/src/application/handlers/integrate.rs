@@ -34,7 +34,10 @@ impl Handler for IntegrateHandler {
             }
             _ => return Err(CoreError::internal("kind fora do handler")),
         };
-        let cmd = GitCmd::new(args).also_ok(1);
+        let mut cmd = GitCmd::new(args).also_ok(1);
+        if matches!(kind, Pull { .. }) {
+            cmd = cmd.timeout(crate::application::NETWORK_TIMEOUT);
+        }
         let out = ctx.git.exec(&cmd)?;
         let plan = UndoPlan::refs(RefsStrategy::Keep);
         if out.code == 0 {

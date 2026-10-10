@@ -246,6 +246,6 @@ pub struct Operation {
 impl Operation {
     /// Depende do estado dos refs (e por isso cai numa Mudança externa).
     pub fn depends_on_refs(&self) -> bool {
-        self.plan.refs.is_some()
+        self.plan.refs.is_some() || self.plan.irreversible.is_some()
     }
 }

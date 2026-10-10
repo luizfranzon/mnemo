@@ -13,6 +13,8 @@ pub struct GitCmd {
     pub stdin: Option<Vec<u8>>,
     pub env: Vec<(String, String)>,
     pub ok_codes: Vec<i32>,
+    /// Mata o processo ao passar disso (rede: um ssh esperando senha nunca trava a fila).
+    pub timeout: Option<std::time::Duration>,
 }
 
 impl GitCmd {
@@ -31,6 +33,11 @@ impl GitCmd {
 
     pub fn env(mut self, key: &str, value: impl Into<String>) -> Self {
         self.env.push((key.into(), value.into()));
+        self
+    }
+
+    pub fn timeout(mut self, d: std::time::Duration) -> Self {
+        self.timeout = Some(d);
         self
     }
 

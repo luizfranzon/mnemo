@@ -76,6 +76,14 @@ pub fn capture(git: &RepoGit, op_id: u64) -> Result<String> {
     Ok(sha)
 }
 
+/// `true` quando não há snapshot ou o WIP atual ainda é o que foi guardado (nada foi descartado).
+pub fn untouched_since_capture(git: &RepoGit, op_id: u64) -> bool {
+    let Ok(saved) = git.text(["rev-parse", "-q", "--verify", &format!("{}^{{tree}}", pin_ref(op_id))]) else {
+        return true;
+    };
+    git.wip_tree().map(|now| now == saved).unwrap_or(false)
+}
+
 /// Descarta as mudanças dos `paths` (vazio = tudo): index, árvore de trabalho e untracked.
 pub fn discard_changes(git: &RepoGit, paths: &[String]) -> Result<()> {
     git.exec(&scoped(GitCmd::new(["reset", "-q"]), paths).also_ok(1))?;
