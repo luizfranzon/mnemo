@@ -214,6 +214,33 @@ impl RepoGit {
         Ok(out.text().lines().filter_map(|l| l.split_once('\0')).map(|(n, s)| (n.to_string(), s.to_string())).collect())
     }
 
+    pub fn remotes(&self) -> Result<Vec<String>> {
+        Ok(self.text(["remote"])?.lines().map(str::to_string).collect())
+    }
+
+    /// Upstream de uma branch local ("origin/main"), se tiver. Upstream apagado do remoto ("gone") conta como sem.
+    pub fn upstream(&self, branch: &str) -> Result<Option<String>> {
+        let out = self.text(["for-each-ref", "--format=%(upstream:short)%00%(upstream:track)", &Self::branch_ref(branch)])?;
+        let (name, track) = out.split_once('\0').unwrap_or((&out, ""));
+        Ok(Some(name.to_string()).filter(|u| !u.is_empty() && track != "[gone]"))
+    }
+
+    /// Branches remotas (remoto, nome) em ordem alfabética, sem o `<remoto>/HEAD` simbólico.
+    pub fn remote_branches(&self) -> Result<Vec<(String, String)>> {
+        let remotes = self.remotes()?;
+        let out = self.text(["for-each-ref", "--sort=refname", "--format=%(refname)%00%(symref)", "refs/remotes"])?;
+        Ok(out
+            .lines()
+            .filter_map(|l| {
+                let (full, symref) = l.split_once('\0')?;
+                let full = full.strip_prefix("refs/remotes/").filter(|_| symref.is_empty())?;
+                // o nome do remoto pode ter "/": casa pelo remoto conhecido mais longo
+                let remote = remotes.iter().filter(|r| full.starts_with(&format!("{r}/"))).max_by_key(|r| r.len())?;
+                Some((remote.clone(), full[remote.len() + 1..].to_string()))
+            })
+            .collect())
+    }
+
     pub fn stash_list(&self) -> Result<Vec<StashEntry>> {
         let out = self.exec(&GitCmd::new(["stash", "list", "--format=%H%x00%gs"]))?;
         Ok(out

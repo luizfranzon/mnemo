@@ -11,7 +11,8 @@ export interface UndoRedoState {
   redo: ActionState
 }
 
-export type HeadInfo = { kind: 'branch'; name: string } | { kind: 'detached'; sha: string }
+/** `upstream` nulo: o Push define o upstream. */
+export type HeadInfo = { kind: 'branch'; name: string; upstream: string | null } | { kind: 'detached'; sha: string }
 
 export interface RepositoryInfo {
   path: string
@@ -26,6 +27,11 @@ export interface BranchInfo {
   current: boolean
 }
 
+export interface RemoteBranchInfo {
+  remote: string
+  name: string
+}
+
 export type OperationKind =
   | { type: 'checkout'; target: string }
   | { type: 'commit'; message: string; amend: boolean; allowEmpty: boolean }
@@ -35,6 +41,7 @@ export type OperationKind =
   | { type: 'merge'; target: string }
   | { type: 'push'; remote: string | null; branch: string | null; setUpstream: boolean }
   | { type: 'fetch'; remote: string | null }
+  | { type: 'deleteRemoteBranch'; remote: string; branch: string }
 
 export type ExecuteResult =
   | { status: 'completed'; opId: number | null; label: string; undoable: boolean; warnings: string[]; state: UndoRedoState }

@@ -22,10 +22,20 @@ impl Handler for RemoteHandler {
             Push { remote, branch, set_upstream } => {
                 let mut a = vec!["push".to_string()];
                 if *set_upstream {
-                    a.push("-u".into());
+                    // `push -u` sem alvo falha: publica a branch atual no origin (ou no único remoto)
+                    let branch = match branch {
+                        Some(b) => b.clone(),
+                        None => current_branch(ctx)?,
+                    };
+                    let remote = match remote {
+                        Some(r) => r.clone(),
+                        None => default_remote(ctx)?,
+                    };
+                    a.extend(["-u".into(), remote, branch]);
+                } else {
+                    a.extend(remote.clone());
+                    a.extend(branch.clone());
                 }
-                a.extend(remote.clone());
-                a.extend(branch.clone());
                 a
             }
             Fetch { remote } => {
@@ -40,5 +50,24 @@ impl Handler for RemoteHandler {
         };
         ctx.git.exec(&GitCmd::new(args).timeout(NETWORK_TIMEOUT))?;
         Ok(HandlerOutcome::Done(UndoPlan::irreversible(REMOTE_REASON)))
+    }
+}
+
+fn current_branch(ctx: &ExecCtx) -> Result<String> {
+    ctx.before
+        .branch_name()
+        .map(str::to_string)
+        .ok_or_else(|| CoreError::invalid("HEAD destacado: crie uma branch antes de definir o upstream"))
+}
+
+fn default_remote(ctx: &ExecCtx) -> Result<String> {
+    let mut remotes = ctx.git.remotes()?;
+    if remotes.iter().any(|r| r == "origin") {
+        return Ok("origin".into());
+    }
+    match remotes.len() {
+        1 => Ok(remotes.remove(0)),
+        0 => Err(CoreError::invalid("Nenhum remoto configurado")),
+        _ => Err(CoreError::invalid("Escolha o remoto para definir o upstream")),
     }
 }

@@ -1,4 +1,5 @@
 mod support;
+use mnemo_core::api::HeadInfo;
 use mnemo_core::application::session::ExecuteResult;
 use mnemo_core::domain::operation::{OperationKind, PullStrategy};
 use mnemo_core::CoreError;
@@ -340,4 +341,39 @@ fn push_fetch_e_excluir_remota_nao_sao_desfazíveis() {
     repo.exec(OperationKind::DeleteRemoteBranch { remote: "origin".into(), branch: "velha".into() });
     assert!(run_git(remote.path(), &["branch", "--list", "velha"]).is_empty());
     assert!(!repo.session().undo_state().undo.enabled);
+}
+
+fn upstream(repo: &TestRepo) -> Option<String> {
+    match repo.core.open_repository(&repo.path().to_string_lossy()).expect("abre").head {
+        HeadInfo::Branch { upstream, .. } => upstream,
+        HeadInfo::Detached { .. } => None,
+    }
+}
+
+#[test]
+fn push_com_set_upstream_sem_alvo_publica_a_branch_atual_no_origin() {
+    let repo = TestRepo::new();
+    let _remote = repo.with_remote();
+    assert_eq!(upstream(&repo).as_deref(), Some("origin/main"));
+    repo.git(&["checkout", "-q", "-b", "nova"]);
+    assert_eq!(upstream(&repo), None);
+
+    repo.exec(OperationKind::Push { remote: None, branch: None, set_upstream: true });
+    assert_eq!(upstream(&repo).as_deref(), Some("origin/nova"));
+    assert_eq!(repo.rev("origin/nova"), repo.head());
+
+    // excluída do remoto, a branch volta a precisar de upstream
+    repo.exec(OperationKind::DeleteRemoteBranch { remote: "origin".into(), branch: "nova".into() });
+    assert_eq!(upstream(&repo), None);
+}
+
+#[test]
+fn lista_branches_remotas_sem_o_head_simbolico() {
+    let repo = TestRepo::new();
+    let _remote = repo.with_remote();
+    repo.git(&["push", "-q", "origin", "main:feat/x"]);
+    repo.git(&["remote", "set-head", "origin", "main"]);
+    let list: Vec<_> =
+        repo.core.list_remote_branches(&repo.path().to_string_lossy()).expect("lista").into_iter().map(|b| (b.remote, b.name)).collect();
+    assert_eq!(list, [("origin".to_string(), "feat/x".to_string()), ("origin".into(), "main".into())]);
 }

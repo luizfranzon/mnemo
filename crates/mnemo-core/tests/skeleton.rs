@@ -7,7 +7,7 @@ use support::TestRepo;
 fn abrir_repositorio_mostra_a_branch_atual() {
     let repo = TestRepo::new();
     let info = repo.core.open_repository(&repo.path().to_string_lossy()).expect("abre");
-    assert!(matches!(info.head, HeadInfo::Branch { ref name } if name == "main"));
+    assert!(matches!(info.head, HeadInfo::Branch { ref name, .. } if name == "main"));
 }
 
 #[test]
@@ -23,7 +23,7 @@ fn head_destacado_mostra_o_sha_curto() {
 fn repositorio_sem_commits_mostra_a_branch_nao_nascida() {
     let repo = TestRepo::empty();
     let info = repo.core.open_repository(&repo.path().to_string_lossy()).expect("abre");
-    assert!(matches!(info.head, HeadInfo::Branch { ref name } if name == "main"));
+    assert!(matches!(info.head, HeadInfo::Branch { ref name, .. } if name == "main"));
 }
 
 #[test]

@@ -1,25 +1,52 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
-import type { BranchInfo } from '../bridge/types'
-import { actions, selectActiveTab, useApp } from '../store/app'
+import { actions, selectActiveTab, useApp, type PaletteMode } from '../store/app'
 
 const ROW = 28
 
-/** Paleta (Ctrl+P): checkout de branch local. Lista virtualizada, com `key` estável (nome da ref). */
-export function Palette() {
+interface Item {
+  /** Nome da ref: `key` estável da lista virtualizada. */
+  name: string
+  current: boolean
+  pick: () => void
+}
+
+const PLACEHOLDER: Record<PaletteMode, string> = {
+  checkout: 'Checkout de branch…',
+  deleteRemote: 'Excluir branch remota…',
+}
+
+function load(mode: PaletteMode, path: string): Promise<Item[]> {
+  if (mode === 'checkout')
+    return core.listBranches(path).then((bs) =>
+      bs.map((b) => ({
+        name: b.name,
+        current: b.current,
+        pick: () => {
+          if (!b.current) void actions.execute(path, { type: 'checkout', target: b.name })
+        },
+      })),
+    )
+  return core.listRemoteBranches(path).then((bs) =>
+    bs.map((b) => ({ name: `${b.remote}/${b.name}`, current: false, pick: () => actions.requestDeleteRemote(path, b.remote, b.name) })),
+  )
+}
+
+/** Paleta: checkout de branch local (Ctrl+P) ou escolha da branch remota a excluir. */
+export function Palette({ mode }: { mode: PaletteMode }) {
   const path = useApp((s) => selectActiveTab(s)?.path)
-  const [branches, setBranches] = useState<BranchInfo[]>([])
+  const [items, setItems] = useState<Item[]>([])
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
   const scroller = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (path) void core.listBranches(path).then(setBranches, () => setBranches([]))
-  }, [path])
+    if (path) void load(mode, path).then(setItems, () => setItems([]))
+  }, [mode, path])
 
   const q = query.trim().toLowerCase()
-  const shown = q ? branches.filter((b) => b.name.toLowerCase().includes(q)) : branches
+  const shown = q ? items.filter((b) => b.name.toLowerCase().includes(q)) : items
 
   const virtual = useVirtualizer({ count: shown.length, getScrollElement: () => scroller.current, estimateSize: () => ROW, overscan: 8 })
 
@@ -27,19 +54,19 @@ export function Palette() {
     virtual.scrollToIndex(cursor) // a seleção por teclado acompanha a lista virtualizada
   }, [cursor, virtual])
 
-  const close = () => actions.setPalette(false)
-  const choose = (b: BranchInfo | undefined) => {
-    if (!b || !path) return
+  const close = () => actions.setPalette(null)
+  const choose = (b: Item | undefined) => {
+    if (!b) return
     close()
-    if (!b.current) void actions.execute(path, { type: 'checkout', target: b.name })
+    b.pick()
   }
 
   return (
     <div className="overlay" onMouseDown={close}>
-      <div className="palette" role="dialog" aria-label="Checkout de branch" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="palette" role="dialog" aria-label={PLACEHOLDER[mode]} onMouseDown={(e) => e.stopPropagation()}>
         <input
           autoFocus
-          placeholder="Checkout de branch…"
+          placeholder={PLACEHOLDER[mode]}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)

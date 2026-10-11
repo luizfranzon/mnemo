@@ -7,7 +7,7 @@ import { Toolbar } from './Toolbar'
 
 export function Workspace() {
   const hasTab = useApp((s) => selectActiveTab(s) !== undefined)
-  const paletteOpen = useApp((s) => s.paletteOpen)
+  const palette = useApp((s) => s.palette)
   return (
     <div className="workspace">
       <TabBar />
@@ -17,7 +17,7 @@ export function Workspace() {
       <DiscardDialogs />
 
       <Toasts />
-      {paletteOpen && <Palette />}
+      {palette && <Palette key={palette} mode={palette} />}
     </div>
   )
 }

@@ -9,6 +9,7 @@ export function Toolbar() {
   const running = useApp((s) => (path ? runningLabel(s, path) : undefined))
   if (!path || !undo || !redo) return null
   const busyReason = running ? `${running} Aguarde terminar.` : undefined
+  const setUpstream = head?.kind === 'branch' && head.upstream === null
   return (
     <div className="toolbar">
       {head?.kind === 'detached' && <span className="badge warning">HEAD destacado · Criar branch aqui</span>}
@@ -26,7 +27,7 @@ export function Toolbar() {
       >
         ↷ Refazer
       </button>
-      <button onClick={() => actions.setPalette(true)} disabled={!!running} title={busyReason ?? 'Checkout de branch (Ctrl+P)'}>
+      <button onClick={() => actions.setPalette('checkout')} disabled={!!running} title={busyReason ?? 'Checkout de branch (Ctrl+P)'}>
         Checkout…
       </button>
       <button onClick={() => void actions.requestDiscard(path, [])} disabled={!!running} title={busyReason ?? 'Descartar todas as mudanças'}>
@@ -35,8 +36,15 @@ export function Toolbar() {
       <button onClick={() => void actions.execute(path, { type: 'fetch', remote: null })} disabled={!!running} title={busyReason ?? 'Buscar do remoto (não desfazível: mexe no remoto)'}>
         Buscar
       </button>
-      <button onClick={() => void actions.execute(path, { type: 'push', remote: null, branch: null, setUpstream: false })} disabled={!!running} title={busyReason ?? 'Enviar para o remoto (não desfazível: mexe no remoto)'}>
+      <button
+        onClick={() => void actions.execute(path, { type: 'push', remote: null, branch: null, setUpstream })}
+        disabled={!!running}
+        title={busyReason ?? `${setUpstream ? 'Publicar a branch e definir o upstream' : 'Enviar para o remoto'} (não desfazível: mexe no remoto)`}
+      >
         Push
+      </button>
+      <button onClick={() => actions.setPalette('deleteRemote')} disabled={!!running} title={busyReason ?? 'Excluir uma branch do remoto (não desfazível: mexe no remoto)'}>
+        Excluir remota…
       </button>
       {running && <span className="badge">{running}</span>}
     </div>

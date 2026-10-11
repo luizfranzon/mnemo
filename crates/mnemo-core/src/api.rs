@@ -9,7 +9,7 @@ use crate::diag;
 use crate::domain::error::{CoreError, Result};
 use crate::domain::history::HISTORY_LIMIT;
 use crate::domain::operation::OperationKind;
-use crate::domain::repo_state::short_sha;
+use crate::domain::repo_state::{short_ref, short_sha};
 use crate::domain::undo_state::UndoRedoState;
 use crate::infrastructure::json_history_store::JsonHistoryStore;
 use crate::infrastructure::process_git::ProcessGit;
@@ -33,6 +33,8 @@ pub struct GitInfo {
 pub enum HeadInfo {
     Branch {
         name: String,
+        /// "origin/main"; `None` quando o Push precisa definir o upstream.
+        upstream: Option<String>,
     },
     /// HEAD destacado: SHA curto.
     Detached {
@@ -55,6 +57,13 @@ pub struct BranchInfo {
     pub name: String,
     pub sha: String,
     pub current: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteBranchInfo {
+    pub remote: String,
+    pub name: String,
 }
 
 #[derive(Deserialize)]
@@ -106,7 +115,10 @@ impl Mnemo {
         let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
         let state = git.capture_state(false)?;
         let head = match (&state.head_ref, &state.head_sha) {
-            (Some(r), _) => HeadInfo::Branch { name: r.strip_prefix("refs/heads/").unwrap_or(r).to_string() },
+            (Some(r), _) => {
+                let name = short_ref(r).to_string();
+                HeadInfo::Branch { upstream: git.upstream(&name)?, name }
+            }
             (None, Some(sha)) => HeadInfo::Detached { sha: short_sha(sha).to_string() },
             (None, None) => return Err(CoreError::NotARepository { path: path.to_string() }),
         };
@@ -128,6 +140,13 @@ impl Mnemo {
                 sha,
             })
             .collect())
+    }
+
+    /// Branches remotas, para excluir no remoto.
+    pub fn list_remote_branches(&self, path: &str) -> Result<Vec<RemoteBranchInfo>> {
+        let session = self.session_for(Path::new(path))?;
+        let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+        Ok(git.remote_branches()?.into_iter().map(|(remote, name)| RemoteBranchInfo { remote, name }).collect())
     }
 
     pub fn close_repository(&self, path: &str) {
@@ -201,6 +220,9 @@ impl Mnemo {
         }
         if cmd == "list_branches" {
             return out(self.list_branches(&path)?);
+        }
+        if cmd == "list_remote_branches" {
+            return out(self.list_remote_branches(&path)?);
         }
         if cmd == "close_repository" {
             self.close_repository(&path);

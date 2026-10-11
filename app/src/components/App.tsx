@@ -18,7 +18,7 @@ export function App() {
       else if (action === 'close-tab' && tab) actions.closeTab(tab.path)
       else if (action === 'undo' && tab) void actions.undo(tab.path)
       else if (action === 'redo' && tab) void actions.redo(tab.path)
-      else if (action === 'palette' && tab) actions.setPalette(true)
+      else if (action === 'palette' && tab) actions.setPalette('checkout')
     })
     return () => {
       offCore()
