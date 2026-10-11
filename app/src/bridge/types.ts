@@ -43,6 +43,14 @@ export type CoreEvent =
   | { type: 'operationFinished'; workdir: string; label: string; ok: boolean }
   | { type: 'historyChanged'; workdir: string; state: UndoRedoState }
 
+export interface DiscardPreview {
+  trackedChanges: number
+  untrackedFiles: number
+  untrackedBytes: number
+  /** Acima do limite: o descarte segue sem snapshot (não desfazível). */
+  exceedsLimit: boolean
+}
+
 export interface CoreError {
   code: string
   message: string

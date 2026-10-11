@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { core, errorCode, errorMessage } from '../bridge'
-import type { HeadInfo, OperationKind, RepositoryInfo, UndoRedoState } from '../bridge/types'
+import type { DiscardPreview, HeadInfo, OperationKind, RepositoryInfo, UndoRedoState } from '../bridge/types'
 
 export interface Tab {
   /** Diretório de trabalho: a identidade da Aba (o mesmo diretório nunca abre duas vezes). */
@@ -28,6 +28,10 @@ interface AppState {
   toasts: Toast[]
   error: string | null
   paletteOpen: boolean
+  /** Descarte aguardando confirmação. */
+  discardPrompt: { path: string; paths: string[]; preview: DiscardPreview } | null
+  /** Desfazer de um descarte que bateu em edição posterior: oferece a cópia ao lado. */
+  restoreConflict: { path: string; opId: number; paths: string[] } | null
 }
 
 export const useApp = create<AppState>(() => ({
@@ -38,6 +42,8 @@ export const useApp = create<AppState>(() => ({
   toasts: [],
   error: null,
   paletteOpen: false,
+  discardPrompt: null,
+  restoreConflict: null,
 }))
 
 const set = useApp.setState
@@ -132,6 +138,42 @@ export const actions = {
     await stepHistory(path, core.redo)
   },
 
+  async requestDiscard(path: string, paths: string[]) {
+    try {
+      const preview = await core.discardPreview(path, paths)
+      if (preview.trackedChanges + preview.untrackedFiles === 0) return pushToast({ text: 'Não há mudanças para descartar' })
+      set({ discardPrompt: { path, paths, preview }, error: null })
+    } catch (err) {
+      fail(err)
+    }
+  },
+
+  async confirmDiscard() {
+    const prompt = get().discardPrompt
+    set({ discardPrompt: null })
+    if (prompt) await actions.execute(prompt.path, { type: 'discard', paths: prompt.paths })
+  },
+
+  cancelDiscard() {
+    set({ discardPrompt: null })
+  },
+
+  async restoreAsCopies() {
+    const c = get().restoreConflict
+    set({ restoreConflict: null })
+    if (!c) return
+    try {
+      const copies = await core.restoreDiscardAsCopies(c.path, c.opId)
+      pushToast({ text: `${copies.length} arquivo(s) restaurado(s) como cópia ao lado (.mnemo-restaurado)` })
+    } catch (err) {
+      fail(err)
+    }
+  },
+
+  dismissRestoreConflict() {
+    set({ restoreConflict: null })
+  },
+
   setPalette(open: boolean) {
     set({ paletteOpen: open })
   },
@@ -162,6 +204,11 @@ async function stepHistory(path: string, fn: (p: string) => Promise<UndoRedoStat
     await refreshHead(path)
     set({ error: null })
   } catch (err) {
+    const c = err as { code?: string; op_id?: number; opId?: number; paths?: string[] }
+    if (c.code === 'restoreConflict') {
+      set({ restoreConflict: { path, opId: (c.op_id ?? c.opId)!, paths: c.paths ?? [] }, error: null })
+      return
+    }
     fail(err)
     // a Mudança externa corta o histórico: relê o estado para o botão refletir o motivo
     await core.syncExternal(path).then((undo) => patchTab(path, { undo }), () => undefined)

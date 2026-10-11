@@ -29,6 +29,9 @@ export function Toolbar() {
       <button onClick={() => actions.setPalette(true)} disabled={!!running} title={busyReason ?? 'Checkout de branch (Ctrl+P)'}>
         Checkout…
       </button>
+      <button onClick={() => void actions.requestDiscard(path, [])} disabled={!!running} title={busyReason ?? 'Descartar todas as mudanças'}>
+        Descartar tudo…
+      </button>
       {running && <span className="badge">{running}</span>}
     </div>
   )

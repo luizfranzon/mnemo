@@ -1,4 +1,5 @@
 import { actions, selectActiveTab, useApp } from '../store/app'
+import { DiscardDialogs } from './DiscardDialogs'
 import { Palette } from './Palette'
 import { TabBar } from './TabBar'
 import { Toasts } from './Toasts'
@@ -13,6 +14,8 @@ export function Workspace() {
       {hasTab && <Toolbar />}
       <ErrorBanner />
       <main className="main">{hasTab ? <RepoSummary /> : <Empty />}</main>
+      <DiscardDialogs />
+
       <Toasts />
       {paletteOpen && <Palette />}
     </div>

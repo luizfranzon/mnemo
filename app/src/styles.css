@@ -34,3 +34,6 @@ input:focus { border-color: var(--accent); }
 .palette-list { overflow: auto; max-height: 40vh; }
 .palette-row { display: flex; justify-content: space-between; align-items: center; background: transparent; border: 0; border-radius: 6px; padding: 0 10px; text-align: left; }
 .palette-row.selected { background: var(--menu-highlight); color: var(--accent-text); }
+
+.modal { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.5); }
+.modal .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
