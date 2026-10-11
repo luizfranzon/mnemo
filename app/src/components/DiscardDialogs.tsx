@@ -1,8 +1,20 @@
+import { useEffect } from 'react'
 import { actions, useApp } from '../store/app'
 
 export function DiscardDialogs() {
   const prompt = useApp((s) => s.discardPrompt)
   const conflict = useApp((s) => s.restoreConflict)
+  const open = prompt !== null || conflict !== null
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (prompt) actions.cancelDiscard()
+      else actions.dismissRestoreConflict()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, prompt, conflict])
   if (prompt) {
     const { trackedChanges, untrackedFiles, exceedsLimit } = prompt.preview
     return (
@@ -19,7 +31,7 @@ export function DiscardDialogs() {
           )}
           <div className="actions">
             <button onClick={actions.cancelDiscard}>Cancelar</button>
-            <button className="primary" onClick={() => void actions.confirmDiscard()}>
+            <button className="primary" autoFocus onClick={() => void actions.confirmDiscard()}>
               Descartar
             </button>
           </div>
@@ -40,7 +52,7 @@ export function DiscardDialogs() {
           </ul>
           <div className="actions">
             <button onClick={actions.dismissRestoreConflict}>Fechar</button>
-            <button className="primary" onClick={() => void actions.restoreAsCopies()}>
+            <button className="primary" autoFocus onClick={() => void actions.restoreAsCopies()}>
               Restaurar como cópia ao lado
             </button>
           </div>

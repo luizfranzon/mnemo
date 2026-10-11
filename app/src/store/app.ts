@@ -204,9 +204,9 @@ async function stepHistory(path: string, fn: (p: string) => Promise<UndoRedoStat
     await refreshHead(path)
     set({ error: null })
   } catch (err) {
-    const c = err as { code?: string; op_id?: number; opId?: number; paths?: string[] }
+    const c = err as { code?: string; op_id?: number; paths?: string[] }
     if (c.code === 'restoreConflict') {
-      set({ restoreConflict: { path, opId: (c.op_id ?? c.opId)!, paths: c.paths ?? [] }, error: null })
+      set({ restoreConflict: { path, opId: c.op_id!, paths: c.paths ?? [] }, error: null })
       return
     }
     fail(err)
