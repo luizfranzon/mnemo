@@ -1,10 +1,10 @@
 // Único módulo da UI que conhece como falar com o backend. Mesmo formato do `@tauri-apps/api`:
 // na migração para o Tauri, só este arquivo troca. Nenhum componente importa `electron`.
-import type { BranchInfo, CoreError, CoreEvent, DiscardPreview, ExecuteResult, ResetPreview, MenuAction, OperationKind, RemoteBranchInfo, RepositoryInfo, UndoRedoState } from './types'
+import type { BranchInfo, CoreError, CoreEvent, DiscardPreview, ExecuteResult, ResetPreview, OperationKind, RemoteBranchInfo, RepositoryInfo, UndoRedoState, WindowAction } from './types'
 
 interface Transport {
   invoke(cmd: string, args: Record<string, unknown>): Promise<unknown>
-  listen(event: 'core' | 'menu', cb: (payload: unknown) => void): () => void
+  listen(event: 'core', cb: (payload: unknown) => void): () => void
 }
 
 declare global {
@@ -17,7 +17,7 @@ export function invoke<T>(cmd: string, args: Record<string, unknown> = {}): Prom
   return window.__mnemo.invoke(cmd, args) as Promise<T>
 }
 
-export function listen<T>(event: 'core' | 'menu', cb: (payload: T) => void): () => void {
+export function listen<T>(event: 'core', cb: (payload: T) => void): () => void {
   return window.__mnemo.listen(event, cb as (payload: unknown) => void)
 }
 
@@ -45,8 +45,8 @@ export const core = {
   undo: (path: string) => invoke<UndoRedoState>('undo', { path }),
   redo: (path: string) => invoke<UndoRedoState>('redo', { path }),
   syncExternal: (path: string) => invoke<UndoRedoState>('sync_external', { path }),
-  setMenuState: (state: Record<string, unknown>) => invoke<null>('set_menu_state', state),
+  /** Controles da janela e edição nativa (a janela não tem moldura nem menu do sistema). */
+  window: (action: WindowAction) => invoke<null>('window_action', { action }),
 }
 
 export const onCoreEvent = (cb: (e: CoreEvent) => void) => listen<CoreEvent>('core', cb)
-export const onMenuAction = (cb: (a: MenuAction) => void) => listen<MenuAction>('menu', cb)

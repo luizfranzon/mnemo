@@ -69,4 +69,19 @@ export interface CoreError {
   message: string
 }
 
-export type MenuAction = 'open-repository' | 'close-tab' | 'undo' | 'redo' | 'palette' | 'toggle-left' | 'toggle-right'
+export type WindowAction =
+  | 'minimize'
+  | 'toggleMaximize'
+  | 'close'
+  | 'quit'
+  | 'toggleFullScreen'
+  | 'zoomIn'
+  | 'zoomOut'
+  | 'zoomReset'
+  | 'about'
+  | 'undo'
+  | 'redo'
+  | 'cut'
+  | 'copy'
+  | 'paste'
+  | 'selectAll'

@@ -1,8 +1,8 @@
-// Processo main: janela, menu nativo e IPC. Nenhuma regra de git mora aqui (ela vive no mnemo-core).
+// Processo main: janela sem moldura e IPC (os menus moram na UI). Nenhuma regra de git mora aqui (ela vive no mnemo-core).
 // O pool do libuv roda as chamadas ao core; uma fila de Operações bloqueia uma thread enquanto espera.
 process.env.UV_THREADPOOL_SIZE ??= '16'
 
-import { app, BrowserWindow, dialog, ipcMain, Menu, type MenuItemConstructorOptions } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron'
 import { existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -11,19 +11,8 @@ interface Native {
   invoke(cmd: string, argsJson: string): Promise<string>
 }
 
-/** Estado que a UI manda para o menu Editar refletir o Desfazer/Refazer. */
-interface MenuState {
-  undoLabel: string | null
-  undoReason: string | null
-  redoLabel: string | null
-  redoReason: string | null
-  textFocus: boolean
-  hasRepo: boolean
-}
-
 let native: Native
 let window: BrowserWindow | null = null
-let menuState: MenuState = { undoLabel: null, undoReason: null, redoLabel: null, redoReason: null, textFocus: false, hasRepo: false }
 
 function loadNative(): Native {
   const base = app.isPackaged ? process.resourcesPath : join(app.getAppPath())
@@ -52,49 +41,23 @@ function send(channel: string, payload: unknown) {
   window?.webContents.send(channel, payload)
 }
 
-function buildMenu() {
-  const action = (name: string) => () => send('mnemo:menu', name)
-  const undoItem = (label: string | null, reason: string | null, verb: string, name: string): MenuItemConstructorOptions => ({
-    label: label ?? `${verb} (${reason ?? 'indisponível'})`,
-    enabled: label !== null,
-    click: action(name),
-  })
-  const edit: MenuItemConstructorOptions[] = []
-  if (menuState.textFocus) edit.push({ label: 'Desfazer digitação', role: 'undo', accelerator: undefined })
-  edit.push(undoItem(menuState.undoLabel, menuState.undoReason, 'Desfazer', 'undo'))
-  if (menuState.textFocus) edit.push({ label: 'Refazer digitação', role: 'redo', accelerator: undefined })
-  edit.push(undoItem(menuState.redoLabel, menuState.redoReason, 'Refazer', 'redo'))
-  edit.push({ type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' })
-
-  const template: MenuItemConstructorOptions[] = [
-    {
-      label: 'Arquivo',
-      submenu: [
-        { label: 'Abrir repositório…', accelerator: 'CmdOrCtrl+O', click: action('open-repository') },
-        { label: 'Fechar aba', accelerator: 'CmdOrCtrl+W', click: action('close-tab') },
-        { type: 'separator' },
-        { role: 'quit', label: 'Sair' },
-      ],
-    },
-    { label: 'Editar', submenu: edit },
-    {
-      label: 'Exibir',
-      submenu: [
-        { label: 'Painel de refs', accelerator: 'CmdOrCtrl+J', enabled: menuState.hasRepo, click: action('toggle-left') },
-        { label: 'Painel direito', accelerator: 'CmdOrCtrl+K', enabled: menuState.hasRepo, click: action('toggle-right') },
-        { type: 'separator' },
-        { role: 'reload' },
-        { role: 'toggleDevTools' },
-        { role: 'togglefullscreen' },
-      ],
-    },
-    {
-      label: 'Repositório',
-      submenu: [{ label: 'Checkout de branch…', accelerator: 'CmdOrCtrl+P', enabled: menuState.hasRepo, click: action('palette') }],
-    },
-    { label: 'Ajuda', submenu: [{ label: 'Sobre o Mnemo', role: 'about' }] },
-  ]
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+/** Ações da barra de título da UI: controles da janela e edição nativa no campo focado. */
+const windowActions: Record<string, (w: BrowserWindow) => void> = {
+  minimize: (w) => w.minimize(),
+  toggleMaximize: (w) => (w.isMaximized() ? w.unmaximize() : w.maximize()),
+  close: (w) => w.close(),
+  quit: () => app.quit(),
+  toggleFullScreen: (w) => w.setFullScreen(!w.isFullScreen()),
+  zoomIn: (w) => w.webContents.setZoomLevel(w.webContents.getZoomLevel() + 0.5),
+  zoomOut: (w) => w.webContents.setZoomLevel(w.webContents.getZoomLevel() - 0.5),
+  zoomReset: (w) => w.webContents.setZoomLevel(0),
+  about: () => app.showAboutPanel(),
+  undo: (w) => w.webContents.undo(),
+  redo: (w) => w.webContents.redo(),
+  cut: (w) => w.webContents.cut(),
+  copy: (w) => w.webContents.copy(),
+  paste: (w) => w.webContents.paste(),
+  selectAll: (w) => w.webContents.selectAll(),
 }
 
 function createWindow() {
@@ -103,6 +66,7 @@ function createWindow() {
     height: 800,
     minWidth: 900,
     minHeight: 560,
+    frame: false, // menus e controles da janela moram na barra de título da UI
     backgroundColor: '#0E0E0F',
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false },
   })
@@ -123,9 +87,10 @@ const appCommands: Record<string, (args: Record<string, unknown>) => Promise<unk
     const args = app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)
     return args.filter((a) => !a.startsWith('-') && existsSync(a) && statSync(a).isDirectory())
   },
-  set_menu_state(args) {
-    menuState = { ...menuState, ...(args as Partial<MenuState>) }
-    buildMenu()
+  window_action(args) {
+    const run = windowActions[String(args.action)]
+    if (!run) throw new Error(`ação de janela desconhecida: ${String(args.action)}`)
+    if (window) run(window)
     return null
   },
 }
@@ -162,7 +127,7 @@ void app.whenReady().then(() => {
     send('mnemo:event', event)
   })
   registerIpc()
-  buildMenu()
+  Menu.setApplicationMenu(null)
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
 })

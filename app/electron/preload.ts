@@ -9,10 +9,9 @@ contextBridge.exposeInMainWorld('__mnemo', {
     if (r.ok) return r.value
     throw r.error
   },
-  listen(event: string, cb: (payload: unknown) => void) {
-    const channel = event === 'menu' ? 'mnemo:menu' : 'mnemo:event'
+  listen(_event: string, cb: (payload: unknown) => void) {
     const handler = (_e: unknown, payload: unknown) => cb(payload)
-    ipcRenderer.on(channel, handler)
-    return () => ipcRenderer.removeListener(channel, handler)
+    ipcRenderer.on('mnemo:event', handler)
+    return () => ipcRenderer.removeListener('mnemo:event', handler)
   },
 })

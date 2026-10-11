@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react'
-import { onMenuAction } from '../bridge'
 import { dragWidth, loadLayout, PANEL, RAIL, saveLayout, type Layout, type Side } from './panelLayout'
+import { TOGGLE_PANEL } from './windowMenus'
 
 /** Refs · centro · painel direito. Montado por Aba (`key` = caminho): cada repo lembra suas larguras. */
 export function Panels({ path, children }: { path: string; children: ReactNode }) {
@@ -14,14 +14,14 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
       return next
     })
 
-  useEffect(
-    () =>
-      onMenuAction((a) => {
-        if (a === 'toggle-left') update((l) => ({ ...l, leftOpen: !l.leftOpen }))
-        else if (a === 'toggle-right') update((l) => ({ ...l, rightOpen: !l.rightOpen }))
-      }),
-    [],
-  )
+  useEffect(() => {
+    const onToggle = (e: Event) => {
+      if ((e as CustomEvent<Side>).detail === 'left') update((l) => ({ ...l, leftOpen: !l.leftOpen }))
+      else update((l) => ({ ...l, rightOpen: !l.rightOpen }))
+    }
+    window.addEventListener(TOGGLE_PANEL, onToggle)
+    return () => window.removeEventListener(TOGGLE_PANEL, onToggle)
+  }, [])
 
   // reaplica a cada render: o arrasto escreveu direto no DOM, e o React não sabe disso
   useLayoutEffect(() => {
