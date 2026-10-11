@@ -27,6 +27,8 @@ interface AppState {
   running: Record<string, string>
   toasts: Toast[]
   error: string | null
+  /** Refaz a ação que falhou por `index.lock` (botão "Tentar de novo"). */
+  retry: (() => Promise<void>) | null
   paletteOpen: boolean
   /** Descarte aguardando confirmação. */
   resetPrompt: { path: string; target: string; preview: ResetPreview } | null
@@ -42,6 +44,7 @@ export const useApp = create<AppState>(() => ({
   running: {},
   toasts: [],
   error: null,
+  retry: null,
   paletteOpen: false,
   resetPrompt: null,
   discardPrompt: null,
@@ -74,8 +77,8 @@ export function dismissToast(id: number) {
   set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
 }
 
-function fail(err: unknown) {
-  set({ error: errorMessage(err) })
+function fail(err: unknown, retry?: () => Promise<void>) {
+  set({ error: errorMessage(err), retry: errorCode(err) === 'indexLocked' ? (retry ?? null) : null })
 }
 
 export const actions = {
@@ -126,9 +129,9 @@ export const actions = {
       if (r.status === 'conflict') pushToast({ text: `${r.progress} parou em conflito` })
       else if (r.opId !== null) pushToast({ text: capitalize(r.label), undoPath: r.undoable ? path : undefined })
       r.status === 'completed' && r.warnings.forEach((w) => pushToast({ text: w }))
-      set({ error: null })
+      set({ error: null, retry: null })
     } catch (err) {
-      fail(err)
+      fail(err, () => actions.execute(path, kind))
     }
   },
 
@@ -199,7 +202,7 @@ export const actions = {
   },
 
   clearError() {
-    set({ error: null })
+    set({ error: null, retry: null })
   },
 
   /** Eventos push do core (`listen`): mantêm Desfazer/Refazer e a toolbar em dia. */
@@ -217,7 +220,7 @@ export const actions = {
   },
 }
 
-async function stepHistory(path: string, fn: (p: string) => Promise<UndoRedoState>) {
+async function stepHistory(path: string, fn: (p: string) => Promise<UndoRedoState>): Promise<void> {
   set((s) => ({ toasts: s.toasts.map(stripUndo) }))
   try {
     patchTab(path, { undo: await fn(path) })
@@ -229,7 +232,7 @@ async function stepHistory(path: string, fn: (p: string) => Promise<UndoRedoStat
       set({ restoreConflict: { path, opId: c.op_id!, paths: c.paths ?? [] }, error: null })
       return
     }
-    fail(err)
+    fail(err, () => stepHistory(path, fn))
     // a Mudança externa corta o histórico: relê o estado para o botão refletir o motivo
     await core.syncExternal(path).then((undo) => patchTab(path, { undo }), () => undefined)
   }

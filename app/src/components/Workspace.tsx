@@ -56,10 +56,12 @@ function RepoSummary() {
 
 function ErrorBanner() {
   const error = useApp((s) => s.error)
+  const retry = useApp((s) => s.retry)
   if (!error) return null
   return (
     <div className="error" role="alert">
       <span>{error}</span>
+      {retry && <button onClick={() => void retry()}>Tentar de novo</button>}
       <button onClick={actions.clearError}>Fechar</button>
     </div>
   )

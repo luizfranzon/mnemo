@@ -33,6 +33,8 @@ export type OperationKind =
   | { type: 'branchCreate'; name: string; start: string | null; checkout: boolean }
   | { type: 'discard'; paths: string[] }
   | { type: 'merge'; target: string }
+  | { type: 'push'; remote: string | null; branch: string | null; setUpstream: boolean }
+  | { type: 'fetch'; remote: string | null }
 
 export type ExecuteResult =
   | { status: 'completed'; opId: number | null; label: string; undoable: boolean; warnings: string[]; state: UndoRedoState }

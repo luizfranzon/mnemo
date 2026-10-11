@@ -32,6 +32,12 @@ export function Toolbar() {
       <button onClick={() => void actions.requestDiscard(path, [])} disabled={!!running} title={busyReason ?? 'Descartar todas as mudanças'}>
         Descartar tudo…
       </button>
+      <button onClick={() => void actions.execute(path, { type: 'fetch', remote: null })} disabled={!!running} title={busyReason ?? 'Buscar do remoto (não desfazível: mexe no remoto)'}>
+        Buscar
+      </button>
+      <button onClick={() => void actions.execute(path, { type: 'push', remote: null, branch: null, setUpstream: false })} disabled={!!running} title={busyReason ?? 'Enviar para o remoto (não desfazível: mexe no remoto)'}>
+        Push
+      </button>
       {running && <span className="badge">{running}</span>}
     </div>
   )
