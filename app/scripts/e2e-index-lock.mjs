@@ -21,7 +21,8 @@ try {
   await click('Buscar')
   await until(async () => (await banner()).includes('Outro processo git está usando este repositório'), true)
   assert.ok(await click('Tentar de novo'), 'botão Tentar de novo ausente')
-  assert.ok((await banner()).includes('Outro processo git'), 'com o lock ainda presente o erro continua')
+  // o banner some no clique e volta quando a nova tentativa bate no lock de novo
+  await until(async () => (await banner()).includes('Outro processo git'), true)
   rmSync(lock)
   await click('Tentar de novo')
   await until(async () => !(await banner()).includes('Outro processo git'), true)
