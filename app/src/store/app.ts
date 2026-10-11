@@ -16,6 +16,7 @@ export interface Toast {
   text: string
   /** Mostra o botão "Desfazer" (Operação desfazível). */
   undoPath?: string
+  pullPath?: string
 }
 
 export type PaletteMode = 'checkout' | 'deleteRemote' | 'createBranch'
@@ -35,6 +36,7 @@ interface AppState {
   palette: PaletteMode | null
   /** Exclusão de branch remota aguardando confirmação (não desfazível). */
   deleteRemotePrompt: { path: string; remote: string; branch: string } | null
+  checkoutPrompt: { path: string; target: string; remote: string | null; conflicts: number; behind: number } | null
   /** Descarte aguardando confirmação. */
   resetPrompt: { path: string; target: string; preview: ResetPreview } | null
   discardPrompt: { path: string; paths: string[]; preview: DiscardPreview } | null
@@ -52,6 +54,7 @@ export const useApp = create<AppState>(() => ({
   retry: null,
   palette: null,
   deleteRemotePrompt: null,
+  checkoutPrompt: null,
   resetPrompt: null,
   discardPrompt: null,
   restoreConflict: null,
@@ -88,6 +91,36 @@ function fail(err: unknown, retry?: () => Promise<void>) {
 }
 
 export const actions = {
+  reportError(err: unknown) { fail(err) },
+  async checkoutRef(path: string, kind: Extract<OperationKind, { type: 'checkout' | 'checkoutRemote' }>, behind = 0) {
+    const target = kind.type === 'checkout' ? kind.target : kind.branch
+    const remote = kind.type === 'checkoutRemote' ? kind.remote : null
+    try {
+      const conflicts = await core.checkoutConflictCount(path, remote ? `${remote}/${target}` : target)
+      if (conflicts > 0) {
+        set({ checkoutPrompt: { path, target, remote, conflicts, behind } })
+        return
+      }
+    } catch (err) { fail(err); return }
+    await actions.execute(path, kind)
+    const head = get().tabs.find((tab) => same(tab.path, path))?.head
+    if (behind > 0 && head?.kind === 'branch' && head.name === target && !get().error)
+      pushToast({ text: `${target} está ${behind} commit(s) atrás do remoto`, pullPath: path })
+  },
+  async confirmCheckout(mode: 'stash' | 'carry') {
+    const prompt = get().checkoutPrompt
+    set({ checkoutPrompt: null })
+    if (!prompt) return
+    await actions.execute(prompt.path, { type: 'checkoutWithChanges', target: prompt.target, remote: prompt.remote, mode })
+    const head = get().tabs.find((tab) => same(tab.path, prompt.path))?.head
+    if (prompt.behind > 0 && head?.kind === 'branch' && head.name === prompt.target && !get().error)
+      pushToast({ text: `${prompt.target} está ${prompt.behind} commit(s) atrás do remoto`, pullPath: prompt.path })
+  },
+  cancelCheckout() { set({ checkoutPrompt: null }) },
+  async pullNow(path: string) {
+    const mode = get().tabs.find((tab) => same(tab.path, path))?.toolbar.pullMode
+    await actions.execute(path, { type: 'pull', strategy: mode === 'rebase' || mode === 'ffOnly' ? mode : 'merge' })
+  },
   async checkGit() {
     set({ git: { phase: 'checking' } })
     try {
@@ -133,7 +166,12 @@ export const actions = {
       patchTab(path, { undo: r.state })
       await refreshHead(path)
       if (r.status === 'conflict') pushToast({ text: `${r.progress} parou em conflito` })
-      else if (r.opId !== null) pushToast({ text: capitalize(r.label), undoPath: r.undoable ? path : undefined })
+      else if (r.opId !== null) {
+        const tracking = kind.type === 'checkoutRemote' ? { branch: kind.branch, remote: kind.remote }
+          : kind.type === 'checkoutWithChanges' && kind.remote ? { branch: kind.target, remote: kind.remote } : null
+        pushToast({ text: tracking ? `criada ${tracking.branch} rastreando ${tracking.remote}/${tracking.branch}` : capitalize(r.label),
+          undoPath: r.undoable ? path : undefined })
+      }
       r.status === 'completed' && r.warnings.forEach((w) => pushToast({ text: w }))
       set({ error: null, retry: null })
     } catch (err) {

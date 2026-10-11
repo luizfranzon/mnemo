@@ -27,12 +27,28 @@ pub enum PullStrategy {
     FfOnly,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CheckoutChangesMode {
+    Stash,
+    Carry,
+}
+
 /// O que o usuário pede. Cada variante vira uma Operação registrada.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum OperationKind {
     Checkout {
         target: String,
+    },
+    CheckoutRemote {
+        remote: String,
+        branch: String,
+    },
+    CheckoutWithChanges {
+        target: String,
+        remote: Option<String>,
+        mode: CheckoutChangesMode,
     },
     Commit {
         message: String,
@@ -116,6 +132,8 @@ impl OperationKind {
         use OperationKind::*;
         match self {
             Checkout { target } => format!("checkout de {target}"),
+            CheckoutRemote { remote, branch } => format!("criar {branch} rastreando {remote}/{branch}"),
+            CheckoutWithChanges { target, mode, .. } => format!("checkout de {target} ({mode:?})"),
             Commit { amend: true, .. } => "amend".into(),
             Commit { .. } => "commit".into(),
             Reset { target, mode } => format!("reset {} para {target}", mode.flag().trim_start_matches("--")),
@@ -145,8 +163,10 @@ impl OperationKind {
     /// A Operação restaura a árvore do index ao ser desfeita (precisa dela gravada).
     pub fn tracks_index(&self) -> bool {
         use OperationKind::*;
-        matches!(self, Commit { .. } | StashCreate { .. } | StashApply { .. } | StashPop { .. })
-            || matches!(self, Reset { mode, .. } if *mode != ResetMode::Hard)
+        matches!(
+            self,
+            Commit { .. } | StashCreate { .. } | StashApply { .. } | StashPop { .. } | CheckoutWithChanges { .. }
+        ) || matches!(self, Reset { mode, .. } if *mode != ResetMode::Hard)
     }
 
     /// Texto da toolbar enquanto a Operação roda.

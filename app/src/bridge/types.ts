@@ -41,9 +41,23 @@ export interface RemoteBranchInfo {
   remote: string
   name: string
 }
+export interface LocalRef { name: string; sha: string; current: boolean; upstream: string | null; ahead: number | null; behind: number | null }
+export interface RemoteRef { remote: string; name: string; sha: string; localExists: boolean }
+export interface RemoteGroup { name: string; branches: RemoteRef[]; folders: { name: string; branches: RemoteRef[] }[] }
+export interface NamedRef { name: string; sha: string }
+export interface RefListing {
+  local: LocalRef[]
+  remotes: RemoteGroup[]
+  worktrees: { path: string; branch: string | null }[]
+  stashes: NamedRef[]
+  tags: NamedRef[]
+  submodules: NamedRef[]
+}
 
 export type OperationKind =
   | { type: 'checkout'; target: string }
+  | { type: 'checkoutRemote'; remote: string; branch: string }
+  | { type: 'checkoutWithChanges'; target: string; remote: string | null; mode: 'stash' | 'carry' }
   | { type: 'commit'; message: string; amend: boolean; allowEmpty: boolean }
   | { type: 'reset'; target: string; mode: 'soft' | 'mixed' | 'hard' }
   | { type: 'branchCreate'; name: string; start: string | null; checkout: boolean }

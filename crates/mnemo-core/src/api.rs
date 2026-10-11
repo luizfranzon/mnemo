@@ -16,7 +16,7 @@ use crate::infrastructure::process_git::ProcessGit;
 use crate::infrastructure::PinnedRefsCleaner;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
@@ -82,6 +82,66 @@ pub struct BranchInfo {
 pub struct RemoteBranchInfo {
     pub remote: String,
     pub name: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalRef {
+    pub name: String,
+    pub sha: String,
+    pub current: bool,
+    pub upstream: Option<String>,
+    pub ahead: Option<u64>,
+    pub behind: Option<u64>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteRef {
+    pub remote: String,
+    pub name: String,
+    pub sha: String,
+    pub local_exists: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteFolder {
+    pub name: String,
+    pub branches: Vec<RemoteRef>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteGroup {
+    pub name: String,
+    pub branches: Vec<RemoteRef>,
+    pub folders: Vec<RemoteFolder>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NamedRef {
+    pub name: String,
+    pub sha: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorktreeRef {
+    pub path: String,
+    pub branch: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefListing {
+    pub local: Vec<LocalRef>,
+    pub remotes: Vec<RemoteGroup>,
+    pub worktrees: Vec<WorktreeRef>,
+    pub stashes: Vec<NamedRef>,
+    pub tags: Vec<NamedRef>,
+    pub submodules: Vec<NamedRef>,
 }
 
 #[derive(Deserialize)]
@@ -191,6 +251,121 @@ impl Mnemo {
         Ok(git.remote_branches()?.into_iter().map(|(remote, name)| RemoteBranchInfo { remote, name }).collect())
     }
 
+    /// Um retrato das refs do painel esquerdo. A contagem de ahead/behind vem do
+    /// próprio for-each-ref, sem abrir um processo por branch.
+    pub fn list_refs(&self, path: &str) -> Result<RefListing> {
+        let session = self.session_for(Path::new(path))?;
+        let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+        let current = git.capture_state(false)?.head_ref;
+        let raw = git.text([
+            "for-each-ref",
+            "--sort=refname",
+            "--format=%(refname)%00%(objectname)%00%(upstream:short)%00%(upstream:track,nobracket)",
+            "refs/heads",
+            "refs/remotes",
+            "refs/tags",
+        ])?;
+        let remote_names = git.remotes()?;
+        let mut local = Vec::new();
+        let mut remote_refs = Vec::new();
+        let mut tags = Vec::new();
+        for line in raw.lines() {
+            let fields: Vec<&str> = line.split('\0').collect();
+            if fields.len() < 4 {
+                continue;
+            }
+            let (full, sha, upstream, track) = (fields[0], fields[1], fields[2], fields[3]);
+            if let Some(name) = full.strip_prefix("refs/heads/") {
+                let (ahead, behind) = if upstream.is_empty() || track.contains("gone") {
+                    (None, None)
+                } else {
+                    let count = |word: &str| {
+                        track
+                            .split([',', ' '])
+                            .collect::<Vec<_>>()
+                            .windows(2)
+                            .find(|pair| pair[0] == word)
+                            .and_then(|pair| pair[1].parse::<u64>().ok())
+                            .unwrap_or(0)
+                    };
+                    (Some(count("ahead")), Some(count("behind")))
+                };
+                local.push(LocalRef {
+                    name: name.into(),
+                    sha: sha.into(),
+                    current: current.as_deref() == Some(full),
+                    upstream: (!upstream.is_empty() && !track.contains("gone")).then(|| upstream.into()),
+                    ahead,
+                    behind,
+                });
+            } else if let Some(name) = full.strip_prefix("refs/tags/") {
+                tags.push(NamedRef { name: name.into(), sha: sha.into() });
+            } else if let Some(rest) = full.strip_prefix("refs/remotes/") {
+                if let Some(remote) =
+                    remote_names.iter().filter(|r| rest.starts_with(&format!("{r}/"))).max_by_key(|r| r.len())
+                {
+                    let name = &rest[remote.len() + 1..];
+                    if name != "HEAD" {
+                        remote_refs.push(RemoteRef {
+                            remote: remote.clone(),
+                            name: name.into(),
+                            sha: sha.into(),
+                            local_exists: local.iter().any(|b| b.name == name),
+                        });
+                    }
+                }
+            }
+        }
+        // for-each-ref já ordena por refname: refs/heads vêm antes das remotas.
+        let remotes = group_remotes(remote_refs);
+        let worktrees = parse_worktrees(&git.text(["worktree", "list", "--porcelain"])?);
+        let stashes = git
+            .stash_list()?
+            .into_iter()
+            .enumerate()
+            .map(|(i, e)| NamedRef { name: format!("stash@{{{i}}}: {}", e.message), sha: e.sha })
+            .collect();
+        let submodule_output = git.exec(&GitCmd::new(["submodule", "status"]).also_ok(1))?;
+        let submodules = submodule_output
+            .text()
+            .lines()
+            .filter_map(|line| {
+                let content = line.trim_start_matches([' ', '-', '+', 'U']);
+                let (sha, rest) = content.split_once(' ')?;
+                let name = rest.split(" (").next()?.to_string();
+                Some(NamedRef { name, sha: sha.into() })
+            })
+            .collect();
+        Ok(RefListing { local, remotes, worktrees, stashes, tags, submodules })
+    }
+
+    /// Quantas mudanças locais tocam arquivos que diferem no alvo do checkout.
+    /// O preview nunca altera o repositório; o git ainda valida o checkout ao executar.
+    pub fn checkout_conflict_count(&self, path: &str, target: &str) -> Result<usize> {
+        let session = self.session_for(Path::new(path))?;
+        let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+        let diff = git.exec(&GitCmd::new(["diff", "--name-only", "-z", "HEAD", target]))?;
+        let changed: HashSet<&[u8]> = diff.stdout.split(|b| *b == 0).filter(|p| !p.is_empty()).collect();
+        if changed.is_empty() {
+            return Ok(0);
+        }
+        let status = git.exec(&GitCmd::new(["status", "--porcelain=v1", "-z", "--untracked-files=all"]))?;
+        let mut count = 0;
+        let mut fields = status.stdout.split(|b| *b == 0).filter(|p| !p.is_empty());
+        while let Some(entry) = fields.next() {
+            if entry.len() < 4 {
+                continue;
+            }
+            if changed.contains(&entry[3..]) {
+                count += 1;
+            }
+            if entry[0] == b'R' || entry[1] == b'R' || entry[0] == b'C' || entry[1] == b'C' {
+                let _ = fields.next(); // porcelain -z inclui também o caminho original
+            }
+        }
+        Ok(count)
+    }
+
     pub fn close_repository(&self, path: &str) {
         if let Ok(root) = self.toplevel(Path::new(path)) {
             if let Ok(mut map) = self.sessions.write() {
@@ -272,6 +447,14 @@ impl Mnemo {
         if cmd == "list_remote_branches" {
             return out(self.list_remote_branches(&path)?);
         }
+        if cmd == "list_refs" {
+            return out(self.list_refs(&path)?);
+        }
+        if cmd == "checkout_conflict_count" {
+            let target =
+                args.get("target").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("target ausente"))?;
+            return out(self.checkout_conflict_count(&path, target)?);
+        }
         if cmd == "close_repository" {
             self.close_repository(&path);
             return Ok(Value::Null);
@@ -307,6 +490,60 @@ impl Mnemo {
             other => Err(CoreError::invalid(format!("comando desconhecido: {other}"))),
         }
     }
+}
+
+fn group_remotes(refs: Vec<RemoteRef>) -> Vec<RemoteGroup> {
+    let mut groups: BTreeMap<String, (Vec<RemoteRef>, BTreeMap<String, Vec<RemoteRef>>)> = BTreeMap::new();
+    for branch in refs {
+        let group = groups.entry(branch.remote.clone()).or_default();
+        if let Some(prefix) = remote_prefix(&branch.name) {
+            group.1.entry(prefix).or_default().push(branch);
+        } else {
+            group.0.push(branch);
+        }
+    }
+    groups
+        .into_iter()
+        .map(|(name, (branches, folders))| RemoteGroup {
+            name,
+            branches,
+            folders: folders.into_iter().map(|(name, branches)| RemoteFolder { name, branches }).collect(),
+        })
+        .collect()
+}
+
+fn remote_prefix(name: &str) -> Option<String> {
+    if let Some((prefix, _)) = name.split_once('/') {
+        return Some(prefix.into());
+    }
+    if let Some((major, _)) = name.split_once('.') {
+        if !major.is_empty() && major.bytes().all(|b| b.is_ascii_digit()) {
+            return Some(format!("{major}.x"));
+        }
+    }
+    let bytes = name.as_bytes();
+    if bytes.len() >= 6 && bytes[0] == b't' && bytes[1..].iter().all(u8::is_ascii_digit) {
+        return Some(format!("t{}xxxx", bytes[1] as char));
+    }
+    None
+}
+
+fn parse_worktrees(raw: &str) -> Vec<WorktreeRef> {
+    let mut items = Vec::new();
+    let mut path: Option<String> = None;
+    let mut branch: Option<String> = None;
+    for line in raw.lines().chain(std::iter::once("")) {
+        if line.is_empty() {
+            if let Some(p) = path.take() {
+                items.push(WorktreeRef { path: p, branch: branch.take() });
+            }
+        } else if let Some(p) = line.strip_prefix("worktree ") {
+            path = Some(p.into());
+        } else if let Some(b) = line.strip_prefix("branch refs/heads/") {
+            branch = Some(b.into());
+        }
+    }
+    items
 }
 
 fn key(p: &Path) -> String {

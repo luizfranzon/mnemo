@@ -18,7 +18,7 @@ try {
   const p = repo.split(path.sep).join('/')
   await ev(`window.__mnemo.invoke('execute_operation', { path: '${p}', kind: { type: 'checkout', target: 't34951' } })`)
   await until(branch, 't34951')
-  const undoTitle = await ev(`document.querySelector('.toolbar button')?.title`)
+  const undoTitle = await ev(`document.querySelector('.toolbar button[title^="Desfazer:"]')?.title`)
   assert.match(undoTitle, /Desfazer checkout de t34951/)
   await ev(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }))`)
   await until(branch, 'main')

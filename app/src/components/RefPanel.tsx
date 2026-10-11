@@ -1,0 +1,158 @@
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { useEffect, useRef, useState } from 'react'
+import { core } from '../bridge'
+import type { LocalRef, RefListing, RemoteRef } from '../bridge/types'
+import { actions, runningLabel, useApp } from '../store/app'
+
+type Section = 'local' | 'remotes' | 'worktrees' | 'stashes' | 'tags' | 'submodules'
+type Row =
+  | { type: 'section'; key: string; section: Section; label: string; count: number }
+  | { type: 'folder'; key: string; name: string; count: number; depth: number }
+  | { type: 'local'; key: string; ref: LocalRef; depth: number }
+  | { type: 'remote'; key: string; ref: RemoteRef; depth: number }
+  | { type: 'plain'; key: string; name: string; depth: number }
+
+const LABEL: Record<Section, string> = {
+  local: 'Local', remotes: 'Remotos', worktrees: 'Worktrees', stashes: 'Stashes', tags: 'Tags', submodules: 'Submódulos',
+}
+const ICON: Record<Section, string> = {
+  local: '⑂', remotes: '☁', worktrees: '▱', stashes: '▣', tags: '◇', submodules: '▤',
+}
+const ROW_HEIGHT = 28
+
+function counts(refs: RefListing): Record<Section, number> {
+  return {
+    local: refs.local.length,
+    remotes: refs.remotes.reduce((sum, group) => sum + group.branches.length + group.folders.reduce((n, f) => n + f.branches.length, 0), 0),
+    worktrees: refs.worktrees.length,
+    stashes: refs.stashes.length,
+    tags: refs.tags.length,
+    submodules: refs.submodules.length,
+  }
+}
+
+function visibleRows(refs: RefListing, collapsed: Set<string>, query: string): Row[] {
+  const q = query.trim().toLocaleLowerCase()
+  const include = (name: string) => !q || name.toLocaleLowerCase().includes(q)
+  const result: Row[] = []
+  const count = counts(refs)
+  const section = (key: Section, add: () => void) => {
+    if (!count[key]) return
+    const start = result.length
+    result.push({ type: 'section', key: `section:${key}`, section: key, label: LABEL[key], count: count[key] })
+    if (!collapsed.has(key) || q) add()
+    if (q && result.length === start + 1) result.pop()
+  }
+  section('local', () => refs.local.forEach((ref) => {
+    if (include(ref.name)) result.push({ type: 'local', key: `refs/heads/${ref.name}`, ref, depth: 1 })
+  }))
+  section('remotes', () => refs.remotes.forEach((group) => {
+    const children: Row[] = []
+    for (const ref of group.branches) {
+      if (include(`${group.name}/${ref.name}`)) children.push({ type: 'remote', key: `refs/remotes/${group.name}/${ref.name}`, ref, depth: 2 })
+    }
+    for (const folder of group.folders) {
+      const matches = folder.branches.filter((ref) => include(`${group.name}/${ref.name}`))
+      if (!matches.length) continue
+      const folderKey = `remote:${group.name}/${folder.name}`
+      children.push({ type: 'folder', key: folderKey, name: folder.name, count: folder.branches.length, depth: 2 })
+      if (!collapsed.has(folderKey) || q) matches.forEach((ref) => children.push({ type: 'remote', key: `refs/remotes/${group.name}/${ref.name}`, ref, depth: 3 }))
+    }
+    if (!children.length) return
+    const groupKey = `remote:${group.name}`
+    result.push({ type: 'folder', key: groupKey, name: group.name, count: group.branches.length + group.folders.reduce((n, f) => n + f.branches.length, 0), depth: 1 })
+    if (!collapsed.has(groupKey) || q) result.push(...children)
+  }))
+  const plain = (key: Section, entries: { name: string }[]) => section(key, () => entries.forEach((entry) => {
+    if (include(entry.name)) result.push({ type: 'plain', key: `${key}:${entry.name}`, name: entry.name, depth: 1 })
+  }))
+  plain('worktrees', refs.worktrees.map((w) => ({ name: w.branch ? `${w.branch}  ·  ${w.path}` : w.path })))
+  plain('stashes', refs.stashes)
+  plain('tags', refs.tags)
+  plain('submodules', refs.submodules)
+  return result
+}
+
+function loadCollapsed(path: string): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(`mnemo.refs.collapsed:${path}`) ?? '[]') as string[]) }
+  catch { return new Set() }
+}
+
+/** A lista inteira tem uma só área de rolagem virtualizada; pastas vêm agrupadas do core. */
+export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; expand: () => void }) {
+  const [refs, setRefs] = useState<RefListing | null>(null)
+  const [collapsed, setCollapsed] = useState(() => loadCollapsed(path))
+  const [query, setQuery] = useState('')
+  const [selected, setSelected] = useState<string | null>(null)
+  const input = useRef<HTMLInputElement>(null)
+  const scroller = useRef<HTMLDivElement>(null)
+  const running = useApp((s) => runningLabel(s, path))
+  const undo = useApp((s) => s.tabs.find((t) => t.path === path)?.undo)
+  useEffect(() => {
+    if (running) return
+    let active = true
+    void core.listRefs(path).then((next) => { if (active) setRefs(next) }, (err) => { if (active) actions.reportError(err) })
+    return () => { active = false }
+  }, [path, running, undo])
+  useEffect(() => {
+    const focus = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey && e.altKey && e.key.toLowerCase() === 'f')) return
+      e.preventDefault()
+      if (rail) expand()
+      requestAnimationFrame(() => input.current?.focus())
+    }
+    window.addEventListener('keydown', focus)
+    return () => window.removeEventListener('keydown', focus)
+  }, [rail, expand])
+  const toggle = (key: string) => setCollapsed((old) => {
+    const next = new Set(old)
+    if (next.has(key)) next.delete(key); else next.add(key)
+    localStorage.setItem(`mnemo.refs.collapsed:${path}`, JSON.stringify([...next]))
+    return next
+  })
+  const rows = refs && !rail ? visibleRows(refs, collapsed, query) : []
+  const sectionCounts = refs ? counts(refs) : null
+  const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current,
+    estimateSize: () => ROW_HEIGHT, overscan: 10, getItemKey: (index) => rows[index]!.key })
+  const checkout = (row: Row) => {
+    if (row.type === 'local' && !row.ref.current) void actions.checkoutRef(path, { type: 'checkout', target: row.ref.name })
+    if (row.type === 'remote') {
+      const local = refs?.local.find((b) => b.name === row.ref.name)
+      if (local) void actions.checkoutRef(path, { type: 'checkout', target: local.name }, local.upstream === `${row.ref.remote}/${row.ref.name}` ? (local.behind ?? 0) : 0)
+      else void actions.checkoutRef(path, { type: 'checkoutRemote', remote: row.ref.remote, branch: row.ref.name })
+    }
+  }
+  if (rail) return <div className="refs-rail" aria-label="Seções de refs">
+    {sectionCounts && (Object.keys(LABEL) as Section[]).filter((s) => sectionCounts[s]).map((s) =>
+      <button key={s} title={`${LABEL[s]} (${sectionCounts[s]})`} aria-label={`${LABEL[s]}: ${sectionCounts[s]}`} onClick={expand}>
+        <span>{ICON[s]}</span><small>{sectionCounts[s]}</small>
+      </button>)}
+  </div>
+  return <div className="refs-panel">
+    <div className="refs-heading"><strong>Refs</strong><button aria-label="Filtrar refs" title="Filtrar refs (Ctrl+Alt+F)" onClick={() => input.current?.focus()}>⌕</button></div>
+    <input ref={input} className="refs-filter" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtrar refs…" aria-label="Filtrar refs" />
+    <div className="refs-scroll" ref={scroller}>
+      <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
+        {virtual.getVirtualItems().map((item) => {
+          const row = rows[item.index]
+          if (!row) return null
+          const open = !collapsed.has(row.type === 'section' ? row.section : row.key)
+          return <div key={row.key} className="refs-virtual-row" style={{ transform: `translateY(${item.start}px)`, height: ROW_HEIGHT }}>
+            {row.type === 'section' || row.type === 'folder'
+              ? <button className={`refs-row refs-group depth-${row.type === 'folder' ? row.depth : 0}`} onClick={() => toggle(row.type === 'section' ? row.section : row.key)}
+                  aria-expanded={open} title={row.type === 'section' ? row.label : row.name}>
+                  <span className="refs-chevron">{open ? '▾' : '▸'}</span><span className="refs-label">{row.type === 'section' ? row.label : row.name}</span><span className="refs-count">{row.count}</span>
+                </button>
+              : <button className={`refs-row refs-item depth-${row.depth}${selected === row.key ? ' selected' : ''}${row.type === 'local' && row.ref.current ? ' current' : ''}`}
+                  title={row.type === 'remote' ? `${row.ref.remote}/${row.ref.name}` : row.type === 'local' ? row.ref.name : row.name}
+                  onClick={() => setSelected(row.key)} onDoubleClick={() => checkout(row)}>
+                  <span className="refs-symbol">{row.type === 'local' && row.ref.current ? '✓' : row.type === 'remote' ? '☁' : '⑂'}</span>
+                  <span className="refs-label">{row.type === 'remote' ? row.ref.name.split('/').at(-1) : row.type === 'local' ? row.ref.name : row.name}</span>
+                  {row.type === 'local' && row.ref.upstream && <span className="refs-tracking" title={`Upstream: ${row.ref.upstream}`}>↓{row.ref.behind} ↑{row.ref.ahead}</span>}
+                </button>}
+          </div>
+        })}
+      </div>
+    </div>
+  </div>
+}

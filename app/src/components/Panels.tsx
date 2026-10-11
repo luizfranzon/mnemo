@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react'
 import { dragWidth, loadLayout, PANEL, RAIL, saveLayout, type Layout, type Side } from './panelLayout'
+import { RefPanel } from './RefPanel'
 import { TOGGLE_PANEL } from './windowMenus'
 
 /** Refs · centro · painel direito. Montado por Aba (`key` = caminho): cada repo lembra suas larguras. */
@@ -32,6 +33,7 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
   return (
     <div className="panels" ref={root}>
       <aside className={layout.leftOpen ? 'panel panel-left' : 'panel panel-left rail'} aria-label="Refs">
+        <RefPanel path={path} rail={!layout.leftOpen} expand={() => update((l) => ({ ...l, leftOpen: true }))} />
         <Divider side="left" layout={layout} root={root} update={update} />
       </aside>
       <main className="panel-center">{children}</main>

@@ -4,7 +4,7 @@ use super::git::{failure, ProgressKind, RepoGit};
 use super::handlers::{progress_command, ExecCtx, HandlerOutcome, HandlerSet};
 use super::ports::{CoreEvent, EventSink, EvictionHook, GitPort, HistoryStore, PendingOperation, StoredSession};
 use super::queue::TurnQueue;
-use super::restore::{apply_refs, replace_wip, restore_stash_stack};
+use super::restore::{apply_refs, apply_tree_diff, replace_wip, restore_stash_stack};
 use super::snapshot::{self, DiscardPreview, ResetPreview};
 use crate::diag;
 use crate::domain::error::{CoreError, Result};
@@ -340,6 +340,43 @@ impl RepoSession {
         let git = &self.git;
         let undo = dir == Direction::Undo;
         let target = if undo { &op.before } else { &op.after };
+        if matches!(op.kind, OperationKind::CheckoutWithChanges { .. }) {
+            let Some(WipPlan::Replace { before_tree, after_tree, before_index, after_index }) = &op.plan.wip else {
+                return Err(CoreError::internal("checkout sem estado do WIP"));
+            };
+            let expected = if undo { after_tree } else { before_tree };
+            if git.wip_tree()? != *expected {
+                return Err(CoreError::WipChanged);
+            }
+            apply_tree_diff(git, expected, &git.head_tree())?;
+            git.run(["read-tree", "--reset", "HEAD"])?;
+            let refs = op.plan.refs.as_ref().ok_or_else(|| CoreError::internal("checkout sem refs"))?;
+            apply_refs(git, target, if undo { refs.undo } else { refs.redo })?;
+            let target_tree = if undo { before_tree } else { after_tree };
+            apply_tree_diff(git, &git.head_tree(), target_tree)?;
+            if let Some(index) = if undo { before_index } else { after_index } {
+                git.run(["read-tree", "--reset", index])?;
+            }
+            if let OperationKind::CheckoutWithChanges { target: branch, remote: Some(remote), .. } = &op.kind {
+                if undo {
+                    git.exec(
+                        &super::ports::GitCmd::new([
+                            "config",
+                            "--local",
+                            "--remove-section",
+                            &format!("branch.{branch}"),
+                        ])
+                        .also_ok(5),
+                    )?;
+                } else {
+                    git.run(["branch", &format!("--set-upstream-to={remote}/{branch}"), branch.as_str()])?;
+                }
+            }
+            if let Some(stash) = &op.plan.stash {
+                restore_stash_stack(git, if undo { &stash.before } else { &stash.after })?;
+            }
+            return Ok(());
+        }
 
         // Refazer um descarte guarda o WIP de agora antes de levá-lo embora.
         if !undo {
@@ -352,6 +389,27 @@ impl RepoSession {
         }
         if let Some(refs) = &op.plan.refs {
             apply_refs(git, target, if undo { refs.undo } else { refs.redo })?;
+            let tracking = match &op.kind {
+                OperationKind::CheckoutRemote { remote, branch } => Some((remote, branch)),
+                OperationKind::CheckoutWithChanges { target, remote: Some(remote), .. } => Some((remote, target)),
+                _ => None,
+            };
+            if let Some((remote, branch)) = tracking {
+                if undo {
+                    // update-ref remove a branch, mas não sua configuração de tracking.
+                    git.exec(
+                        &super::ports::GitCmd::new([
+                            "config",
+                            "--local",
+                            "--remove-section",
+                            &format!("branch.{branch}"),
+                        ])
+                        .also_ok(5),
+                    )?;
+                } else {
+                    git.run(["branch", &format!("--set-upstream-to={remote}/{branch}"), branch.as_str()])?;
+                }
+            }
         }
         if let Some(wip) = &op.plan.wip {
             match (wip, undo) {

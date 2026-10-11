@@ -17,6 +17,7 @@ export function Toasts() {
               Desfazer
             </button>
           )}
+          {t.pullPath && <button onClick={() => { dismissToast(t.id); void actions.pullNow(t.pullPath!) }}>Pull agora</button>}
         </div>
       ))}
     </div>
