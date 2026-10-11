@@ -25,6 +25,14 @@ pub struct DiscardPreview {
     pub exceeds_limit: bool,
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResetPreview {
+    pub commits: usize,
+    #[serde(flatten)]
+    pub discard: DiscardPreview,
+}
+
 /// Quanto seria descartado e se cabe no snapshot.
 pub fn preview(git: &RepoGit, paths: &[String], limit: u64) -> Result<DiscardPreview> {
     let tracked = git
@@ -40,6 +48,12 @@ pub fn preview(git: &RepoGit, paths: &[String], limit: u64) -> Result<DiscardPre
         untracked_bytes,
         exceeds_limit: untracked_bytes > limit,
     })
+}
+
+/// Commits que o Reset hard para `target` tira da branch (`target..HEAD`).
+pub fn commits_lost(git: &RepoGit, target: &str) -> Result<usize> {
+    let range = format!("{target}..HEAD");
+    Ok(git.exec(&GitCmd::new(["rev-list", "--count", range.as_str()]))?.text().trim().parse().unwrap_or(0))
 }
 
 fn scoped(mut cmd: GitCmd, paths: &[String]) -> GitCmd {

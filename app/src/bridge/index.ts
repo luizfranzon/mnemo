@@ -1,6 +1,6 @@
 // Único módulo da UI que conhece como falar com o backend. Mesmo formato do `@tauri-apps/api`:
 // na migração para o Tauri, só este arquivo troca. Nenhum componente importa `electron`.
-import type { BranchInfo, CoreError, CoreEvent, DiscardPreview, ExecuteResult, MenuAction, OperationKind, RepositoryInfo, UndoRedoState } from './types'
+import type { BranchInfo, CoreError, CoreEvent, DiscardPreview, ExecuteResult, ResetPreview, MenuAction, OperationKind, RepositoryInfo, UndoRedoState } from './types'
 
 interface Transport {
   invoke(cmd: string, args: Record<string, unknown>): Promise<unknown>
@@ -38,6 +38,7 @@ export const core = {
   closeRepository: (path: string) => invoke<null>('close_repository', { path }),
   listBranches: (path: string) => invoke<BranchInfo[]>('list_branches', { path }),
   execute: (path: string, kind: OperationKind) => invoke<ExecuteResult>('execute_operation', { path, kind }),
+  resetPreview: (path: string, target: string) => invoke<ResetPreview>('reset_preview', { path, target }),
   discardPreview: (path: string, paths: string[]) => invoke<DiscardPreview>('discard_preview', { path, paths }),
   restoreDiscardAsCopies: (path: string, opId: number) => invoke<string[]>('restore_discard_as_copies', { path, opId }),
   undo: (path: string) => invoke<UndoRedoState>('undo', { path }),

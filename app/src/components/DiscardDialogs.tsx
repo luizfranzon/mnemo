@@ -3,18 +3,44 @@ import { actions, useApp } from '../store/app'
 
 export function DiscardDialogs() {
   const prompt = useApp((s) => s.discardPrompt)
+  const reset = useApp((s) => s.resetPrompt)
   const conflict = useApp((s) => s.restoreConflict)
-  const open = prompt !== null || conflict !== null
+  const open = prompt !== null || reset !== null || conflict !== null
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       if (prompt) actions.cancelDiscard()
+      else if (reset) actions.cancelReset()
       else actions.dismissRestoreConflict()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, prompt, conflict])
+  }, [open, prompt, reset, conflict])
+  if (reset) {
+    const { commits, trackedChanges, untrackedFiles, exceedsLimit } = reset.preview
+    return (
+      <div className="modal" role="dialog" aria-modal="true">
+        <div className="card">
+          <h2>Reset hard?</h2>
+          <p>
+            {commits} commit(s) saem da branch e {trackedChanges} arquivo(s) rastreado(s) e {untrackedFiles} novo(s) serão descartados.
+          </p>
+          {exceedsLimit ? (
+            <p className="warning">Grande demais para guardar: este reset não poderá ser desfeito.</p>
+          ) : (
+            <p className="muted">Dá para recuperar com Desfazer.</p>
+          )}
+          <div className="actions">
+            <button onClick={actions.cancelReset}>Cancelar</button>
+            <button className="primary" autoFocus onClick={() => void actions.confirmReset()}>
+              Reset hard
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
   if (prompt) {
     const { trackedChanges, untrackedFiles, exceedsLimit } = prompt.preview
     return (

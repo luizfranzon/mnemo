@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { core, errorCode, errorMessage } from '../bridge'
-import type { DiscardPreview, HeadInfo, OperationKind, RepositoryInfo, UndoRedoState } from '../bridge/types'
+import type { DiscardPreview, ResetPreview, HeadInfo, OperationKind, RepositoryInfo, UndoRedoState } from '../bridge/types'
 
 export interface Tab {
   /** Diretório de trabalho: a identidade da Aba (o mesmo diretório nunca abre duas vezes). */
@@ -29,6 +29,7 @@ interface AppState {
   error: string | null
   paletteOpen: boolean
   /** Descarte aguardando confirmação. */
+  resetPrompt: { path: string; target: string; preview: ResetPreview } | null
   discardPrompt: { path: string; paths: string[]; preview: DiscardPreview } | null
   /** Desfazer de um descarte que bateu em edição posterior: oferece a cópia ao lado. */
   restoreConflict: { path: string; opId: number; paths: string[] } | null
@@ -42,6 +43,7 @@ export const useApp = create<AppState>(() => ({
   toasts: [],
   error: null,
   paletteOpen: false,
+  resetPrompt: null,
   discardPrompt: null,
   restoreConflict: null,
 }))
@@ -156,6 +158,24 @@ export const actions = {
 
   cancelDiscard() {
     set({ discardPrompt: null })
+  },
+
+  async requestResetHard(path: string, target: string) {
+    try {
+      set({ resetPrompt: { path, target, preview: await core.resetPreview(path, target) }, error: null })
+    } catch (err) {
+      fail(err)
+    }
+  },
+
+  async confirmReset() {
+    const prompt = get().resetPrompt
+    set({ resetPrompt: null })
+    if (prompt) await actions.execute(prompt.path, { type: 'reset', target: prompt.target, mode: 'hard' })
+  },
+
+  cancelReset() {
+    set({ resetPrompt: null })
   },
 
   async restoreAsCopies() {

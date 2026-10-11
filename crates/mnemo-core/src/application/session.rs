@@ -5,7 +5,7 @@ use super::handlers::{progress_command, ExecCtx, HandlerOutcome, HandlerSet};
 use super::ports::{CoreEvent, EventSink, EvictionHook, GitPort, HistoryStore, PendingOperation, StoredSession};
 use super::queue::TurnQueue;
 use super::restore::{apply_refs, replace_wip, restore_stash_stack};
-use super::snapshot::{self, DiscardPreview};
+use super::snapshot::{self, DiscardPreview, ResetPreview};
 use crate::diag;
 use crate::domain::error::{CoreError, Result};
 use crate::domain::operation::{Operation, OperationKind, RefsStrategy, UndoPlan, WipPlan};
@@ -122,6 +122,14 @@ impl RepoSession {
 
     pub fn discard_preview(&self, paths: &[String]) -> Result<DiscardPreview> {
         snapshot::preview(&self.git, paths, self.deps.snapshot_limit)
+    }
+
+    /// Quantos commits e mudanças um Reset hard para `target` descartaria.
+    pub fn reset_preview(&self, target: &str) -> Result<ResetPreview> {
+        Ok(ResetPreview {
+            commits: snapshot::commits_lost(&self.git, target)?,
+            discard: snapshot::preview(&self.git, &[], self.deps.snapshot_limit)?,
+        })
     }
 
     /// Conflito ao desfazer um descarte: grava as versões guardadas ao lado dos arquivos.

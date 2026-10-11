@@ -302,3 +302,14 @@ fn reset_hard_sem_snapshot_nao_vira_mudanca_externa() {
     assert_ne!(state.undo.reason.as_deref(), Some("O repositório mudou fora do Mnemo"));
     assert!(state.undo.reason.expect("motivo").contains("reset"));
 }
+
+#[test]
+fn preview_do_reset_hard_conta_commits_e_mudancas() {
+    let (repo, first, _second) = repo_com_dois_commits();
+    repo.write("a.txt", "wip
+");
+    repo.write("u.txt", "novo
+");
+    let p = repo.session().reset_preview(&first).expect("preview");
+    assert_eq!((p.commits, p.discard.tracked_changes, p.discard.untracked_files), (1, 1, 1));
+}

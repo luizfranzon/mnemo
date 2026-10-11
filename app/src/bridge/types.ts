@@ -51,6 +51,10 @@ export interface DiscardPreview {
   exceedsLimit: boolean
 }
 
+export interface ResetPreview extends DiscardPreview {
+  commits: number
+}
+
 export interface CoreError {
   code: string
   message: string

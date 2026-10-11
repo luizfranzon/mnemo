@@ -223,6 +223,10 @@ impl Mnemo {
                 let paths: Vec<String> = parse(&json!(args.get("paths").cloned().unwrap_or(json!([]))))?;
                 out(s.discard_preview(&paths)?)
             }
+            "reset_preview" => {
+                let target = args.get("target").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("target ausente"))?;
+                out(s.reset_preview(target)?)
+            }
             "restore_discard_as_copies" => {
                 let op_id =
                     args.get("opId").and_then(Value::as_u64).ok_or_else(|| CoreError::invalid("opId ausente"))?;
