@@ -61,7 +61,12 @@ function ErrorBanner() {
   return (
     <div className="error" role="alert">
       <span>{error}</span>
-      {retry && <button onClick={() => void retry()}>Tentar de novo</button>}
+      {retry && <button
+          onClick={() => {
+            actions.clearError() // some o banner (e o botão) antes: clique duplo não repete a Operação
+            void retry()
+          }}
+        >Tentar de novo</button>}
       <button onClick={actions.clearError}>Fechar</button>
     </div>
   )

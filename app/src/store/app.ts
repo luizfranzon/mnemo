@@ -113,7 +113,7 @@ export const actions = {
     set((s) => {
       const tabs = s.tabs.filter((t) => !same(t.path, path))
       const activePath = s.activePath && same(s.activePath, path) ? (tabs.at(-1)?.path ?? null) : s.activePath
-      return { tabs, activePath }
+      return { tabs, activePath, retry: null } // o retry pendente era de uma aba que pode ser esta
     })
   },
 
