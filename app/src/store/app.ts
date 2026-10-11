@@ -27,6 +27,8 @@ interface AppState {
   git: GitStatus
   tabs: Tab[]
   activePath: string | null
+  selectedSha: string | null
+  graphRevision: Record<string, number>
   /** Operação em curso, por diretório (a toolbar mostra o texto). */
   running: Record<string, string>
   toasts: Toast[]
@@ -48,6 +50,8 @@ export const useApp = create<AppState>(() => ({
   git: { phase: 'checking' },
   tabs: [],
   activePath: null,
+  selectedSha: null,
+  graphRevision: {},
   running: {},
   toasts: [],
   error: null,
@@ -152,13 +156,14 @@ export const actions = {
     set((s) => {
       const tabs = s.tabs.filter((t) => !same(t.path, path))
       const activePath = s.activePath && same(s.activePath, path) ? (tabs.at(-1)?.path ?? null) : s.activePath
-      return { tabs, activePath, retry: null } // o retry pendente era de uma aba que pode ser esta
+      return { tabs, activePath, selectedSha: activePath !== s.activePath ? null : s.selectedSha, retry: null } // o retry pendente era de uma aba que pode ser esta
     })
   },
 
   focusTab(path: string) {
-    set({ activePath: path })
+    set({ activePath: path, selectedSha: null })
   },
+  selectCommit(sha: string) { set({ selectedSha: sha }) },
 
   async execute(path: string, kind: OperationKind) {
     try {
@@ -285,6 +290,7 @@ export const actions = {
   applyCoreEvent(e: import('../bridge/types').CoreEvent) {
     if (e.type === 'historyChanged') {
       patchTab(e.workdir, { undo: e.state })
+      set((s) => ({ graphRevision: { ...s.graphRevision, [norm(e.workdir)]: (s.graphRevision[norm(e.workdir)] ?? 0) + 1 } }))
       void refreshHead(e.workdir).catch(() => undefined) // a branch mostrada acompanha o histórico
     }
     else if (e.type === 'operationStarted') set((s) => ({ running: { ...s.running, [norm(e.workdir)]: e.label } }))
@@ -337,6 +343,7 @@ function adoptRepository(info: RepositoryInfo) {
     return {
       tabs: exists ? s.tabs.map((t) => (same(t.path, info.path) ? tab : t)) : [...s.tabs, tab],
       activePath: info.path,
+      selectedSha: s.activePath && same(s.activePath, info.path) ? s.selectedSha : null,
     }
   })
 }

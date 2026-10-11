@@ -155,6 +155,9 @@ export function Toolbar() {
               ⌕ <span>Buscar branch</span> <kbd>Ctrl P</kbd>
             </button>}
       </div>
+      {head.kind === 'detached' && <div className="detached-banner" role="status">
+        HEAD destacado · <button onClick={() => actions.setPalette('createBranch')}>Criar branch aqui</button>
+      </div>}
       {toolbar.progress && <div className="progress-banner" role="status">
         <span>{toolbar.progress.kind}{toolbar.progress.step !== null && toolbar.progress.total !== null ? ` ${toolbar.progress.step}/${toolbar.progress.total}` : ''}</span>
         <button disabled={!!running} title={busyReason} onClick={() => void actions.progressAction(path, 'continue')}>Continuar</button>

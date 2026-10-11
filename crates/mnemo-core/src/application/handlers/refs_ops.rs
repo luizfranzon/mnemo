@@ -46,6 +46,12 @@ impl Handler for RefsOps {
             if *mode == CheckoutChangesMode::Carry {
                 args.push("--merge".into());
             }
+            if remote.is_none()
+                && (target.len() == 40 || target.len() == 64)
+                && target.bytes().all(|b| b.is_ascii_hexdigit())
+            {
+                args.push("--detach".into());
+            }
             if let Some(remote) = remote {
                 args.extend(["--track".into(), "-c".into(), target.clone(), format!("{remote}/{target}")]);
             } else {

@@ -1,4 +1,5 @@
 pub mod git;
+pub mod graph;
 pub mod handlers;
 pub mod ports;
 pub mod queue;

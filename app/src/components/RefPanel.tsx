@@ -10,7 +10,7 @@ type Row =
   | { type: 'folder'; key: string; name: string; count: number; depth: number }
   | { type: 'local'; key: string; ref: LocalRef; depth: number }
   | { type: 'remote'; key: string; ref: RemoteRef; depth: number }
-  | { type: 'plain'; key: string; name: string; depth: number }
+  | { type: 'plain'; key: string; section: Section; name: string; sha?: string; depth: number }
 
 const LABEL: Record<Section, string> = {
   local: 'Local', remotes: 'Remotos', worktrees: 'Worktrees', stashes: 'Stashes', tags: 'Tags', submodules: 'Submódulos',
@@ -63,8 +63,8 @@ function visibleRows(refs: RefListing, collapsed: Set<string>, query: string): R
     result.push({ type: 'folder', key: groupKey, name: group.name, count: group.branches.length + group.folders.reduce((n, f) => n + f.branches.length, 0), depth: 1 })
     if (!collapsed.has(groupKey) || q) result.push(...children)
   }))
-  const plain = (key: Section, entries: { name: string }[]) => section(key, () => entries.forEach((entry) => {
-    if (include(entry.name)) result.push({ type: 'plain', key: `${key}:${entry.name}`, name: entry.name, depth: 1 })
+  const plain = (key: Section, entries: { name: string; sha?: string }[]) => section(key, () => entries.forEach((entry) => {
+    if (include(entry.name)) result.push({ type: 'plain', key: `${key}:${entry.name}`, section: key, name: entry.name, sha: entry.sha, depth: 1 })
   }))
   plain('worktrees', refs.worktrees.map((w) => ({ name: w.branch ? `${w.branch}  ·  ${w.path}` : w.path })))
   plain('stashes', refs.stashes)
@@ -145,7 +145,11 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
                 </button>
               : <button className={`refs-row refs-item depth-${row.depth}${selected === row.key ? ' selected' : ''}${row.type === 'local' && row.ref.current ? ' current' : ''}`}
                   title={row.type === 'remote' ? `${row.ref.remote}/${row.ref.name}` : row.type === 'local' ? row.ref.name : row.name}
-                  onClick={() => setSelected(row.key)} onDoubleClick={() => checkout(row)}>
+                  onClick={() => {
+                    setSelected(row.key)
+                    if (row.type === 'local' || (row.type === 'remote' && row.ref.localExists)) actions.selectCommit(row.ref.sha)
+                    else if (row.type === 'plain' && row.section === 'tags' && row.sha) actions.selectCommit(row.sha)
+                  }} onDoubleClick={() => checkout(row)}>
                   <span className="refs-symbol">{row.type === 'local' && row.ref.current ? '✓' : row.type === 'remote' ? '☁' : '⑂'}</span>
                   <span className="refs-label">{row.type === 'remote' ? row.ref.name.split('/').at(-1) : row.type === 'local' ? row.ref.name : row.name}</span>
                   {row.type === 'local' && row.ref.upstream && <span className="refs-tracking" title={`Upstream: ${row.ref.upstream}`}>↓{row.ref.behind} ↑{row.ref.ahead}</span>}

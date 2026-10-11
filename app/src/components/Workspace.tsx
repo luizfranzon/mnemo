@@ -1,5 +1,6 @@
 import { actions, selectActiveTab, useApp } from '../store/app'
 import { DiscardDialogs } from './DiscardDialogs'
+import { Graph } from './Graph'
 import { Palette } from './Palette'
 import { Panels } from './Panels'
 import { StatusBar } from './StatusBar'
@@ -17,7 +18,7 @@ export function Workspace() {
       <ErrorBanner />
       {path ? (
         <Panels key={path} path={path}>
-          <RepoSummary />
+          <Graph key={path} path={path} />
         </Panels>
       ) : (
         <main className="main">
@@ -43,24 +44,6 @@ function Empty() {
           Abrir repositório…
         </button>
       </div>
-    </div>
-  )
-}
-
-function RepoSummary() {
-  const head = useApp((s) => selectActiveTab(s)?.head)
-  if (!head) return null
-  return (
-    <div className="center">
-      {head.kind === 'branch' ? (
-        <p>
-          Branch atual: <strong data-testid="current-branch">{head.name}</strong>
-        </p>
-      ) : (
-        <p className="warning">
-          HEAD destacado em <strong data-testid="current-branch">{head.sha}</strong>
-        </p>
-      )}
     </div>
   )
 }

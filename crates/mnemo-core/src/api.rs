@@ -1,6 +1,7 @@
 //! Fachada pública do core. É o único ponto que os adaptadores (napi, Tauri) enxergam.
 
 use crate::application::git::RepoGit;
+use crate::application::graph::{refs_by_sha, CommitInput, GraphCursor, GraphPage, GraphRef, WipSummary};
 use crate::application::handlers::HandlerSet;
 use crate::application::ports::{EventSink, GitCmd, GitPort, HistoryStore};
 use crate::application::session::{RepoSession, SessionDeps};
@@ -260,7 +261,7 @@ impl Mnemo {
         let raw = git.text([
             "for-each-ref",
             "--sort=refname",
-            "--format=%(refname)%00%(objectname)%00%(upstream:short)%00%(upstream:track,nobracket)",
+            "--format=%(refname)%00%(objectname)%00%(upstream:short)%00%(upstream:track,nobracket)%00%(*objectname)",
             "refs/heads",
             "refs/remotes",
             "refs/tags",
@@ -271,7 +272,7 @@ impl Mnemo {
         let mut tags = Vec::new();
         for line in raw.lines() {
             let fields: Vec<&str> = line.split('\0').collect();
-            if fields.len() < 4 {
+            if fields.len() < 5 {
                 continue;
             }
             let (full, sha, upstream, track) = (fields[0], fields[1], fields[2], fields[3]);
@@ -299,7 +300,10 @@ impl Mnemo {
                     behind,
                 });
             } else if let Some(name) = full.strip_prefix("refs/tags/") {
-                tags.push(NamedRef { name: name.into(), sha: sha.into() });
+                tags.push(NamedRef {
+                    name: name.into(),
+                    sha: if fields[4].is_empty() { sha } else { fields[4] }.into(),
+                });
             } else if let Some(rest) = full.strip_prefix("refs/remotes/") {
                 if let Some(remote) =
                     remote_names.iter().filter(|r| rest.starts_with(&format!("{r}/"))).max_by_key(|r| r.len())
@@ -364,6 +368,90 @@ impl Mnemo {
             }
         }
         Ok(count)
+    }
+
+    /// Página topológica do grafo. O cursor traz as lanes abertas da página anterior.
+    pub fn graph_page(&self, path: &str, cursor: Option<GraphCursor>, requested: usize) -> Result<GraphPage> {
+        let session = self.session_for(Path::new(path))?;
+        let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+        let refs = self.list_refs(path)?;
+        let head_sha = git.head_sha();
+        let mut labels = Vec::new();
+        let mut revs = Vec::new();
+        for branch in &refs.local {
+            revs.push(format!("refs/heads/{}", branch.name));
+            labels.push((
+                branch.sha.clone(),
+                GraphRef { name: branch.name.clone(), kind: "local".into(), current: branch.current },
+            ));
+        }
+        for group in &refs.remotes {
+            for remote in group.branches.iter().chain(group.folders.iter().flat_map(|folder| folder.branches.iter())) {
+                if !remote.local_exists {
+                    continue;
+                }
+                revs.push(format!("refs/remotes/{}/{}", remote.remote, remote.name));
+                labels.push((
+                    remote.sha.clone(),
+                    GraphRef {
+                        name: format!("{}/{}", remote.remote, remote.name),
+                        kind: "remote".into(),
+                        current: false,
+                    },
+                ));
+            }
+        }
+        for tag in &refs.tags {
+            revs.push(format!("refs/tags/{}", tag.name));
+            labels.push((tag.sha.clone(), GraphRef { name: tag.name.clone(), kind: "tag".into(), current: false }));
+        }
+        if head_sha.is_some() {
+            revs.push("HEAD".into());
+        }
+        let wip = graph_wip(&git)?;
+        if revs.is_empty() {
+            return Ok(GraphPage { commits: Vec::new(), next: None, wip });
+        }
+        let limit = requested.clamp(1, 2000);
+        let mut cursor = cursor.unwrap_or_default();
+        let mut args = vec![
+            "log".into(),
+            "--topo-order".into(),
+            "--no-decorate".into(),
+            "-z".into(),
+            "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%s".into(),
+            format!("--skip={}", cursor.offset),
+            format!("--max-count={}", limit + 1),
+        ];
+        args.extend(revs);
+        let output = git.exec(&GitCmd::new(args))?;
+        let fields: Vec<&[u8]> = output.stdout.split(|b| *b == 0).collect();
+        let mut inputs = Vec::new();
+        for record in fields.chunks_exact(6) {
+            if record[0].is_empty() {
+                continue;
+            }
+            let string = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
+            inputs.push(CommitInput {
+                sha: string(record[0]),
+                parents: string(record[1]).split_whitespace().map(str::to_string).collect(),
+                author: string(record[2]),
+                email: string(record[3]),
+                timestamp: string(record[4]).parse().unwrap_or(0),
+                subject: string(record[5]),
+            });
+        }
+        let has_more = inputs.len() > limit;
+        let by_sha = refs_by_sha(labels);
+        let commits = inputs
+            .into_iter()
+            .take(limit)
+            .map(|input| {
+                let labels = by_sha.get(&input.sha).cloned().unwrap_or_default();
+                cursor.layout(input, labels, head_sha.as_deref())
+            })
+            .collect();
+        Ok(GraphPage { commits, next: has_more.then_some(cursor), wip })
     }
 
     pub fn close_repository(&self, path: &str) {
@@ -455,6 +543,11 @@ impl Mnemo {
                 args.get("target").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("target ausente"))?;
             return out(self.checkout_conflict_count(&path, target)?);
         }
+        if cmd == "graph_page" {
+            let cursor: Option<GraphCursor> = parse(&json!(args.get("cursor").cloned().unwrap_or(Value::Null)))?;
+            let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(2000) as usize;
+            return out(self.graph_page(&path, cursor, limit)?);
+        }
         if cmd == "close_repository" {
             self.close_repository(&path);
             return Ok(Value::Null);
@@ -544,6 +637,27 @@ fn parse_worktrees(raw: &str) -> Vec<WorktreeRef> {
         }
     }
     items
+}
+
+fn graph_wip(git: &RepoGit) -> Result<WipSummary> {
+    let output = git.exec(&GitCmd::new(["status", "--porcelain=v1", "-z", "--untracked-files=all"]))?;
+    let mut changed = 0;
+    let mut untracked = 0;
+    let mut entries = output.stdout.split(|b| *b == 0).filter(|part| !part.is_empty());
+    while let Some(entry) = entries.next() {
+        if entry.len() < 3 {
+            continue;
+        }
+        if entry.starts_with(b"??") {
+            untracked += 1;
+        } else {
+            changed += 1;
+        }
+        if entry[0] == b'R' || entry[1] == b'R' || entry[0] == b'C' || entry[1] == b'C' {
+            let _ = entries.next();
+        }
+    }
+    Ok(WipSummary { changed, untracked })
 }
 
 fn key(p: &Path) -> String {

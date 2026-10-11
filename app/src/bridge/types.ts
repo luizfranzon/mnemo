@@ -53,6 +53,14 @@ export interface RefListing {
   tags: NamedRef[]
   submodules: NamedRef[]
 }
+export interface GraphCursor { offset: number; lanes: ({ sha: string; color: number } | null)[]; nextColor: number }
+export interface GraphSegment { fromLane: number; toLane: number; color: string; kind: 'pass' | 'incoming' | 'parent' }
+export interface GraphCommit {
+  sha: string; parents: string[]; author: string; email: string; timestamp: number; subject: string
+  lane: number; color: string; laneCount: number; segments: GraphSegment[]
+  refs: { name: string; kind: 'local' | 'remote' | 'tag'; current: boolean }[]; head: boolean
+}
+export interface GraphPage { commits: GraphCommit[]; next: GraphCursor | null; wip: { changed: number; untracked: number } }
 
 export type OperationKind =
   | { type: 'checkout'; target: string }
