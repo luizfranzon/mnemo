@@ -160,6 +160,17 @@ fn rebase_em_conflito_abortado_nao_deixa_nada() {
 }
 
 #[test]
+fn rebase_em_conflito_pode_pular_commit() {
+    let repo = conflitante();
+    repo.git(&["checkout", "-q", "feat"]);
+    let r = repo.exec(OperationKind::Rebase { onto: "main".into() });
+    assert!(matches!(r, ExecuteResult::Conflict { .. }));
+    let r = repo.session().skip_in_progress().expect("pula commit em conflito");
+    assert!(matches!(r, ExecuteResult::Completed { .. }));
+    assert_eq!(repo.head(), repo.rev("main"));
+}
+
+#[test]
 fn merge_com_conflito_resolvido_entra_no_historico_ao_concluir_e_desfaz_inteiro() {
     let repo = conflitante();
     let before = repo.head();
@@ -373,7 +384,12 @@ fn lista_branches_remotas_sem_o_head_simbolico() {
     let _remote = repo.with_remote();
     repo.git(&["push", "-q", "origin", "main:feat/x"]);
     repo.git(&["remote", "set-head", "origin", "main"]);
-    let list: Vec<_> =
-        repo.core.list_remote_branches(&repo.path().to_string_lossy()).expect("lista").into_iter().map(|b| (b.remote, b.name)).collect();
+    let list: Vec<_> = repo
+        .core
+        .list_remote_branches(&repo.path().to_string_lossy())
+        .expect("lista")
+        .into_iter()
+        .map(|b| (b.remote, b.name))
+        .collect();
     assert_eq!(list, [("origin".to_string(), "feat/x".to_string()), ("origin".into(), "main".into())]);
 }

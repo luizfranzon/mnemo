@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
+use std::time::UNIX_EPOCH;
 
 pub const EMPTY_TREE: &str = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 
@@ -220,9 +221,59 @@ impl RepoGit {
 
     /// Upstream de uma branch local ("origin/main"), se tiver. Upstream apagado do remoto ("gone") conta como sem.
     pub fn upstream(&self, branch: &str) -> Result<Option<String>> {
-        let out = self.text(["for-each-ref", "--format=%(upstream:short)%00%(upstream:track)", &Self::branch_ref(branch)])?;
+        let out =
+            self.text(["for-each-ref", "--format=%(upstream:short)%00%(upstream:track)", &Self::branch_ref(branch)])?;
         let (name, track) = out.split_once('\0').unwrap_or((&out, ""));
         Ok(Some(name.to_string()).filter(|u| !u.is_empty() && track != "[gone]"))
+    }
+
+    /// Contagens relativas ao upstream: primeiro commits locais, depois remotos.
+    pub fn ahead_behind(&self) -> Result<Option<(u64, u64)>> {
+        let out =
+            self.exec(&GitCmd::new(["rev-list", "--left-right", "--count", "HEAD...@{upstream}"]).also_ok(128))?;
+        if out.code != 0 {
+            return Ok(None);
+        }
+        let counts: Vec<u64> = out.text().split_whitespace().filter_map(|n| n.parse().ok()).collect();
+        Ok((counts.len() == 2).then(|| (counts[0], counts[1])))
+    }
+
+    pub fn last_fetch_epoch(&self) -> Result<Option<u64>> {
+        let path = PathBuf::from(self.text(["rev-parse", "--git-path", "FETCH_HEAD"])?);
+        let path = if path.is_absolute() { path } else { self.workdir.join(path) };
+        Ok(std::fs::metadata(path)
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map(|d| d.as_secs()))
+    }
+
+    pub fn pull_mode(&self) -> Result<String> {
+        let out = self.exec(&GitCmd::new(["config", "--get", "mnemo.pullMode"]).also_ok(1))?;
+        let mode = out.text();
+        Ok(match mode.as_str() {
+            "fetch" | "merge" | "ffOnly" | "rebase" => mode,
+            _ => "merge".into(),
+        })
+    }
+
+    pub fn set_pull_mode(&self, mode: &str) -> Result<()> {
+        if !matches!(mode, "fetch" | "merge" | "ffOnly" | "rebase") {
+            return Err(CoreError::invalid("modo de pull inválido"));
+        }
+        self.run(["config", "--local", "mnemo.pullMode", mode])
+    }
+
+    pub fn progress_steps(&self) -> Option<(u32, u32)> {
+        let dir = self.git_dir().ok()?;
+        for (folder, current, total) in [("rebase-merge", "msgnum", "end"), ("rebase-apply", "next", "last")] {
+            let path = dir.join(folder);
+            if path.is_dir() {
+                let read = |name: &str| std::fs::read_to_string(path.join(name)).ok()?.trim().parse().ok();
+                return Some((read(current)?, read(total)?));
+            }
+        }
+        None
     }
 
     /// Branches remotas (remoto, nome) em ordem alfabética, sem o `<remoto>/HEAD` simbólico.

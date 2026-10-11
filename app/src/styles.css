@@ -54,7 +54,44 @@ input:focus { border-color: var(--accent); }
 .tab:not(.active):not(:hover):not(:focus-within) .tab-close { visibility: hidden; }
 .tab-add { justify-content: center; width: 30px; height: 30px; margin-bottom: 3px; color: var(--text-muted); border-radius: var(--radius-sm); }
 
-.toolbar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface-1); border-bottom: 1px solid var(--border); }
+.toolbar { display: flex; align-items: center; gap: 5px; height: 48px; padding: 0 12px; background: var(--surface-1); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: visible; }
+.toolbar > button, .toolbar-split > button, .progress-banner button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: none; height: 30px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text-secondary); font: inherit; font-size: 12px; cursor: pointer; }
+.toolbar button:hover:not(:disabled), .progress-banner button:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+.toolbar button:disabled, .progress-banner button:disabled { opacity: .48; cursor: default; }
+.toolbar .repo-name { min-width: 0; max-width: 130px; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); font-size: 12px; }
+.toolbar .crumb { color: var(--text-subtle); }
+.toolbar .branch-button { max-width: 155px; overflow: hidden; text-overflow: ellipsis; border: 1px solid var(--border); background: var(--surface-2); font-family: 'JetBrains Mono', monospace; }
+.toolbar .muted, .toolbar .fetch-time, .toolbar .stash-count { color: var(--text-muted); }
+.sync-count { display: flex; gap: 6px; padding: 0 3px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.behind { color: #8fb2ff; }
+.ahead { color: #7fdc95; }
+.toolbar-divider { width: 1px; height: 22px; margin: 0 4px; background: var(--border); }
+.toolbar-split { position: relative; display: inline-flex; flex: none; height: 32px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.toolbar-split > button { height: 30px; }
+.toolbar-split > button + button { border-left: 1px solid var(--border); border-radius: 0 8px 8px 0; }
+.toolbar-split.plain { border-color: transparent; background: transparent; }
+.toolbar .push-button { border: 1px solid var(--border); background: var(--surface-2); }
+.count-badge { padding: 1px 6px; border-radius: 9px; font: 11px 'JetBrains Mono', monospace; }
+.count-badge.blue { background: #22325a; color: #8fb2ff; }
+.count-badge.green { background: #173020; color: #7fdc95; }
+.toolbar-menu { position: absolute; z-index: 20; top: 35px; left: 0; display: flex; flex-direction: column; min-width: 215px; padding: 6px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface-3); box-shadow: var(--shadow-menu); }
+.toolbar-menu button { display: flex; gap: 8px; align-items: center; height: 30px; padding: 0 8px; border: 0; border-radius: 5px; background: transparent; color: var(--text-secondary); text-align: left; white-space: nowrap; cursor: pointer; }
+.toolbar-menu button:hover:not(:disabled) { background: var(--menu-highlight); color: var(--accent-text); }
+.toolbar-menu-heading { padding: 5px 8px 3px; color: var(--text-subtle); font-size: 11px; }
+.radio-mark { width: 14px; color: var(--accent); }
+.toolbar-search { flex: 1 1 160px !important; min-width: 90px; max-width: 280px; margin-left: auto; justify-content: flex-start !important; border: 1px solid var(--border) !important; background: var(--bg) !important; color: var(--text-muted) !important; }
+.toolbar-search span { flex: 1; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.toolbar-search kbd { padding: 1px 4px; border: 1px solid var(--border); border-radius: 4px; font: 10px 'JetBrains Mono', monospace; }
+.toolbar-more { position: relative; display: none; flex: none; }
+.toolbar-more > button { height: 30px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text-secondary); font: inherit; cursor: pointer; }
+.toolbar-more > button:disabled { opacity: .48; cursor: default; }
+.operation-indicator { display: flex; align-items: center; gap: 6px; min-width: 0; margin-left: auto; color: var(--text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+.progress-banner { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-bottom: 1px solid var(--warning-border); background: var(--warning-bg); color: var(--warning-text, #eac17a); font-size: 12px; }
+.progress-banner button { height: 25px; }
+.spin { display: inline-block; animation: toolbar-spin 1s linear infinite; }
+@keyframes toolbar-spin { to { transform: rotate(360deg); } }
+@media (max-width: 1240px) { .toolbar .temporary-action { display: none; } .toolbar-more { display: block; } .toolbar .repo-name { max-width: 90px; } }
+@media (max-width: 950px) { .toolbar .fetch-time { display: none; } .toolbar-search kbd, .toolbar-search span { display: none; } .toolbar-search { flex: 0 0 30px !important; min-width: 30px; } }
 .badge { padding: 3px var(--space-2); border-radius: var(--radius-menu); background: var(--control); color: var(--text-muted); }
 .badge.warning { background: var(--warning-bg); border: 1px solid var(--warning-border); }
 .error { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); background: var(--danger-bg); border-bottom: 1px solid var(--danger-border); color: var(--danger-text); }

@@ -15,9 +15,11 @@ interface Item {
 const PLACEHOLDER: Record<PaletteMode, string> = {
   checkout: 'Checkout de branch…',
   deleteRemote: 'Excluir branch remota…',
+  createBranch: 'Nome da nova branch…',
 }
 
 function load(mode: PaletteMode, path: string): Promise<Item[]> {
+  if (mode === 'createBranch') return Promise.resolve([])
   if (mode === 'checkout')
     return core.listBranches(path).then((bs) =>
       bs.map((b) => ({
@@ -60,6 +62,11 @@ export function Palette({ mode }: { mode: PaletteMode }) {
     close()
     b.pick()
   }
+  const createBranch = () => {
+    if (!path || !query.trim()) return
+    close()
+    void actions.execute(path, { type: 'branchCreate', name: query.trim(), start: null, checkout: true })
+  }
 
   return (
     <div className="overlay" onMouseDown={close}>
@@ -76,9 +83,10 @@ export function Palette({ mode }: { mode: PaletteMode }) {
             if (e.key === 'Escape') close()
             else if (e.key === 'ArrowDown') setCursor((c) => Math.min(c + 1, shown.length - 1))
             else if (e.key === 'ArrowUp') setCursor((c) => Math.max(c - 1, 0))
-            else if (e.key === 'Enter') choose(shown[cursor])
+            else if (e.key === 'Enter') mode === 'createBranch' ? createBranch() : choose(shown[cursor])
           }}
         />
+        {mode === 'createBranch' && <button onClick={createBranch} disabled={!query.trim()}>Criar branch e fazer checkout</button>}
         <div className="palette-list" ref={scroller}>
           <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
             {virtual.getVirtualItems().map((row) => {

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { core, errorCode, errorMessage } from '../bridge'
-import type { DiscardPreview, ResetPreview, HeadInfo, OperationKind, RepositoryInfo, UndoRedoState } from '../bridge/types'
+import type { DiscardPreview, ResetPreview, HeadInfo, OperationKind, PullMode, RepositoryInfo, ToolbarInfo, UndoRedoState } from '../bridge/types'
 
 export interface Tab {
   /** Diretório de trabalho: a identidade da Aba (o mesmo diretório nunca abre duas vezes). */
@@ -8,6 +8,7 @@ export interface Tab {
   name: string
   head: HeadInfo
   undo: UndoRedoState
+  toolbar: ToolbarInfo
 }
 
 export interface Toast {
@@ -17,7 +18,7 @@ export interface Toast {
   undoPath?: string
 }
 
-export type PaletteMode = 'checkout' | 'deleteRemote'
+export type PaletteMode = 'checkout' | 'deleteRemote' | 'createBranch'
 
 export type GitStatus = { phase: 'checking' } | { phase: 'ok'; version: string } | { phase: 'missing'; message: string }
 
@@ -138,6 +139,24 @@ export const actions = {
     } catch (err) {
       fail(err, () => actions.execute(path, kind))
     }
+  },
+
+  async setPullMode(path: string, mode: PullMode) {
+    try {
+      patchTab(path, { toolbar: await core.setPullMode(path, mode) })
+    } catch (err) { fail(err) }
+  },
+
+  async progressAction(path: string, action: 'continue' | 'skip' | 'abort') {
+    try {
+      if (action === 'abort') patchTab(path, { undo: await core.abortInProgress(path) })
+      else {
+        const result = action === 'continue' ? await core.continueInProgress(path) : await core.skipInProgress(path)
+        patchTab(path, { undo: result.state })
+      }
+      await refreshHead(path)
+      set({ error: null })
+    } catch (err) { fail(err) }
   },
 
   async undo(path: string) {
@@ -267,7 +286,7 @@ function refreshHead(path: string): Promise<void> {
   if (inflight) return inflight
   const run = core
     .openRepository(path)
-    .then((info) => patchTab(path, { head: info.head, undo: info.undo }))
+    .then((info) => patchTab(path, { head: info.head, undo: info.undo, toolbar: info.toolbar }))
     .finally(() => refreshing.delete(key))
   refreshing.set(key, run)
   return run
@@ -276,7 +295,7 @@ function refreshHead(path: string): Promise<void> {
 function adoptRepository(info: RepositoryInfo) {
   set((s) => {
     const exists = s.tabs.some((t) => same(t.path, info.path))
-    const tab: Tab = { path: info.path, name: info.name, head: info.head, undo: info.undo }
+    const tab: Tab = { path: info.path, name: info.name, head: info.head, undo: info.undo, toolbar: info.toolbar }
     return {
       tabs: exists ? s.tabs.map((t) => (same(t.path, info.path) ? tab : t)) : [...s.tabs, tab],
       activePath: info.path,

@@ -160,15 +160,29 @@ impl RepoSession {
     }
 
     pub fn continue_in_progress(&self) -> Result<ExecuteResult> {
-        self.in_turn("Continuando…", || {
+        self.advance_in_progress("continue", "Continuando…")
+    }
+
+    pub fn skip_in_progress(&self) -> Result<ExecuteResult> {
+        if self.git.in_progress() != Some(crate::application::git::ProgressKind::Rebase) {
+            return Err(CoreError::invalid("Pular só está disponível durante rebase"));
+        }
+        self.advance_in_progress("skip", "Pulando…")
+    }
+
+    fn advance_in_progress(&self, action: &str, label: &str) -> Result<ExecuteResult> {
+        self.in_turn(label, || {
             let kind = self.progress_or_err()?;
-            let cmd = progress_command(kind, "continue");
+            let cmd = progress_command(kind, action);
             let out = self.git.exec(&cmd)?;
             if out.code != 0 {
                 return match self.git.in_progress() {
                     Some(k) => Ok(self.conflict_result(k)),
                     None => Err(failure(&cmd, &out)),
                 };
+            }
+            if let Some(k) = self.git.in_progress() {
+                return Ok(self.conflict_result(k));
             }
             let pending = lock(&self.state).stored.pending.take();
             match pending {

@@ -37,9 +37,7 @@ pub enum HeadInfo {
         upstream: Option<String>,
     },
     /// HEAD destacado: SHA curto.
-    Detached {
-        sha: String,
-    },
+    Detached { sha: String },
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -49,6 +47,26 @@ pub struct RepositoryInfo {
     pub name: String,
     pub head: HeadInfo,
     pub undo: UndoRedoState,
+    pub toolbar: ToolbarInfo,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolbarInfo {
+    pub ahead: Option<u64>,
+    pub behind: Option<u64>,
+    pub last_fetch_epoch: Option<u64>,
+    pub stash_count: usize,
+    pub pull_mode: String,
+    pub progress: Option<ProgressInfo>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProgressInfo {
+    pub kind: String,
+    pub step: Option<u32>,
+    pub total: Option<u32>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -123,7 +141,31 @@ impl Mnemo {
             (None, None) => return Err(CoreError::NotARepository { path: path.to_string() }),
         };
         let name = session.workdir().file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        Ok(RepositoryInfo { path: session.workdir().to_path_buf(), name, head, undo: session.undo_state() })
+        let toolbar = self.toolbar_info(&git)?;
+        Ok(RepositoryInfo { path: session.workdir().to_path_buf(), name, head, undo: session.undo_state(), toolbar })
+    }
+
+    fn toolbar_info(&self, git: &RepoGit) -> Result<ToolbarInfo> {
+        let counts = git.ahead_behind()?;
+        let progress = git.in_progress().map(|kind| {
+            let steps = git.progress_steps();
+            ProgressInfo { kind: kind.name().into(), step: steps.map(|s| s.0), total: steps.map(|s| s.1) }
+        });
+        Ok(ToolbarInfo {
+            ahead: counts.map(|c| c.0),
+            behind: counts.map(|c| c.1),
+            last_fetch_epoch: git.last_fetch_epoch()?,
+            stash_count: git.stash_list()?.len(),
+            pull_mode: git.pull_mode()?,
+            progress,
+        })
+    }
+
+    pub fn set_pull_mode(&self, path: &str, mode: &str) -> Result<ToolbarInfo> {
+        let session = self.session_for(Path::new(path))?;
+        let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+        git.set_pull_mode(mode)?;
+        self.toolbar_info(&git)
     }
 
     /// Branches locais, para a paleta de checkout.
@@ -207,7 +249,9 @@ impl Mnemo {
             serde_json::from_value(args.clone()).map_err(|e| CoreError::invalid(e.to_string()))
         }
         if cmd == "log_error" {
-            let text = |k: &str| args.get(k).and_then(Value::as_str).unwrap_or_default().chars().take(8000).collect::<String>();
+            let text = |k: &str| {
+                args.get(k).and_then(Value::as_str).unwrap_or_default().chars().take(8000).collect::<String>()
+            };
             diag::error_from_js(&text("context"), &text("message"));
             return Ok(Value::Null);
         }
@@ -217,6 +261,10 @@ impl Mnemo {
         let PathArgs { path } = parse(&args)?;
         if cmd == "open_repository" {
             return out(self.open_repository(&path)?);
+        }
+        if cmd == "set_pull_mode" {
+            let mode = args.get("mode").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("mode ausente"))?;
+            return out(self.set_pull_mode(&path, mode)?);
         }
         if cmd == "list_branches" {
             return out(self.list_branches(&path)?);
@@ -241,12 +289,14 @@ impl Mnemo {
             "is_busy" => out(json!({ "busy": s.is_busy(), "label": s.running_label() })),
             "abort_in_progress" => out(s.abort_in_progress()?),
             "continue_in_progress" => out(s.continue_in_progress()?),
+            "skip_in_progress" => out(s.skip_in_progress()?),
             "discard_preview" => {
                 let paths: Vec<String> = parse(&json!(args.get("paths").cloned().unwrap_or(json!([]))))?;
                 out(s.discard_preview(&paths)?)
             }
             "reset_preview" => {
-                let target = args.get("target").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("target ausente"))?;
+                let target =
+                    args.get("target").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("target ausente"))?;
                 out(s.reset_preview(target)?)
             }
             "restore_discard_as_copies" => {

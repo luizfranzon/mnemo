@@ -19,6 +19,16 @@ export interface RepositoryInfo {
   name: string
   head: HeadInfo
   undo: UndoRedoState
+  toolbar: ToolbarInfo
+}
+export type PullMode = 'fetch' | 'merge' | 'ffOnly' | 'rebase'
+export interface ToolbarInfo {
+  ahead: number | null
+  behind: number | null
+  lastFetchEpoch: number | null
+  stashCount: number
+  pullMode: PullMode
+  progress: { kind: string; step: number | null; total: number | null } | null
 }
 
 export interface BranchInfo {
@@ -41,6 +51,9 @@ export type OperationKind =
   | { type: 'merge'; target: string }
   | { type: 'push'; remote: string | null; branch: string | null; setUpstream: boolean }
   | { type: 'fetch'; remote: string | null }
+  | { type: 'pull'; strategy: 'merge' | 'ffOnly' | 'rebase' }
+  | { type: 'stashCreate'; message: string | null; includeUntracked: boolean }
+  | { type: 'stashPop'; index: number }
   | { type: 'deleteRemoteBranch'; remote: string; branch: string }
 
 export type ExecuteResult =

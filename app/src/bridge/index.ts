@@ -1,6 +1,6 @@
 // Único módulo da UI que conhece como falar com o backend. Mesmo formato do `@tauri-apps/api`:
 // na migração para o Tauri, só este arquivo troca. Nenhum componente importa `electron`.
-import type { BranchInfo, CoreError, CoreEvent, DiscardPreview, ExecuteResult, ResetPreview, OperationKind, RemoteBranchInfo, RepositoryInfo, UndoRedoState, WindowAction } from './types'
+import type { BranchInfo, CoreError, CoreEvent, DiscardPreview, ExecuteResult, ResetPreview, OperationKind, PullMode, RemoteBranchInfo, RepositoryInfo, ToolbarInfo, UndoRedoState, WindowAction } from './types'
 
 interface Transport {
   invoke(cmd: string, args: Record<string, unknown>): Promise<unknown>
@@ -35,6 +35,10 @@ export const core = {
   initialPaths: () => invoke<string[]>('initial_paths'),
   pickFolder: () => invoke<string | null>('pick_folder'),
   openRepository: (path: string) => invoke<RepositoryInfo>('open_repository', { path }),
+  setPullMode: (path: string, mode: PullMode) => invoke<ToolbarInfo>('set_pull_mode', { path, mode }),
+  abortInProgress: (path: string) => invoke<UndoRedoState>('abort_in_progress', { path }),
+  continueInProgress: (path: string) => invoke<ExecuteResult>('continue_in_progress', { path }),
+  skipInProgress: (path: string) => invoke<ExecuteResult>('skip_in_progress', { path }),
   closeRepository: (path: string) => invoke<null>('close_repository', { path }),
   listBranches: (path: string) => invoke<BranchInfo[]>('list_branches', { path }),
   listRemoteBranches: (path: string) => invoke<RemoteBranchInfo[]>('list_remote_branches', { path }),
