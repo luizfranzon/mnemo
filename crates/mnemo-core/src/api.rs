@@ -5,6 +5,7 @@ use crate::application::handlers::HandlerSet;
 use crate::application::ports::{EventSink, GitCmd, GitPort, HistoryStore};
 use crate::application::session::{RepoSession, SessionDeps};
 use crate::application::snapshot::SNAPSHOT_SIZE_LIMIT;
+use crate::diag;
 use crate::domain::error::{CoreError, Result};
 use crate::domain::history::HISTORY_LIMIT;
 use crate::domain::operation::OperationKind;
@@ -72,6 +73,7 @@ pub struct Mnemo {
 impl Mnemo {
     /// Monta o core com o git do sistema e histórico em `data_dir`.
     pub fn new(data_dir: impl AsRef<Path>, events: Arc<dyn EventSink>) -> Self {
+        diag::init(data_dir.as_ref());
         Self::with_git(ProcessGit::from_path(), data_dir, events)
     }
 
@@ -175,11 +177,34 @@ impl Mnemo {
 
     /// Ponte `invoke(cmd, args)` no formato do Tauri: JSON entra, JSON sai.
     pub fn invoke(&self, cmd: &str, args: Value) -> Result<Value> {
+        let result = self.dispatch(cmd, args);
+        // Falhas de git já foram registradas com o stderr; aqui ficam as inesperadas.
+        if let Err(e) = &result {
+            if matches!(
+                e,
+                CoreError::Io { .. }
+                    | CoreError::Store { .. }
+                    | CoreError::Internal { .. }
+                    | CoreError::GitMissing
+                    | CoreError::GitTooOld { .. }
+            ) {
+                diag::error(cmd, &e.to_string());
+            }
+        }
+        result
+    }
+
+    fn dispatch(&self, cmd: &str, args: Value) -> Result<Value> {
         fn out<T: Serialize>(v: T) -> Result<Value> {
             serde_json::to_value(v).map_err(|e| CoreError::internal(e.to_string()))
         }
         fn parse<T: for<'de> Deserialize<'de>>(args: &Value) -> Result<T> {
             serde_json::from_value(args.clone()).map_err(|e| CoreError::invalid(e.to_string()))
+        }
+        if cmd == "log_error" {
+            let text = |k: &str| args.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+            diag::error_from_js(&text("context"), &text("message"));
+            return Ok(Value::Null);
         }
         if cmd == "check_git" {
             return out(self.check_git()?);

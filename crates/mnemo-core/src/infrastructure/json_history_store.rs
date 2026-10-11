@@ -43,7 +43,9 @@ fn store_err(e: impl std::fmt::Display) -> CoreError {
 impl HistoryStore for JsonHistoryStore {
     fn load(&self, workdir: &Path) -> Result<Option<StoredSession>> {
         match fs::read(self.file(workdir)) {
-            Ok(bytes) => Ok(serde_json::from_slice(&bytes).ok()), // arquivo corrompido = começa vazio
+            Ok(bytes) => Ok(serde_json::from_slice(&bytes)
+                .map_err(|e| crate::diag::error("histórico", &format!("JSON ilegível em {}: {e}", workdir.display())))
+                .ok()), // arquivo corrompido = começa vazio
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(e) => Err(store_err(e)),
         }

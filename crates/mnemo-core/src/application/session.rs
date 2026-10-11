@@ -6,6 +6,7 @@ use super::ports::{CoreEvent, EventSink, EvictionHook, GitPort, HistoryStore, Pe
 use super::queue::TurnQueue;
 use super::restore::{apply_refs, replace_wip, restore_stash_stack};
 use super::snapshot::{self, DiscardPreview};
+use crate::diag;
 use crate::domain::error::{CoreError, Result};
 use crate::domain::operation::{Operation, OperationKind, RefsStrategy, UndoPlan, WipPlan};
 use crate::domain::repo_state::RepoState;
@@ -186,8 +187,15 @@ impl RepoSession {
         self.deps.events.emit(CoreEvent::OperationStarted { workdir: self.workdir.clone(), label: label.to_string() });
         // O guarda roda mesmo com pânico em `f`: o rótulo "rodando" nunca fica preso na UI.
         let mut done = RunGuard { session: self, label, ok: false };
+        let started = std::time::Instant::now();
+        diag::line(&format!("Operação \"{label}\": início ({})", self.workdir.display()));
         let result = f();
         done.ok = result.is_ok();
+        let ms = started.elapsed().as_millis();
+        match &result {
+            Ok(_) => diag::line(&format!("Operação \"{label}\": fim ok ({ms}ms)")),
+            Err(e) => diag::line(&format!("Operação \"{label}\": fim com erro ({ms}ms): {e}")),
+        }
         result
     }
 
@@ -422,7 +430,9 @@ impl RepoSession {
 
     fn persist(&self, inner: &Inner) {
         // Falha ao gravar o histórico não desfaz a Operação que já aconteceu.
-        let _ = self.deps.store.save(&self.workdir, &inner.stored);
+        if let Err(e) = self.deps.store.save(&self.workdir, &inner.stored) {
+            diag::error("histórico", &e.to_string());
+        }
     }
 
     fn release(&self, ops: &[Operation]) {

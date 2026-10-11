@@ -31,6 +31,19 @@ function loadNative(): Native {
   return require(join(base, 'native', 'mnemo.node')) as Native
 }
 
+/** Erros do main vão para o Log de diagnóstico do core (único escritor). Nunca lança. */
+function logError(context: string, err: unknown) {
+  try {
+    const text = err instanceof Error ? (err.stack ?? err.message) : String(err)
+    void native?.invoke('log_error', JSON.stringify({ context, message: text })).catch(() => {})
+  } catch {
+    /* o log nunca derruba o app */
+  }
+}
+
+process.on('uncaughtException', (err) => logError('main', err))
+process.on('unhandledRejection', (err) => logError('main', err))
+
 function send(channel: string, payload: unknown) {
   window?.webContents.send(channel, payload)
 }

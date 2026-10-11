@@ -6,6 +6,7 @@
 
 pub mod api;
 pub mod application;
+pub mod diag;
 pub mod domain;
 pub mod infrastructure;
 

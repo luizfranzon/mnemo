@@ -1,5 +1,6 @@
 use crate::application::git::failure;
 use crate::application::ports::{GitCmd, GitOutput, GitPort};
+use crate::diag;
 use crate::domain::error::{CoreError, Result};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -22,6 +23,25 @@ impl ProcessGit {
 
 impl GitPort for ProcessGit {
     fn run(&self, cwd: &Path, cmd: &GitCmd) -> Result<GitOutput> {
+        let started = std::time::Instant::now();
+        let result = self.spawn(cwd, cmd);
+        let ms = started.elapsed().as_millis();
+        let line = diag::git_command(&cmd.args);
+        match &result {
+            Ok(out) if out.code == 0 => diag::line(&format!("{line} → código 0 ({ms}ms)")),
+            Ok(out) => diag::line(&format!("{line} → código {} ({ms}ms)\n{}", out.code, diag::mask_credentials(&out.stderr))),
+            // falha esperada (conflito, push rejeitado): linha normal com o stderr, sem stacktrace
+            Err(CoreError::GitFailed { status, stderr, .. }) => {
+                diag::line(&format!("{line} → código {status} ({ms}ms)\n{}", diag::mask_credentials(stderr)))
+            }
+            Err(e) => diag::error("git", &format!("{line}: {e}")),
+        }
+        result
+    }
+}
+
+impl ProcessGit {
+    fn spawn(&self, cwd: &Path, cmd: &GitCmd) -> Result<GitOutput> {
         let mut command = Command::new(&self.executable);
         command
             .current_dir(cwd)
