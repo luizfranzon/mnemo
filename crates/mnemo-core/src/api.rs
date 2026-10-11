@@ -177,21 +177,7 @@ impl Mnemo {
 
     /// Ponte `invoke(cmd, args)` no formato do Tauri: JSON entra, JSON sai.
     pub fn invoke(&self, cmd: &str, args: Value) -> Result<Value> {
-        let result = self.dispatch(cmd, args);
-        // Falhas de git já foram registradas com o stderr; aqui ficam as inesperadas.
-        if let Err(e) = &result {
-            if matches!(
-                e,
-                CoreError::Io { .. }
-                    | CoreError::Store { .. }
-                    | CoreError::Internal { .. }
-                    | CoreError::GitMissing
-                    | CoreError::GitTooOld { .. }
-            ) {
-                diag::error(cmd, &e.to_string());
-            }
-        }
-        result
+        self.dispatch(cmd, args)
     }
 
     fn dispatch(&self, cmd: &str, args: Value) -> Result<Value> {
@@ -202,7 +188,7 @@ impl Mnemo {
             serde_json::from_value(args.clone()).map_err(|e| CoreError::invalid(e.to_string()))
         }
         if cmd == "log_error" {
-            let text = |k: &str| args.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+            let text = |k: &str| args.get(k).and_then(Value::as_str).unwrap_or_default().chars().take(8000).collect::<String>();
             diag::error_from_js(&text("context"), &text("message"));
             return Ok(Value::Null);
         }

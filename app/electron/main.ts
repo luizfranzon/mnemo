@@ -41,7 +41,11 @@ function logError(context: string, err: unknown) {
   }
 }
 
-process.on('uncaughtException', (err) => logError('main', err))
+process.on('uncaughtException', (err) => {
+  logError('main', err)
+  // sem o core (falha ao carregar) não há onde logar nem como seguir: encerra em vez de ficar zumbi
+  if (!native) app.exit(1)
+})
 process.on('unhandledRejection', (err) => logError('main', err))
 
 function send(channel: string, payload: unknown) {

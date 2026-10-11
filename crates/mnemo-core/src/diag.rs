@@ -92,8 +92,9 @@ pub fn git_command(args: &[String]) -> String {
     let mut out = vec!["git".to_string()];
     let mut after_m = false;
     for a in args {
-        out.push(if after_m && hides_message { "<msg>".into() } else { mask_credentials(a) });
-        after_m = a == "-m";
+        let inline_msg = hides_message && (a.starts_with("--message=") || (a.starts_with("-m") && a.len() > 2 && !a.starts_with("--")));
+        out.push(if (after_m && hides_message) || inline_msg { "<msg>".into() } else { mask_credentials(a) });
+        after_m = a == "-m" || a == "--message";
     }
     out.join(" ")
 }
@@ -143,6 +144,7 @@ mod tests {
         assert_eq!(git_command(&args(&["push", "https://u:t@h/r"])), "git push https://***@h/r");
         assert_eq!(git_command(&args(&["commit", "-m", "segredo"])), "git commit -m <msg>");
         assert_eq!(git_command(&args(&["branch", "-m", "a", "b"])), "git branch -m a b");
+        assert_eq!(git_command(&args(&["commit", "--message=x", "-my"])), "git commit <msg> <msg>");
     }
 
     #[test]
