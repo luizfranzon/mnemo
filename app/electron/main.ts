@@ -77,7 +77,17 @@ function buildMenu() {
       ],
     },
     { label: 'Editar', submenu: edit },
-    { label: 'Exibir', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { role: 'togglefullscreen' }] },
+    {
+      label: 'Exibir',
+      submenu: [
+        { label: 'Painel de refs', accelerator: 'CmdOrCtrl+J', enabled: menuState.hasRepo, click: action('toggle-left') },
+        { label: 'Painel direito', accelerator: 'CmdOrCtrl+K', enabled: menuState.hasRepo, click: action('toggle-right') },
+        { type: 'separator' },
+        { role: 'reload' },
+        { role: 'toggleDevTools' },
+        { role: 'togglefullscreen' },
+      ],
+    },
     {
       label: 'Repositório',
       submenu: [{ label: 'Checkout de branch…', accelerator: 'CmdOrCtrl+P', enabled: menuState.hasRepo, click: action('palette') }],

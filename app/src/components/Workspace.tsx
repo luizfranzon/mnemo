@@ -1,19 +1,30 @@
 import { actions, selectActiveTab, useApp } from '../store/app'
 import { DiscardDialogs } from './DiscardDialogs'
 import { Palette } from './Palette'
+import { Panels } from './Panels'
+import { StatusBar } from './StatusBar'
 import { TabBar } from './TabBar'
 import { Toasts } from './Toasts'
 import { Toolbar } from './Toolbar'
 
 export function Workspace() {
-  const hasTab = useApp((s) => selectActiveTab(s) !== undefined)
+  const path = useApp((s) => selectActiveTab(s)?.path)
   const palette = useApp((s) => s.palette)
   return (
     <div className="workspace">
       <TabBar />
-      {hasTab && <Toolbar />}
+      {path && <Toolbar />}
       <ErrorBanner />
-      <main className="main">{hasTab ? <RepoSummary /> : <Empty />}</main>
+      {path ? (
+        <Panels key={path} path={path}>
+          <RepoSummary />
+        </Panels>
+      ) : (
+        <main className="main">
+          <Empty />
+        </main>
+      )}
+      <StatusBar />
       <DiscardDialogs />
 
       <Toasts />

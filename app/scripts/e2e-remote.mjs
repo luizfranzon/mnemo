@@ -26,7 +26,7 @@ try {
   await until(() => remoteBranches().includes('nova'), true)
   assert.equal(g('rev-parse', '--abbrev-ref', 'nova@{upstream}').toString().trim(), 'origin/nova')
 
-  await click('Excluir remota…')
+  await until(() => click('Excluir remota…'), true) // o botão volta a habilitar quando o Push termina
   await until(() => ev(`[...document.querySelectorAll('.palette-row')].some((b) => b.textContent.includes('origin/nova'))`), true)
   await ev(`[...document.querySelectorAll('.palette-row')].find((b) => b.textContent.includes('origin/nova')).click()`)
   await until(() => ev(`document.querySelector('.modal h2')?.textContent ?? ''`), 'Excluir origin/nova?')
