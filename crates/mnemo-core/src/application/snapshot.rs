@@ -1,6 +1,6 @@
 //! Snapshot do WIP preso em `refs/mnemo/<id>/wip`, para Descartar e Reset hard serem desfazíveis.
 
-use super::git::RepoGit;
+use super::git::{failure, RepoGit};
 use super::ports::GitCmd;
 use super::restore::{apply_tree_diff, snapshot_base_tree};
 use crate::domain::error::{CoreError, Result};
@@ -117,13 +117,29 @@ pub fn restore(git: &RepoGit, op_id: u64, snapshot_commit: &str) -> Result<()> {
     if ours == theirs {
         return Ok(());
     }
-    let merge = git.exec(
-        &GitCmd::new(["merge-tree", "--write-tree", "--name-only", &format!("--merge-base={base}"), &ours, &theirs])
-            .also_ok(1),
-    )?;
+    // `merge-tree --write-tree` exige commits, não árvores. Estes commits sem ref
+    // servem só ao merge: não movem HEAD nem entram no histórico do usuário.
+    let base_commit =
+        git.exec(&RepoGit::internal_identity(GitCmd::new(["commit-tree", &base, "-m", "mnemo restore base"])))?.text();
+    let ours_commit =
+        git.exec(&RepoGit::internal_identity(GitCmd::new(["commit-tree", &ours, "-m", "mnemo restore wip"])))?.text();
+    let cmd = GitCmd::new([
+        "merge-tree",
+        "--write-tree",
+        "--name-only",
+        &format!("--merge-base={base_commit}"),
+        &ours_commit,
+        snapshot_commit,
+    ])
+    .also_ok(1);
+    let merge = git.exec(&cmd)?;
     let text = merge.text();
     let mut lines = text.lines();
     let merged = lines.next().unwrap_or_default().to_string();
+    // O Git também retorna 1 para entradas inválidas, sem árvore na saída.
+    if merged.is_empty() {
+        return Err(failure(&cmd, &merge));
+    }
     if merge.code == 1 {
         let paths: Vec<String> = lines.take_while(|l| !l.is_empty()).map(str::to_string).collect();
         return Err(CoreError::RestoreConflict { op_id, paths });

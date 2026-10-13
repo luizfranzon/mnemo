@@ -40,6 +40,20 @@ fn descartar_untracked_e_desfazer_recria_o_arquivo() {
 }
 
 #[test]
+fn descartar_e_desfazer_sem_commit_inicial() {
+    let repo = TestRepo::empty();
+    repo.write("novo.txt", "untracked\n");
+    discard(&repo, &[]);
+    assert!(!repo.exists("novo.txt"));
+
+    repo.session().undo().expect("desfaz com base vazia");
+    assert_eq!(repo.read("novo.txt"), "untracked\n");
+    repo.session().redo().expect("refaz");
+    assert!(!repo.exists("novo.txt"));
+    assert!(repo.git(&["for-each-ref", "refs/heads"]).is_empty());
+}
+
+#[test]
 fn descartar_arquivo_staged_novo_e_desfazer() {
     let repo = TestRepo::new();
     repo.write("s.txt", "staged\n");
@@ -306,10 +320,14 @@ fn reset_hard_sem_snapshot_nao_vira_mudanca_externa() {
 #[test]
 fn preview_do_reset_hard_conta_commits_e_mudancas() {
     let (repo, first, _second) = repo_com_dois_commits();
-    repo.write("a.txt", "wip
-");
-    repo.write("u.txt", "novo
-");
+    repo.write(
+        "a.txt", "wip
+",
+    );
+    repo.write(
+        "u.txt", "novo
+",
+    );
     let p = repo.session().reset_preview(&first).expect("preview");
     assert_eq!((p.commits, p.discard.tracked_changes, p.discard.untracked_files), (1, 1, 1));
 }
