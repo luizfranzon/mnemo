@@ -1,8 +1,9 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { core } from '../bridge'
-import type { GraphCommit, GraphPage, GraphSegment } from '../bridge/types'
+import type { GraphCommit, GraphPage } from '../bridge/types'
 import { actions, useApp } from '../store/app'
+import { graphVisibility, selectVisibility, updateVisibility, useVisibility } from '../store/visibility'
 import { avatarStyle, initials } from './avatar'
 import { commitMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
@@ -10,29 +11,21 @@ import { Menu } from './Menu'
 import { copyText, menuBase } from './menuBase'
 import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
 import {
-  COLUMNS, DEFAULT_LAYOUT, columnWidth, dragColumnWidth, geometry, gridTemplate, loadGraphLayout, moveColumn, saveGraphLayout, visibleColumns,
+  COLUMNS, DEFAULT_LAYOUT, ROW, columnWidth, dragColumnWidth, geometry, gridTemplate, loadGraphLayout, moveColumn, saveGraphLayout, segmentPath, visibleColumns,
   type ColId, type GraphLayout,
 } from './graphColumns'
 
-const ROW = 28
 const PAGE = 2000
 const date = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 type Geo = ReturnType<typeof geometry>
 
-function pathOf(segment: GraphSegment, { lane, first }: Geo): string {
-  const from = first + segment.fromLane * lane
-  const to = first + segment.toLane * lane
-  if (segment.kind === 'pass') return `M${from} 0 V${ROW}`
-  if (segment.kind === 'incoming') return from === to ? `M${from} 0 V14` : `M${from} 0 Q${from} 14 ${to} 14`
-  return from === to ? `M${from} 14 V${ROW}` : `M${from} 14 Q${to} 14 ${to} ${ROW}`
-}
 
 function CommitSvg({ row, width, geo, compact }: { row: GraphCommit; width: number; geo: Geo; compact: boolean }) {
   const x = geo.first + row.lane * geo.lane
   return <svg width={width} height={ROW} viewBox={`0 0 ${width} ${ROW}`} aria-label={`Grafo de ${row.sha.slice(0, 7)}`}>
     {row.refs.length > 0 && <path d={`M0 14 H${x}`} stroke={row.color} strokeOpacity="0.55" strokeWidth="1" />}
     {row.segments.map((segment, index) => <path key={`${segment.kind}:${segment.fromLane}:${segment.toLane}:${index}`}
-      d={pathOf(segment, geo)} fill="none" stroke={segment.color} strokeWidth="2" />)}
+      d={segmentPath(segment, geo)} fill="none" stroke={segment.color} strokeWidth="2" />)}
     {row.head && <circle cx={x} cy="14" r={compact ? 8 : 12} fill="none" stroke="#5b8def" strokeWidth="2" />}
     {compact
       ? row.parents.length > 1
@@ -75,6 +68,8 @@ export function Graph({ path }: { path: string }) {
   const selectedSha = useApp((s) => s.selectedSha)
   const revision = useApp((s) => s.graphRevision[path.replace(/\\/g, '/').toLowerCase()] ?? s.graphRevision[path.replace(/\\/g, '/')] ?? 0)
   const head = useApp((s) => s.tabs.find((t) => t.path === path)?.head)
+  const vis = useVisibility(selectVisibility(path))
+  const [find, setFind] = useState<{ text: string; author: string } | null>(null)
 
   const geo = geometry(layout.compact)
   const contentWidth = geo.first * 2 + maxLanes * geo.lane
@@ -94,7 +89,7 @@ export function Graph({ path }: { path: string }) {
     setPage(null)
     setMaxLanes(1)
     setLoading(true)
-    void core.graphPage(path, null, PAGE).then((next) => {
+    void core.graphPage(path, null, PAGE, graphVisibility(vis)).then((next) => {
       if (generation.current !== current) return
       pageRef.current = next
       setPage(next)
@@ -104,7 +99,7 @@ export function Graph({ path }: { path: string }) {
       if (generation.current === current) { busy.current = false; setLoading(false) }
     })
     return () => { generation.current++ }
-  }, [path, revision])
+  }, [path, revision, vis.hidden, vis.solo, vis.smart])
 
   const loadMore = () => {
     const currentPage = pageRef.current
@@ -112,7 +107,7 @@ export function Graph({ path }: { path: string }) {
     busy.current = true
     setLoading(true)
     const current = generation.current
-    void core.graphPage(path, currentPage.next, PAGE).then((next) => {
+    void core.graphPage(path, currentPage.next, PAGE, graphVisibility(vis)).then((next) => {
       if (generation.current !== current) return
       const merged = { commits: [...currentPage.commits, ...next.commits], next: next.next, wip: next.wip }
       pageRef.current = merged
@@ -189,6 +184,19 @@ export function Graph({ path }: { path: string }) {
     window.addEventListener('keydown', copy)
     return () => window.removeEventListener('keydown', copy)
   }, [selectedSha])
+  useEffect(() => {
+    const open = (e: KeyboardEvent) => {
+      if (!matchesShortcut('Ctrl+F', e)) return
+      e.preventDefault()
+      setFind((f) => f ?? { text: '', author: '' })
+      requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>('.graph-filter input')?.focus())
+    }
+    window.addEventListener('keydown', open)
+    return () => window.removeEventListener('keydown', open)
+  }, [])
+  const needle = find?.text.trim().toLocaleLowerCase() ?? ''
+  /** Busca e autor só esmaecem as linhas: filtrar tiraria commits e quebraria as lanes. */
+  const matches = (c: GraphCommit) => !find || ((!needle || `${c.subject}\n${c.description}\n${c.sha}`.toLocaleLowerCase().includes(needle)) && (!find.author || c.author === find.author))
   const openMenu = async (commit: GraphCommit, e: React.MouseEvent) => {
     e.preventDefault()
     actions.selectCommit(commit.sha)
@@ -224,6 +232,7 @@ export function Graph({ path }: { path: string }) {
   }
   return <div className="graph-view" ref={root}>
     <div className="graph-meta"><span>Histórico</span><strong data-testid="current-branch">{branch}</strong>
+      {vis.solo && <button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} ✕</button>}
       <button className="graph-gear" aria-label="Colunas do grafo" title="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)}>⚙</button></div>
     {gear && <>
       <div className="graph-pop-overlay" onMouseDown={() => setGear(false)} />
@@ -234,10 +243,19 @@ export function Graph({ path }: { path: string }) {
           <button aria-label={`Subir ${COLUMNS[id].label}`} disabled={i === 0} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, -1) }))}>▲</button>
           <button aria-label={`Descer ${COLUMNS[id].label}`} disabled={i === layout.order.length - 1} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, 1) }))}>▼</button>
         </div>)}
+        <label className="graph-pop-row"><input type="checkbox" checked={vis.smart} onChange={(e) => updateVisibility(path, (v) => ({ ...v, smart: e.target.checked }))} /> Visibilidade inteligente</label>
         <label className="graph-pop-row"><input type="checkbox" checked={layout.compact} onChange={(e) => update((l) => ({ ...l, compact: e.target.checked }))} /> Layout compacto</label>
         <button className="graph-pop-reset" onClick={() => update(() => DEFAULT_LAYOUT)}>Restaurar padrão</button>
       </div>
     </>}
+    {find && <div className="graph-filter" role="search" onKeyDown={(e) => { if (e.key === 'Escape') setFind(null) }}>
+      <input value={find.text} onChange={(e) => setFind({ ...find, text: e.target.value })} placeholder="Buscar na mensagem…" aria-label="Buscar na mensagem" />
+      <select value={find.author} onChange={(e) => setFind({ ...find, author: e.target.value })} aria-label="Filtrar por autor">
+        <option value="">Todos os autores</option>
+        {[...new Set(commits.map((c) => c.author))].sort().map((a) => <option key={a} value={a}>{a}</option>)}
+      </select>
+      <button aria-label="Fechar busca" onClick={() => setFind(null)}>✕</button>
+    </div>}
     <div className="graph-header graph-grid">
       {cols.map((id) => <div key={id} className="graph-hcell">
         {id === 'graph'
@@ -258,7 +276,7 @@ export function Graph({ path }: { path: string }) {
           const commit = item.index ? commits[item.index - 1] : null
           const wip = !item.index
           const selected = commit ? selectedSha === commit.sha : selectedSha === 'wip'
-          return <div key={item.key} className={`graph-row graph-grid${selected ? ' selected' : ''}`} style={{ height: ROW, transform: `translateY(${item.start}px)` }}
+          return <div key={item.key} className={`graph-row graph-grid${selected ? ' selected' : ''}${commit && !matches(commit) ? ' dim' : ''}`} style={{ height: ROW, transform: `translateY(${item.start}px)` }}
             onClick={() => actions.selectCommit(commit?.sha ?? 'wip')}
             onContextMenu={(e) => { if (commit) void openMenu(commit, e) }}
             onDoubleClick={() => { if (commit) void actions.checkoutRef(path, { type: 'checkout', target: commit.sha }) }}>

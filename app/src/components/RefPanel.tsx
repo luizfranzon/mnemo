@@ -3,13 +3,14 @@ import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import type { LocalRef, RefListing, RemoteRef } from '../bridge/types'
 import { actions, runningLabel, useApp } from '../store/app'
+import { localRef, remoteRef, selectVisibility, toggleHidden, togglePinned, toggleSolo, updateVisibility, useVisibility, type Visibility } from '../store/visibility'
 import { BranchDialogs } from './BranchDialogs'
 import { branchMenu, remoteOf, type BranchDialog, type BranchTarget } from './branchMenu'
 import { Menu } from './Menu'
 import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
 import { toolbarAvailability } from './toolbarModel'
 
-type Section = 'local' | 'remotes' | 'worktrees' | 'stashes' | 'tags' | 'submodules'
+type Section = 'pinned' | 'local' | 'remotes' | 'worktrees' | 'stashes' | 'tags' | 'submodules'
 type Row =
   | { type: 'section'; key: string; section: Section; label: string; count: number }
   | { type: 'folder'; key: string; name: string; count: number; depth: number }
@@ -18,15 +19,32 @@ type Row =
   | { type: 'plain'; key: string; section: Section; name: string; sha?: string; depth: number }
 
 const LABEL: Record<Section, string> = {
-  local: 'Local', remotes: 'Remotos', worktrees: 'Worktrees', stashes: 'Stashes', tags: 'Tags', submodules: 'Submódulos',
+  pinned: 'Fixadas', local: 'Local', remotes: 'Remotos', worktrees: 'Worktrees', stashes: 'Stashes', tags: 'Tags', submodules: 'Submódulos',
 }
 const ICON: Record<Section, string> = {
-  local: '⑂', remotes: '☁', worktrees: '▱', stashes: '▣', tags: '◇', submodules: '▤',
+  pinned: '⚑', local: '⑂', remotes: '☁', worktrees: '▱', stashes: '▣', tags: '◇', submodules: '▤',
 }
 const ROW_HEIGHT = 28
 
-function counts(refs: RefListing): Record<Section, number> {
+/** Refs fixadas à esquerda que ainda existem, na ordem em que foram fixadas. */
+function pinnedRows(refs: RefListing, pinned: string[]): Row[] {
+  const remotes = refs.remotes.flatMap((group) => [...group.branches, ...group.folders.flatMap((f) => f.branches)])
+  return pinned.flatMap((name): Row[] => {
+    const local = refs.local.find((b) => localRef(b.name) === name)
+    if (local) return [{ type: 'local', key: `pin:${name}`, ref: local, depth: 1 }]
+    const remote = remotes.find((r) => remoteRef(r.remote, r.name) === name)
+    return remote ? [{ type: 'remote', key: `pin:${name}`, ref: remote, depth: 1 }] : []
+  })
+}
+
+/** Ref completa de uma linha de branch (a chave da visibilidade); linhas sem branch nunca chegam aqui. */
+function refName(row: Row): string {
+  return row.type === 'local' ? localRef(row.ref.name) : row.type === 'remote' ? remoteRef(row.ref.remote, row.ref.name) : row.key
+}
+
+function counts(refs: RefListing, pinned: number): Record<Section, number> {
   return {
+    pinned,
     local: refs.local.length,
     remotes: refs.remotes.reduce((sum, group) => sum + group.branches.length + group.folders.reduce((n, f) => n + f.branches.length, 0), 0),
     worktrees: refs.worktrees.length,
@@ -36,11 +54,11 @@ function counts(refs: RefListing): Record<Section, number> {
   }
 }
 
-function visibleRows(refs: RefListing, collapsed: Set<string>, query: string): Row[] {
+function visibleRows(refs: RefListing, collapsed: Set<string>, query: string, pinned: Row[]): Row[] {
   const q = query.trim().toLocaleLowerCase()
   const include = (name: string) => !q || name.toLocaleLowerCase().includes(q)
   const result: Row[] = []
-  const count = counts(refs)
+  const count = counts(refs, pinned.length)
   const section = (key: Section, add: () => void) => {
     if (!count[key]) return
     const start = result.length
@@ -48,6 +66,9 @@ function visibleRows(refs: RefListing, collapsed: Set<string>, query: string): R
     if (!collapsed.has(key) || q) add()
     if (q && result.length === start + 1) result.pop()
   }
+  section('pinned', () => pinned.forEach((row) => {
+    if ((row.type === 'local' || row.type === 'remote') && include(row.type === 'local' ? row.ref.name : `${row.ref.remote}/${row.ref.name}`)) result.push(row)
+  }))
   section('local', () => refs.local.forEach((ref) => {
     if (include(ref.name)) result.push({ type: 'local', key: `refs/heads/${ref.name}`, ref, depth: 1 })
   }))
@@ -119,8 +140,10 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
     localStorage.setItem(`mnemo.refs.collapsed:${path}`, JSON.stringify([...next]))
     return next
   })
-  const rows = refs && !rail ? visibleRows(refs, collapsed, query) : []
-  const sectionCounts = refs ? counts(refs) : null
+  const vis = useVisibility(selectVisibility(path))
+  const pinned = refs ? pinnedRows(refs, vis.pinned) : []
+  const rows = refs && !rail ? visibleRows(refs, collapsed, query, pinned) : []
+  const sectionCounts = refs ? counts(refs, pinned.length) : null
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current,
     estimateSize: () => ROW_HEIGHT, overscan: 10, getItemKey: (index) => rows[index]!.key })
   const checkout = (row: Row) => {
@@ -131,6 +154,7 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
       else void actions.checkoutRef(path, { type: 'checkoutRemote', remote: row.ref.remote, branch: row.ref.name })
     }
   }
+  const viewOf = (row: Row) => ({ hidden: vis.hidden.includes(refName(row)), solo: vis.solo === refName(row), pinned: vis.pinned.includes(refName(row)) })
   const targetOf = (row: Row): BranchTarget | null =>
     row.type === 'local' ? { kind: 'local', ref: row.ref }
       : row.type === 'remote' ? { kind: 'remote', ref: row.ref, local: refs?.local.find((b) => b.name === row.ref.name) } : null
@@ -140,6 +164,7 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
     push: () => void actions.requestPush(path), newBranch: (start) => actions.setPalette('createBranch', start),
     resetHard: (sha) => void actions.requestResetHard(path, sha), dialog: setDialog,
     copy: (text) => void navigator.clipboard.writeText(text).catch(() => undefined),
+    view: viewOf(row), toggleView: (what) => updateVisibility(path, (v) => ({ hidden: toggleHidden, solo: toggleSolo, pinned: togglePinned })[what](v, refName(row))),
   })
   const openMenu = async (row: Row, anchor: Rect) => {
     const target = targetOf(row)
@@ -189,8 +214,14 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
                   <span className="refs-label">{row.type === 'remote' ? row.ref.name.split('/').at(-1) : row.type === 'local' ? row.ref.name : row.name}</span>
                   {row.type === 'local' && row.ref.upstream && <span className="refs-tracking" title={`Upstream: ${row.ref.upstream}`}>↓{row.ref.behind} ↑{row.ref.ahead}</span>}
                 </button>}
-            {(row.type === 'local' || row.type === 'remote') && <button className="refs-more" aria-label="Menu da branch" title="Menu da branch"
-              onClick={(e) => void openMenu(row, e.currentTarget.getBoundingClientRect())}>⋮</button>}
+            {(row.type === 'local' || row.type === 'remote') && <>
+              <button className={`refs-eye${vis.hidden.includes(refName(row)) ? ' off' : ''}${vis.solo === refName(row) ? ' solo' : ''}`}
+                aria-pressed={!vis.hidden.includes(refName(row))} aria-label={vis.hidden.includes(refName(row)) ? 'Mostrar no grafo' : 'Ocultar no grafo'}
+                title={vis.hidden.includes(refName(row)) ? 'Mostrar no grafo' : 'Ocultar no grafo'}
+                onClick={() => updateVisibility(path, (v) => toggleHidden(v, refName(row)))}>{vis.hidden.includes(refName(row)) ? '◌' : '◉'}</button>
+              <button className="refs-more" aria-label="Menu da branch" title="Menu da branch"
+                onClick={(e) => void openMenu(row, e.currentTarget.getBoundingClientRect())}>⋮</button>
+            </>}
           </div>
         })}
       </div>

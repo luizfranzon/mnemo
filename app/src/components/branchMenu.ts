@@ -23,6 +23,9 @@ export interface BranchMenuContext {
   resetHard(sha: string): void
   dialog(d: BranchDialog): void
   copy(text: string): void
+  /** Estado atual desta branch no grafo e como alterná-lo. */
+  view: { hidden: boolean; solo: boolean; pinned: boolean }
+  toggleView(what: 'hidden' | 'solo' | 'pinned'): void
 }
 
 export const targetName = (t: BranchTarget) => (t.kind === 'local' ? t.ref.name : `${t.ref.remote}/${t.ref.name}`)
@@ -113,6 +116,10 @@ export function branchMenu(t: BranchTarget, c: BranchMenuContext): MenuEntry[] {
     { label: `Excluir ${name}…`, danger: true, reason: mut ?? (current && !up ? 'Não dá para excluir a branch atual' : undefined), run: () => c.dialog(deleteDialog()) },
     { label: 'Copiar nome', run: () => c.copy(name) },
     { label: 'Copiar link no GitHub', reason: link ? undefined : 'O remoto não é do GitHub', run: () => link && c.copy(link) },
+    '-',
+    { label: c.view.hidden ? 'Mostrar no grafo' : 'Ocultar no grafo', run: () => c.toggleView('hidden') },
+    { label: c.view.solo ? 'Sair do Solo' : 'Solo', run: () => c.toggleView('solo') },
+    { label: c.view.pinned ? 'Desafixar da esquerda' : 'Fixar à esquerda', run: () => c.toggleView('pinned') },
   )
   return items
 }

@@ -61,6 +61,7 @@ export interface GraphCommit {
   lane: number; color: string; laneCount: number; segments: GraphSegment[]
   refs: { name: string; kind: 'local' | 'remote' | 'tag'; current: boolean }[]; head: boolean
 }
+export interface GraphVisibilityArg { hidden: string[]; solo: string | null; smart: boolean }
 export interface GraphPage { commits: GraphCommit[]; next: GraphCursor | null; wip: { changed: number; untracked: number } }
 
 export type OperationKind =

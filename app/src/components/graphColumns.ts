@@ -74,3 +74,22 @@ export function moveColumn(order: ColId[], id: ColId, dir: -1 | 1): ColId[] {
 
 /** Geometria do nó: o modo compacto estreita as lanes e troca o avatar por um ponto. */
 export const geometry = (compact: boolean) => (compact ? { lane: 10, first: 8 } : { lane: 16, first: 12 })
+
+/** Altura da linha e y do centro do nó. */
+export const ROW = 28
+const MID = 14
+const RADIUS = 8
+
+/**
+ * Traçado de um segmento: sempre vertical + horizontal com um canto de 90° arredondado (raio até 8px).
+ * Entrada: desce pela lane de origem e dobra para o nó. Saída: sai do nó na horizontal e desce pela lane do pai.
+ */
+export function segmentPath(segment: { fromLane: number; toLane: number; kind: 'pass' | 'incoming' | 'parent' }, { lane, first }: { lane: number; first: number }): string {
+  const from = first + segment.fromLane * lane
+  const to = first + segment.toLane * lane
+  if (segment.kind === 'pass') return `M${from} 0 V${ROW}`
+  const r = Math.min(Math.abs(to - from), RADIUS)
+  const dir = Math.sign(to - from)
+  if (segment.kind === 'incoming') return r === 0 ? `M${from} 0 V${MID}` : `M${from} 0 V${MID - r} Q${from} ${MID} ${from + dir * r} ${MID} H${to}`
+  return r === 0 ? `M${from} ${MID} V${ROW}` : `M${from} ${MID} H${to - dir * r} Q${to} ${MID} ${to} ${MID + r} V${ROW}`
+}

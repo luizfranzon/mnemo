@@ -2,7 +2,7 @@
 
 use crate::application::detail::{self, CommitDetail};
 use crate::application::git::RepoGit;
-use crate::application::graph::{refs_by_sha, CommitInput, GraphCursor, GraphPage, GraphRef, WipSummary};
+use crate::application::graph::{refs_by_sha, CommitInput, GraphCursor, GraphPage, GraphRef, GraphVisibility, WipSummary};
 use crate::application::handlers::HandlerSet;
 use crate::application::ports::{EventSink, GitCmd, GitPort, HistoryStore};
 use crate::application::session::{RepoSession, SessionDeps};
@@ -374,15 +374,26 @@ impl Mnemo {
     }
 
     /// Página topológica do grafo. O cursor traz as lanes abertas da página anterior.
-    pub fn graph_page(&self, path: &str, cursor: Option<GraphCursor>, requested: usize) -> Result<GraphPage> {
+    pub fn graph_page(
+        &self,
+        path: &str,
+        cursor: Option<GraphCursor>,
+        requested: usize,
+        visibility: &GraphVisibility,
+    ) -> Result<GraphPage> {
         let session = self.session_for(Path::new(path))?;
         let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
         let refs = self.list_refs(path)?;
         let head_sha = git.head_sha();
+        let smart_set = if visibility.smart { smart_refs(&git, &refs) } else { HashSet::new() };
         let mut labels = Vec::new();
         let mut revs = Vec::new();
         for branch in &refs.local {
-            revs.push(format!("refs/heads/{}", branch.name));
+            let refname = format!("refs/heads/{}", branch.name);
+            if !visibility.shows(&refname, &smart_set) {
+                continue;
+            }
+            revs.push(refname);
             labels.push((
                 branch.sha.clone(),
                 GraphRef { name: branch.name.clone(), kind: "local".into(), current: branch.current },
@@ -393,7 +404,11 @@ impl Mnemo {
                 if !remote.local_exists {
                     continue;
                 }
-                revs.push(format!("refs/remotes/{}/{}", remote.remote, remote.name));
+                let refname = format!("refs/remotes/{}/{}", remote.remote, remote.name);
+                if !visibility.shows(&refname, &smart_set) {
+                    continue;
+                }
+                revs.push(refname);
                 labels.push((
                     remote.sha.clone(),
                     GraphRef {
@@ -405,10 +420,14 @@ impl Mnemo {
             }
         }
         for tag in &refs.tags {
-            revs.push(format!("refs/tags/{}", tag.name));
+            if visibility.solo.is_none() && !visibility.smart {
+                revs.push(format!("refs/tags/{}", tag.name));
+            }
             labels.push((tag.sha.clone(), GraphRef { name: tag.name.clone(), kind: "tag".into(), current: false }));
         }
-        if head_sha.is_some() {
+        let current = refs.local.iter().find(|b| b.current);
+        let head_visible = current.map_or(true, |b| visibility.shows(&format!("refs/heads/{}", b.name), &smart_set));
+        if head_sha.is_some() && head_visible {
             revs.push("HEAD".into());
         }
         let wip = graph_wip(&git)?;
@@ -563,7 +582,8 @@ impl Mnemo {
         if cmd == "graph_page" {
             let cursor: Option<GraphCursor> = parse(&json!(args.get("cursor").cloned().unwrap_or(Value::Null)))?;
             let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(2000) as usize;
-            return out(self.graph_page(&path, cursor, limit)?);
+            let visibility: GraphVisibility = parse(&json!(args.get("visibility").cloned().unwrap_or(json!({}))))?;
+            return out(self.graph_page(&path, cursor, limit, &visibility)?);
         }
         if cmd == "commit_detail" {
             let sha = args.get("sha").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("sha ausente"))?;
@@ -663,6 +683,28 @@ fn parse_worktrees(raw: &str) -> Vec<WorktreeRef> {
         }
     }
     items
+}
+
+/// Branch atual, a base (main/master/develop/trunk), o upstream da atual e tudo que já foi mergeado em alguma delas.
+fn smart_refs(git: &RepoGit, refs: &RefListing) -> HashSet<String> {
+    let mut set = HashSet::new();
+    let mut roots = vec!["HEAD".to_string()];
+    if let Some(current) = refs.local.iter().find(|b| b.current) {
+        set.insert(format!("refs/heads/{}", current.name));
+        if let Some(upstream) = &current.upstream {
+            set.insert(format!("refs/remotes/{upstream}"));
+        }
+    }
+    if let Some(base) = ["main", "master", "develop", "trunk"].iter().find(|n| refs.local.iter().any(|b| b.name == **n)) {
+        set.insert(format!("refs/heads/{base}"));
+        roots.push(format!("refs/heads/{base}"));
+    }
+    for root in roots {
+        let merged =
+            git.text(["for-each-ref", &format!("--merged={root}"), "--format=%(refname)", "refs/heads", "refs/remotes"]);
+        set.extend(merged.unwrap_or_default().lines().map(str::to_string));
+    }
+    set
 }
 
 fn graph_wip(git: &RepoGit) -> Result<WipSummary> {

@@ -244,3 +244,15 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .graph-pop-reset { margin-top: 6px; }
 .graph-description { color: var(--text-muted); }
 .avatar.small { width: 18px; height: 18px; font-size: 8px; display: inline-flex; margin-right: 6px; vertical-align: middle; }
+
+/* Visibilidade no grafo: olho no hover (fica visível quando a branch está oculta ou em Solo) */
+.refs-eye { position: absolute; right: 28px; top: 3px; width: 22px; height: 22px; padding: 0; display: none; border: 0; background: var(--hover); color: var(--text-secondary); border-radius: var(--radius-sm); }
+.refs-virtual-row:hover .refs-eye, .refs-eye:focus-visible, .refs-eye.off, .refs-eye.solo { display: block; }
+.refs-eye.solo { color: var(--accent); }
+.refs-virtual-row:has(.refs-eye.off) .refs-item { opacity: .5; }
+
+/* Busca e filtro por autor (Ctrl+F): linhas que não casam ficam esmaecidas, as lanes não mudam */
+.graph-filter { display: flex; gap: 6px; padding: 4px 8px; border-bottom: 1px solid var(--border-subtle); }
+.graph-filter input { flex: 1; min-width: 0; }
+.graph-row.dim { opacity: .3; }
+.graph-chip { margin-left: 8px; padding: 0 8px; height: 20px; border-radius: 10px; font-size: var(--fs-body-sm); }

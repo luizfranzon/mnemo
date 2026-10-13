@@ -1,6 +1,6 @@
 //! Layout incremental do grafo. O cursor guarda só as lanes abertas, não o histórico inteiro.
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub const COLORS: [&str; 8] = ["#4fb3d9", "#d65bd0", "#e5534b", "#e0a43a", "#5b8def", "#46b866", "#c4a7f5", "#f08a5d"];
 
@@ -76,6 +76,24 @@ pub struct GraphPage {
     pub commits: Vec<GraphCommit>,
     pub next: Option<GraphCursor>,
     pub wip: WipSummary,
+}
+
+/// O que o grafo mostra. Os nomes são refs completas (`refs/heads/x`, `refs/remotes/origin/x`).
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct GraphVisibility {
+    pub hidden: Vec<String>,
+    pub solo: Option<String>,
+    /// Só a branch atual, a base e o que já foi mergeado nelas.
+    pub smart: bool,
+}
+
+impl GraphVisibility {
+    pub fn shows(&self, refname: &str, smart_set: &HashSet<String>) -> bool {
+        self.solo.as_deref().map_or(true, |solo| solo == refname)
+            && !self.hidden.iter().any(|hidden| hidden == refname)
+            && (!self.smart || smart_set.contains(refname))
+    }
 }
 
 pub struct CommitInput {

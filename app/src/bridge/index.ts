@@ -1,6 +1,6 @@
 // Único módulo da UI que conhece como falar com o backend. Mesmo formato do `@tauri-apps/api`:
 // na migração para o Tauri, só este arquivo troca. Nenhum componente importa `electron`.
-import type { BranchInfo, CoreError, CoreEvent, DiscardPreview, ExecuteResult, GraphCursor, GraphPage, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepositoryInfo, ToolbarInfo, UndoRedoState, WindowAction } from './types'
+import type { BranchInfo, CoreError, CoreEvent, DiscardPreview, ExecuteResult, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepositoryInfo, ToolbarInfo, UndoRedoState, WindowAction } from './types'
 
 interface Transport {
   invoke(cmd: string, args: Record<string, unknown>): Promise<unknown>
@@ -44,7 +44,7 @@ export const core = {
   listRemoteBranches: (path: string) => invoke<RemoteBranchInfo[]>('list_remote_branches', { path }),
   listRefs: (path: string) => invoke<RefListing>('list_refs', { path }),
   checkoutConflictCount: (path: string, target: string) => invoke<number>('checkout_conflict_count', { path, target }),
-  graphPage: (path: string, cursor: GraphCursor | null, limit = 2000) => invoke<GraphPage>('graph_page', { path, cursor, limit }),
+  graphPage: (path: string, cursor: GraphCursor | null, limit = 2000, visibility?: GraphVisibilityArg) => invoke<GraphPage>('graph_page', { path, cursor, limit, visibility }),
   commitDetail: (path: string, sha: string, all: boolean) => invoke<CommitDetail>('commit_detail', { path, sha, all }),
   remoteUrl: (path: string, remote: string) => invoke<string | null>('remote_url', { path, remote }),
   execute: (path: string, kind: OperationKind) => invoke<ExecuteResult>('execute_operation', { path, kind }),

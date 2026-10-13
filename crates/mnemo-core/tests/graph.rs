@@ -1,6 +1,6 @@
 mod support;
 
-use mnemo_core::application::graph::GraphCursor;
+use mnemo_core::application::graph::{GraphCursor, GraphVisibility};
 use std::io::Write;
 use std::process::{Command, Stdio};
 use support::TestRepo;
@@ -16,11 +16,11 @@ fn pagina_seguinte_preserva_lanes_das_linhas_anteriores() {
     repo.commit_all("main");
     repo.git(&["merge", "--no-ff", "-m", "merge", "feature"]);
     let path = repo.path().to_string_lossy();
-    let first = repo.core.graph_page(&path, None, 2).expect("primeira página");
+    let first = repo.core.graph_page(&path, None, 2, &GraphVisibility::default()).expect("primeira página");
     assert_eq!(first.commits.len(), 2);
     let next = first.next.clone().expect("há mais commits");
-    let second = repo.core.graph_page(&path, Some(next), 2).expect("segunda página");
-    let all = repo.core.graph_page(&path, None, 20).expect("histórico completo");
+    let second = repo.core.graph_page(&path, Some(next), 2, &GraphVisibility::default()).expect("segunda página");
+    let all = repo.core.graph_page(&path, None, 20, &GraphVisibility::default()).expect("histórico completo");
     assert_eq!(
         serde_json::to_value(&first.commits).expect("json"),
         serde_json::to_value(&all.commits[..2]).expect("json")
@@ -47,7 +47,7 @@ fn pagina_seguinte_preserva_lanes_das_linhas_anteriores() {
 fn repo_vazio_tem_wip_sem_commits() {
     let repo = TestRepo::empty();
     repo.write("novo.txt", "novo");
-    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 2000).expect("grafo vazio");
+    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 2000, &GraphVisibility::default()).expect("grafo vazio");
     assert!(page.commits.is_empty());
     assert!(page.next.is_none());
     assert_eq!((page.wip.changed, page.wip.untracked), (0, 1));
@@ -71,7 +71,7 @@ fn tag_anotada_aparece_no_commit_e_remota_sem_local_fica_oculta() {
     repo.git(&["push", "-q", "origin", "so-remota"]);
     repo.git(&["switch", "-q", "main"]);
     repo.git(&["branch", "-D", "so-remota"]);
-    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 2000).expect("grafo");
+    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 2000, &GraphVisibility::default()).expect("grafo");
     assert!(!page.commits.iter().any(|commit| commit.sha == remote_sha));
     assert!(page
         .commits
@@ -102,9 +102,9 @@ fn carrega_mais_de_dois_mil_commits_em_paginas() {
     child.stdin.take().expect("stdin").write_all(script.as_bytes()).expect("escreve histórico");
     assert!(child.wait().expect("fast-import termina").success());
     let path = repo.path().to_string_lossy();
-    let first = repo.core.graph_page(&path, None, 2000).expect("primeiro lote");
+    let first = repo.core.graph_page(&path, None, 2000, &GraphVisibility::default()).expect("primeiro lote");
     assert_eq!(first.commits.len(), 2000);
-    let second = repo.core.graph_page(&path, Some(first.next.expect("cursor")), 2000).expect("segundo lote");
+    let second = repo.core.graph_page(&path, Some(first.next.expect("cursor")), 2000, &GraphVisibility::default()).expect("segundo lote");
     assert_eq!(second.commits.len(), 101);
     assert!(second.next.is_none());
 }
@@ -117,7 +117,58 @@ fn descricao_e_a_primeira_linha_do_corpo() {
     repo.git(&["commit", "-q", "-m", "assunto", "-m", "primeira linha\ncom mais texto", "-m", "outro parágrafo"]);
     repo.write("b.txt", "b");
     repo.commit_all("sem corpo");
-    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 10).expect("página");
+    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 10, &GraphVisibility::default()).expect("página");
     assert_eq!(page.commits[0].description, "");
     assert_eq!(page.commits[1].description, "primeira linha");
+}
+
+/// main com um commit próprio e `feature` (não mergeada) com outro.
+fn repo_com_feature() -> (TestRepo, String) {
+    let repo = TestRepo::new();
+    repo.git(&["switch", "-q", "-c", "feature"]);
+    repo.write("feature.txt", "feature");
+    let feature = repo.commit_all("feature");
+    repo.git(&["switch", "-q", "main"]);
+    repo.write("main.txt", "main");
+    repo.commit_all("main");
+    (repo, feature)
+}
+
+fn shas(repo: &TestRepo, visibility: &GraphVisibility) -> Vec<String> {
+    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 50, visibility).expect("grafo");
+    page.commits.into_iter().map(|c| c.sha).collect()
+}
+
+#[test]
+fn ocultar_branch_tira_seus_commits_e_libera_a_lane() {
+    let (repo, feature) = repo_com_feature();
+    assert!(shas(&repo, &GraphVisibility::default()).contains(&feature));
+    let hidden = GraphVisibility { hidden: vec!["refs/heads/feature".into()], ..Default::default() };
+    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 50, &hidden).expect("grafo");
+    assert!(!page.commits.iter().any(|c| c.sha == feature));
+    assert!(page.commits.iter().all(|c| c.lane == 0 && c.lane_count == 1), "sem a feature, tudo cabe numa lane");
+}
+
+#[test]
+fn solo_mostra_so_a_branch_e_seus_ancestrais() {
+    let (repo, feature) = repo_com_feature();
+    let solo = GraphVisibility { solo: Some("refs/heads/feature".into()), ..Default::default() };
+    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 50, &solo).expect("grafo");
+    assert_eq!(page.commits.len(), 2, "o commit da feature e o inicial");
+    assert_eq!(page.commits[0].sha, feature);
+    assert!(page.commits.iter().all(|c| c.refs.iter().all(|r| r.name != "main")));
+}
+
+#[test]
+fn visibilidade_inteligente_mantem_atual_base_e_mergeadas() {
+    let (repo, feature) = repo_com_feature();
+    repo.git(&["switch", "-q", "-c", "outra", "main"]);
+    repo.write("outra.txt", "outra");
+    let outra = repo.commit_all("outra");
+    repo.git(&["switch", "-q", "main"]);
+    let smart = GraphVisibility { smart: true, ..Default::default() };
+    let all = shas(&repo, &smart);
+    assert!(!all.contains(&feature) && !all.contains(&outra), "branches não mergeadas somem");
+    repo.git(&["merge", "--no-ff", "-q", "-m", "merge", "feature"]);
+    assert!(shas(&repo, &smart).contains(&feature), "depois do merge a feature aparece");
 }
