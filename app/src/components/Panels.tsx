@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react'
 import { dragWidth, loadLayout, PANEL, RAIL, saveLayout, type Layout, type Side } from './panelLayout'
+import { CommitPanel } from './CommitPanel'
 import { RefPanel } from './RefPanel'
 import { TOGGLE_PANEL } from './windowMenus'
 
@@ -40,6 +41,7 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
       {layout.rightOpen && (
         <aside className="panel panel-right" aria-label="Detalhes">
           <Divider side="right" layout={layout} root={root} update={update} />
+          <CommitPanel path={path} />
         </aside>
       )}
     </div>

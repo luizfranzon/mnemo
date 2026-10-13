@@ -1,5 +1,6 @@
 //! Fachada pública do core. É o único ponto que os adaptadores (napi, Tauri) enxergam.
 
+use crate::application::detail::{self, CommitDetail};
 use crate::application::git::RepoGit;
 use crate::application::graph::{refs_by_sha, CommitInput, GraphCursor, GraphPage, GraphRef, WipSummary};
 use crate::application::handlers::HandlerSet;
@@ -456,6 +457,19 @@ impl Mnemo {
         Ok(GraphPage { commits, next: has_more.then_some(cursor), wip })
     }
 
+    /// Detalhe do commit selecionado; `all` lista também os arquivos que ele não tocou.
+    pub fn commit_detail(&self, path: &str, sha: &str, all: bool) -> Result<CommitDetail> {
+        let session = self.session_for(Path::new(path))?;
+        detail::load(&RepoGit::new(self.git.clone(), session.workdir().to_path_buf()), sha, all)
+    }
+
+    /// URL configurada do remoto (`None` se o remoto não existe).
+    pub fn remote_url(&self, path: &str, remote: &str) -> Result<Option<String>> {
+        let session = self.session_for(Path::new(path))?;
+        let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+        Ok(git.text(["config", "--get", &format!("remote.{remote}.url")]).ok().map(|u| u.trim().to_string()).filter(|u| !u.is_empty()))
+    }
+
     pub fn close_repository(&self, path: &str) {
         if let Ok(root) = self.toplevel(Path::new(path)) {
             if let Ok(mut map) = self.sessions.write() {
@@ -549,6 +563,15 @@ impl Mnemo {
             let cursor: Option<GraphCursor> = parse(&json!(args.get("cursor").cloned().unwrap_or(Value::Null)))?;
             let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(2000) as usize;
             return out(self.graph_page(&path, cursor, limit)?);
+        }
+        if cmd == "commit_detail" {
+            let sha = args.get("sha").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("sha ausente"))?;
+            let all = args.get("all").and_then(Value::as_bool).unwrap_or(false);
+            return out(self.commit_detail(&path, sha, all)?);
+        }
+        if cmd == "remote_url" {
+            let remote = args.get("remote").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("remote ausente"))?;
+            return out(self.remote_url(&path, remote)?);
         }
         if cmd == "close_repository" {
             self.close_repository(&path);

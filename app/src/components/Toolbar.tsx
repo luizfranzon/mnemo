@@ -32,7 +32,7 @@ function Spinner({ label }: { label: string }) {
   return <><span className="spin" aria-hidden="true">⟳</span> {label}</>
 }
 
-type Control = 'fetch' | 'pull' | 'push' | 'stash' | 'checkout' | 'branch' | 'discard' | 'deleteRemote' | 'undo' | 'redo' | 'continue' | 'skip' | 'abort'
+type Control = 'fetch' | 'pull' | 'push' | 'stash' | 'checkout' | 'branch' | 'discard' | 'undo' | 'redo' | 'continue' | 'skip' | 'abort'
 type OpenMenu = { name: 'pull' | 'stash' | 'more'; anchor: Rect }
 
 /** Desfazer/Refazer agem na Operação, mesmo com foco em campo de texto. */
@@ -68,7 +68,6 @@ export function Toolbar() {
     : running?.startsWith('Executando checkout ') ? 'checkout'
     : running?.startsWith('Executando criar branch ') ? 'branch'
     : running?.startsWith('Executando descartar ') ? 'discard'
-    : running?.startsWith('Executando excluir branch remota ') ? 'deleteRemote'
     : running?.startsWith('Executando criar stash') || running?.startsWith('Executando pop de stash') ? 'stash' : undefined
   const spinLabel = (control: Control) => (local?.control ?? eventControl) === control ? executing : undefined
   const toggle = (menu: OpenMenu['name'], button: HTMLElement) => {
@@ -90,7 +89,6 @@ export function Toolbar() {
     ],
     more: [
       { label: 'Descartar tudo…', reason: reason.mutation, run: () => void actions.requestDiscard(path, []) },
-      { label: 'Excluir remota…', reason: reason.mutation, run: () => actions.setPalette('deleteRemote') },
     ],
   }
   const menuButton = (which: OpenMenu['name'], label: string, blocked?: string) => <button
@@ -135,8 +133,6 @@ export function Toolbar() {
       </div>
       <button className="temporary-action" disabled={!!reason.mutation} title={reason.mutation ?? 'Descartar todas as mudanças'} onClick={() => void actions.requestDiscard(path, [])}>
         {spinLabel('discard') ? <Spinner label={spinLabel('discard')!} /> : 'Descartar tudo…'}</button>
-      <button className="temporary-action" disabled={!!reason.mutation} title={reason.mutation ?? 'Excluir branch remota'} onClick={() => actions.setPalette('deleteRemote')}>
-        {spinLabel('deleteRemote') ? <Spinner label={spinLabel('deleteRemote')!} /> : 'Excluir remota…'}</button>
       <div className="toolbar-more">{menuButton('more', 'Mais ações do repositório', reason.mutation)}</div>
       {executing && <span className="operation-indicator" role="status">{executing}</span>}
       <button className="toolbar-search" aria-label="Buscar branch" disabled={!!reason.busy} title={reason.busy ?? 'Buscar branch (Ctrl+P)'} onClick={() => actions.setPalette('checkout')}>

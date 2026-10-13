@@ -1,4 +1,4 @@
-// Push de branch sem upstream define o upstream; Excluir remota pede confirmação e não é desfazível.
+// Push de branch sem upstream define o upstream; Excluir remota (menu da branch) pede confirmação e não é desfazível.
 // Uso: `bun run build && node scripts/e2e-remote.mjs`
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -26,11 +26,12 @@ try {
   await until(() => remoteBranches().includes('nova'), true)
   assert.equal(g('rev-parse', '--abbrev-ref', 'nova@{upstream}').toString().trim(), 'origin/nova')
 
-  await until(() => click('Excluir remota…'), true) // o botão volta a habilitar quando o Push termina
-  await until(() => ev(`[...document.querySelectorAll('.palette-row')].some((b) => b.textContent.includes('origin/nova'))`), true)
-  await ev(`[...document.querySelectorAll('.palette-row')].find((b) => b.textContent.includes('origin/nova')).click()`)
-  await until(() => ev(`document.querySelector('.modal h2')?.textContent ?? ''`), 'Excluir origin/nova?')
-  assert.ok(await click('Excluir do remoto'), 'botão de confirmar ausente')
+  const row = '.refs-row[title="origin/nova"]'
+  await until(() => ev(`!!document.querySelector('${row}')`), true) // a lista de refs atualiza depois do Push
+  await ev(`document.querySelector('${row}').parentElement.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 60, clientY: 200 }))`)
+  await until(() => click('Excluir origin/nova…'), true)
+  await until(() => ev(`document.querySelector('dialog h2')?.textContent ?? ''`), 'Excluir branch')
+  assert.ok(await click('Excluir'), 'botão de confirmar ausente')
   await until(() => remoteBranches().includes('nova'), false)
   await until(async () => (await undoTitle()).includes('mexe no remoto'), true)
   console.log('OK: Push define o upstream e Excluir remota confirma, apaga e não é desfazível')

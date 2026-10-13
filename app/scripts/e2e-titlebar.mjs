@@ -55,7 +55,7 @@ try {
   assert.equal(await ev(`[...document.querySelectorAll('.menu-item')].find((b) => b.textContent.startsWith('Clonar'))?.title`), 'Ainda não disponível')
 
   // clique fora só fecha: o botão embaixo não recebe o clique
-  await press(...(await at('.toolbar button:last-of-type'))) // "Excluir remota…" (abriria a paleta)
+  await press(...(await at('.toolbar-search'))) // "Buscar branch" (abriria a paleta)
   await until(menus, 0)
   await sleep(500)
   assert.equal(await ev(`!!document.querySelector('.palette')`), false, 'clique fora não pode acionar o que está embaixo')

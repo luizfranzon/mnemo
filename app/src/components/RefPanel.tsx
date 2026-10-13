@@ -3,6 +3,11 @@ import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import type { LocalRef, RefListing, RemoteRef } from '../bridge/types'
 import { actions, runningLabel, useApp } from '../store/app'
+import { BranchDialogs } from './BranchDialogs'
+import { branchMenu, remoteOf, type BranchDialog, type BranchTarget } from './branchMenu'
+import { Menu } from './Menu'
+import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
+import { toolbarAvailability } from './toolbarModel'
 
 type Section = 'local' | 'remotes' | 'worktrees' | 'stashes' | 'tags' | 'submodules'
 type Row =
@@ -88,6 +93,10 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
   const scroller = useRef<HTMLDivElement>(null)
   const running = useApp((s) => runningLabel(s, path))
   const undo = useApp((s) => s.tabs.find((t) => t.path === path)?.undo)
+  const head = useApp((s) => s.tabs.find((t) => t.path === path)?.head)
+  const toolbar = useApp((s) => s.tabs.find((t) => t.path === path)?.toolbar)
+  const [menu, setMenu] = useState<{ items: MenuEntry[]; anchor: Rect } | null>(null)
+  const [dialog, setDialog] = useState<BranchDialog | null>(null)
   useEffect(() => {
     if (running) return
     let active = true
@@ -122,13 +131,37 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
       else void actions.checkoutRef(path, { type: 'checkoutRemote', remote: row.ref.remote, branch: row.ref.name })
     }
   }
+  const targetOf = (row: Row): BranchTarget | null =>
+    row.type === 'local' ? { kind: 'local', ref: row.ref }
+      : row.type === 'remote' ? { kind: 'remote', ref: row.ref, local: refs?.local.find((b) => b.name === row.ref.name) } : null
+  const entries = (row: Row, target: BranchTarget, remoteUrl: string | null) => branchMenu(target, {
+    head: head!, toolbar: toolbar!, remoteUrl, mutation: toolbarAvailability(head!, toolbar!, running).mutation,
+    execute: (kind) => void actions.execute(path, kind), checkout: () => checkout(row), pull: () => void actions.pullNow(path),
+    push: () => void actions.requestPush(path), newBranch: (start) => actions.setPalette('createBranch', start),
+    resetHard: (sha) => void actions.requestResetHard(path, sha), dialog: setDialog,
+    copy: (text) => void navigator.clipboard.writeText(text).catch(() => undefined),
+  })
+  const openMenu = async (row: Row, anchor: Rect) => {
+    const target = targetOf(row)
+    if (!target || !head || !toolbar) return
+    setSelected(row.key)
+    const remote = remoteOf(target, toolbar.remotes)
+    const url = remote ? await core.remoteUrl(path, remote.remote).catch(() => null) : null
+    setMenu({ items: entries(row, target, url), anchor })
+  }
+  const shortcut = (e: React.KeyboardEvent) => {
+    const row = rows.find((r) => r.key === selected)
+    const target = row && head && toolbar && !(e.target instanceof HTMLInputElement) ? targetOf(row) : null
+    const item = target && entries(row!, target, null).find((i) => i !== '-' && i.shortcut && matchesShortcut(i.shortcut, e.nativeEvent))
+    if (item && item !== '-' && !item.reason) { e.preventDefault(); item.run?.() }
+  }
   if (rail) return <div className="refs-rail" aria-label="Seções de refs">
     {sectionCounts && (Object.keys(LABEL) as Section[]).filter((s) => sectionCounts[s]).map((s) =>
       <button key={s} title={`${LABEL[s]} (${sectionCounts[s]})`} aria-label={`${LABEL[s]}: ${sectionCounts[s]}`} onClick={expand}>
         <span>{ICON[s]}</span><small>{sectionCounts[s]}</small>
       </button>)}
   </div>
-  return <div className="refs-panel">
+  return <div className="refs-panel" onKeyDown={shortcut}>
     <div className="refs-heading"><strong>Refs</strong><button aria-label="Filtrar refs" title="Filtrar refs (Ctrl+Alt+F)" onClick={() => input.current?.focus()}>⌕</button></div>
     <input ref={input} className="refs-filter" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtrar refs…" aria-label="Filtrar refs" />
     <div className="refs-scroll" ref={scroller}>
@@ -137,7 +170,9 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
           const row = rows[item.index]
           if (!row) return null
           const open = !collapsed.has(row.type === 'section' ? row.section : row.key)
-          return <div key={row.key} className="refs-virtual-row" style={{ transform: `translateY(${item.start}px)`, height: ROW_HEIGHT }}>
+          const point = (e: React.MouseEvent) => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY })
+          return <div key={row.key} className="refs-virtual-row" style={{ transform: `translateY(${item.start}px)`, height: ROW_HEIGHT }}
+            onContextMenu={(e) => { if (!targetOf(row)) return; e.preventDefault(); void openMenu(row, point(e)) }}>
             {row.type === 'section' || row.type === 'folder'
               ? <button className={`refs-row refs-group depth-${row.type === 'folder' ? row.depth : 0}`} onClick={() => toggle(row.type === 'section' ? row.section : row.key)}
                   aria-expanded={open} title={row.type === 'section' ? row.label : row.name}>
@@ -154,9 +189,13 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
                   <span className="refs-label">{row.type === 'remote' ? row.ref.name.split('/').at(-1) : row.type === 'local' ? row.ref.name : row.name}</span>
                   {row.type === 'local' && row.ref.upstream && <span className="refs-tracking" title={`Upstream: ${row.ref.upstream}`}>↓{row.ref.behind} ↑{row.ref.ahead}</span>}
                 </button>}
+            {(row.type === 'local' || row.type === 'remote') && <button className="refs-more" aria-label="Menu da branch" title="Menu da branch"
+              onClick={(e) => void openMenu(row, e.currentTarget.getBoundingClientRect())}>⋮</button>}
           </div>
         })}
       </div>
     </div>
+    {menu && <Menu items={menu.items} anchor={menu.anchor} label="Menu da branch" onClose={() => setMenu(null)} />}
+    {dialog && <BranchDialogs path={path} dialog={dialog} close={() => setDialog(null)} />}
   </div>
 }

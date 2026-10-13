@@ -20,7 +20,7 @@ export interface Toast {
   pullPath?: string
 }
 
-export type PaletteMode = 'checkout' | 'deleteRemote' | 'createBranch'
+export type PaletteMode = 'checkout' | 'createBranch'
 
 export type GitStatus = { phase: 'checking' } | { phase: 'ok'; version: string } | { phase: 'missing'; message: string }
 
@@ -37,8 +37,8 @@ interface AppState {
   /** Refaz a ação que falhou por `index.lock` (botão "Tentar de novo"). */
   retry: (() => Promise<void>) | null
   palette: PaletteMode | null
-  /** Exclusão de branch remota aguardando confirmação (não desfazível). */
-  deleteRemotePrompt: { path: string; remote: string; branch: string } | null
+  /** Ponto de partida da nova branch (nulo = HEAD). */
+  paletteStart: string | null
   checkoutPrompt: { path: string; target: string; remote: string | null; conflicts: number; behind: number } | null
   pushPrompt: { path: string; branch: string; remotes: string[] } | null
   /** Descarte aguardando confirmação. */
@@ -59,7 +59,7 @@ export const useApp = create<AppState>(() => ({
   error: null,
   retry: null,
   palette: null,
-  deleteRemotePrompt: null,
+  paletteStart: null,
   checkoutPrompt: null,
   pushPrompt: null,
   resetPrompt: null,
@@ -296,22 +296,8 @@ export const actions = {
     set({ restoreConflict: null })
   },
 
-  setPalette(palette: PaletteMode | null) {
-    set({ palette })
-  },
-
-  requestDeleteRemote(path: string, remote: string, branch: string) {
-    set({ deleteRemotePrompt: { path, remote, branch } })
-  },
-
-  async confirmDeleteRemote() {
-    const p = get().deleteRemotePrompt
-    set({ deleteRemotePrompt: null })
-    if (p) await actions.execute(p.path, { type: 'deleteRemoteBranch', remote: p.remote, branch: p.branch })
-  },
-
-  cancelDeleteRemote() {
-    set({ deleteRemotePrompt: null })
+  setPalette(palette: PaletteMode | null, start: string | null = null) {
+    set({ palette, paletteStart: start })
   },
 
   clearError() {

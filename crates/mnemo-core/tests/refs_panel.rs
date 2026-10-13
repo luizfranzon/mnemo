@@ -157,3 +157,12 @@ fn checkout_com_stash_que_falha_recupera_o_wip() {
     assert_eq!(repo.read("novo.txt"), "novo");
     assert!(repo.git(&["stash", "list"]).is_empty());
 }
+
+#[test]
+fn remote_url_devolve_a_url_do_remoto_ou_nada() {
+    let repo = TestRepo::new();
+    let _remote = repo.with_remote();
+    let path = repo.path().to_string_lossy().into_owned();
+    assert!(repo.core.remote_url(&path, "origin").expect("url").is_some());
+    assert_eq!(repo.core.remote_url(&path, "inexistente").expect("url"), None);
+}

@@ -8,6 +8,7 @@ import '@fontsource/jetbrains-mono/400.css'
 import '@fontsource/jetbrains-mono/500.css'
 import '@tokens'
 import './styles.css'
+import './scrollbars'
 import { App } from './components/App'
 import { invoke } from './bridge'
 

@@ -177,3 +177,52 @@ input:focus { border-color: var(--accent); }
 .push-dialog::backdrop { background: rgba(0, 0, 0, .6); }
 .push-dialog label { display: block; margin-bottom: var(--space-2); }
 .push-dialog select { width: 100%; margin-bottom: var(--space-3); padding: var(--space-2); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; }
+
+/* Painel direito: detalhes do commit */
+.commit-panel { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.commit-empty { align-items: center; justify-content: center; color: var(--text-muted); }
+.commit-head { flex: none; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--border-subtle); }
+.commit-head h2 { margin: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.commit-head p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 120px; overflow: auto; }
+.commit-sha { display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); }
+.commit-sha button { border: 0; background: transparent; padding: 2px 6px; color: var(--text-muted); }
+.commit-author { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.commit-author > div:not(.commit-parents) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.commit-parents { display: flex; flex-direction: column; align-items: flex-end; font-family: var(--font-mono); font-size: 11.5px; }
+.avatar { width: 32px; height: 32px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+.commit-summary, .commit-tools { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 16px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; font-size: 11.5px; }
+.chip.modified { background: var(--warning-bg); color: var(--warning-text, #f0c06a); }
+.chip.added { background: var(--success-bg); color: var(--success-text); }
+.chip.removed { background: var(--danger-bg); color: var(--danger-text); }
+.chip.renamed { background: var(--surface-2); color: var(--accent); }
+.mono { font-family: var(--font-mono); font-size: 11.5px; }
+span.added, .commit-status.added { color: var(--success-text); }
+span.removed, .commit-status.removed { color: var(--danger-text); }
+.commit-status.modified { color: var(--warning-text, #f0c06a); }
+.commit-status.renamed { color: var(--accent); }
+.segmented { display: flex; padding: 2px; border: 1px solid var(--border-subtle); border-radius: 8px; }
+.segmented button { height: 24px; padding: 0 10px; border: 0; background: transparent; color: var(--text-muted); }
+.segmented button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); }
+.commit-tools label { display: flex; align-items: center; gap: 6px; color: var(--text-muted); }
+.commit-files { flex: 1; min-height: 0; overflow: auto; padding: 0 6px; }
+.commit-file { position: absolute; top: 0; left: 0; width: 100%; display: flex; align-items: center; gap: 6px; border: 0; background: transparent; text-align: left; font-size: 12.5px; }
+.commit-dir { font-weight: 600; }
+.commit-status { flex: none; width: 14px; text-align: center; }
+.commit-path { flex: 1; min-width: 0; display: flex; overflow: hidden; white-space: nowrap; }
+.commit-dirpath { overflow: hidden; text-overflow: ellipsis; color: var(--text-muted); flex-shrink: 1; }
+.commit-name { flex: none; max-width: 100%; }
+.commit-dir .commit-name { flex: 1; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.commit-lines { flex: none; padding-right: 6px; }
+
+/* Rolagem custom: trilho invisível; o polegar some em repouso e aparece (fade) ao rolar */
+::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background-color: transparent; border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; transition: background-color .4s ease; }
+[data-scrolling]::-webkit-scrollbar-thumb { background-color: rgba(154, 152, 146, .45); transition-duration: .12s; }
+[data-scrolling]::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { background-color: rgba(154, 152, 146, .75); }
+
+/* Menu da branch: ⋮ no hover da linha */
+.refs-virtual-row { display: flex; align-items: center; }
+.refs-more { position: absolute; right: 4px; top: 3px; width: 22px; height: 22px; padding: 0; display: none; border: 0; background: var(--hover); color: var(--text-secondary); border-radius: var(--radius-sm); }
+.refs-virtual-row:hover .refs-more, .refs-more:focus-visible { display: block; }

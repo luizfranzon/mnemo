@@ -16,32 +16,28 @@ interface Item {
 
 const PLACEHOLDER: Record<PaletteMode, string> = {
   checkout: 'Checkout de branch…',
-  deleteRemote: 'Excluir branch remota…',
   createBranch: 'Nome da nova branch…',
 }
 
 function load(mode: PaletteMode, path: string): Promise<Item[]> {
   if (mode === 'createBranch') return Promise.resolve([])
-  if (mode === 'checkout')
-    return core.listBranches(path).then((bs) =>
-      bs.map((b) => ({
-        name: b.name,
-        current: b.current,
-        pick: () => {
-          if (!b.current) void actions.execute(path, { type: 'checkout', target: b.name })
-        },
-      })),
-    )
-  return core.listRemoteBranches(path).then((bs) =>
-    bs.map((b) => ({ name: `${b.remote}/${b.name}`, current: false, pick: () => actions.requestDeleteRemote(path, b.remote, b.name) })),
+  return core.listBranches(path).then((bs) =>
+    bs.map((b) => ({
+      name: b.name,
+      current: b.current,
+      pick: () => {
+        if (!b.current) void actions.execute(path, { type: 'checkout', target: b.name })
+      },
+    })),
   )
 }
 
-/** Paleta: checkout de branch local (Ctrl+P) ou escolha da branch remota a excluir. */
+/** Paleta: checkout de branch local (Ctrl+P) ou nome da nova branch. */
 export function Palette({ mode }: { mode: PaletteMode }) {
   const path = useApp((s) => selectActiveTab(s)?.path)
   const head = useApp((s) => selectActiveTab(s)?.head)
   const toolbar = useApp((s) => selectActiveTab(s)?.toolbar)
+  const start = useApp((s) => s.paletteStart)
   const running = useApp((s) => s.activePath ? runningLabel(s, s.activePath) : undefined)
   const reason = head && toolbar ? toolbarAvailability(head, toolbar, running).mutation : 'Abra um repositório'
   const [items, setItems] = useState<Item[]>([])
@@ -71,7 +67,7 @@ export function Palette({ mode }: { mode: PaletteMode }) {
   const createBranch = () => {
     if (!path || !query.trim() || reason) return
     close()
-    void actions.execute(path, { type: 'branchCreate', name: query.trim(), start: null, checkout: true })
+    void actions.execute(path, { type: 'branchCreate', name: query.trim(), start, checkout: true })
   }
 
   return (

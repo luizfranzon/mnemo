@@ -78,6 +78,11 @@ export type OperationKind =
   | { type: 'stashCreate'; message: string | null; includeUntracked: boolean }
   | { type: 'stashPop'; index: number }
   | { type: 'deleteRemoteBranch'; remote: string; branch: string }
+  | { type: 'branchRename'; from: string; to: string }
+  | { type: 'branchDelete'; name: string; force: boolean }
+  | { type: 'rebase'; onto: string }
+  | { type: 'cherryPick'; commit: string }
+  | { type: 'revert'; commit: string }
 
 export type ExecuteResult =
   | { status: 'completed'; opId: number | null; label: string; undoable: boolean; warnings: string[]; state: UndoRedoState }
@@ -121,3 +126,9 @@ export type WindowAction =
   | 'copy'
   | 'paste'
   | 'selectAll'
+
+export interface FileChange { path: string; oldPath: string | null; status: 'A' | 'M' | 'D' | 'R' | 'C' | 'T' | 'U'; added: number | null; removed: number | null }
+export interface CommitDetail {
+  sha: string; parents: string[]; author: string; email: string; timestamp: number; subject: string; body: string
+  files: FileChange[]; added: number; removed: number
+}

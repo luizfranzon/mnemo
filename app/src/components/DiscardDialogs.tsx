@@ -5,22 +5,20 @@ export function DiscardDialogs() {
   const prompt = useApp((s) => s.discardPrompt)
   const reset = useApp((s) => s.resetPrompt)
   const conflict = useApp((s) => s.restoreConflict)
-  const remote = useApp((s) => s.deleteRemotePrompt)
   const checkout = useApp((s) => s.checkoutPrompt)
-  const open = prompt !== null || reset !== null || conflict !== null || remote !== null || checkout !== null
+  const open = prompt !== null || reset !== null || conflict !== null || checkout !== null
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (remote) actions.cancelDeleteRemote()
-      else if (checkout) actions.cancelCheckout()
+      if (checkout) actions.cancelCheckout()
       else if (prompt) actions.cancelDiscard()
       else if (reset) actions.cancelReset()
       else actions.dismissRestoreConflict()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, prompt, reset, conflict, remote, checkout])
+  }, [open, prompt, reset, conflict, checkout])
   if (checkout) return <div className="modal" role="dialog" aria-modal="true" aria-label="Mudanças locais no checkout">
     <div className="card">
       <h2>Você tem {checkout.conflicts} arquivo(s) alterado(s)</h2>
@@ -32,26 +30,6 @@ export function DiscardDialogs() {
       </div>
     </div>
   </div>
-  if (remote) {
-    return (
-      <div className="modal" role="dialog" aria-modal="true">
-        <div className="card">
-          <h2>
-            Excluir {remote.remote}/{remote.branch}?
-          </h2>
-          <p className="warning">A branch some do remoto. Não dá para desfazer: mexe no remoto.</p>
-          <div className="actions">
-            <button autoFocus onClick={actions.cancelDeleteRemote}>
-              Cancelar
-            </button>
-            <button className="primary" onClick={() => void actions.confirmDeleteRemote()}>
-              Excluir do remoto
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
   if (reset) {
     const { commits, trackedChanges, untrackedFiles, exceedsLimit } = reset.preview
     return (
