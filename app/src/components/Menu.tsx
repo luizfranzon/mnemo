@@ -37,7 +37,7 @@ export function Menu({ items, anchor, label, onClose }: { items: MenuEntry[]; an
   )
 }
 
-const first = (items: MenuEntry[]) => items.findIndex((i) => i !== '-')
+const first = (items: MenuEntry[]) => items.findIndex((i) => i !== '-' && !i.heading)
 
 function MenuList({ items, anchor, side, label, close, back, keyboard }: ListProps) {
   const ref = useRef<HTMLDivElement>(null)
@@ -69,7 +69,7 @@ function MenuList({ items, anchor, side, label, close, back, keyboard }: ListPro
   }
   const activate = (i: number) => {
     const it = items[i]
-    if (!it || it === '-' || it.reason) return
+    if (!it || it === '-' || it.heading || it.reason) return
     if (it.submenu) return openSub(i, true)
     close()
     it.run?.()
@@ -78,7 +78,8 @@ function MenuList({ items, anchor, side, label, close, back, keyboard }: ListPro
     let i = active
     for (let n = 0; n < items.length; n++) {
       i = (i + dir + items.length) % items.length
-      if (items[i] !== '-') return setActive(i)
+      const item = items[i]
+      if (item && item !== '-' && !item.heading) return setActive(i)
     }
   }
 
@@ -104,12 +105,15 @@ function MenuList({ items, anchor, side, label, close, back, keyboard }: ListPro
         {items.map((it, i) =>
           it === '-' ? (
             <div key={`-${i}`} className="menu-sep" role="separator" />
+          ) : it.heading ? (
+            <div key={`heading:${it.label}`} className="toolbar-menu-heading" role="presentation">{it.label}</div>
           ) : (
             <button
               /* lista fixa enquanto aberta; rótulos podem repetir (Abas de mesmo nome) */
               key={`${i}:${it.label}`}
               type="button"
-              role="menuitem"
+              role={it.checked === undefined ? 'menuitem' : 'menuitemradio'}
+              aria-checked={it.checked}
               tabIndex={-1}
               data-index={i}
               className={`menu-item${i === active ? ' active' : ''}${it.danger ? ' danger' : ''}`}
@@ -124,6 +128,7 @@ function MenuList({ items, anchor, side, label, close, back, keyboard }: ListPro
               }}
               onClick={() => activate(i)}
             >
+              {it.checked !== undefined && <span className="radio-mark" aria-hidden="true">{it.checked ? '●' : '○'}</span>}
               <span className="menu-label">{it.label}</span>
               {it.shortcut && <span className="menu-hint">{it.shortcut}</span>}
               {it.submenu && (

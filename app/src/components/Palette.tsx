@@ -2,6 +2,8 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import { actions, selectActiveTab, useApp, type PaletteMode } from '../store/app'
+import { runningLabel } from '../store/app'
+import { toolbarAvailability } from './toolbarModel'
 
 const ROW = 28
 
@@ -38,6 +40,10 @@ function load(mode: PaletteMode, path: string): Promise<Item[]> {
 /** Paleta: checkout de branch local (Ctrl+P) ou escolha da branch remota a excluir. */
 export function Palette({ mode }: { mode: PaletteMode }) {
   const path = useApp((s) => selectActiveTab(s)?.path)
+  const head = useApp((s) => selectActiveTab(s)?.head)
+  const toolbar = useApp((s) => selectActiveTab(s)?.toolbar)
+  const running = useApp((s) => s.activePath ? runningLabel(s, s.activePath) : undefined)
+  const reason = head && toolbar ? toolbarAvailability(head, toolbar, running).mutation : 'Abra um repositório'
   const [items, setItems] = useState<Item[]>([])
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
@@ -50,7 +56,7 @@ export function Palette({ mode }: { mode: PaletteMode }) {
   const q = query.trim().toLowerCase()
   const shown = q ? items.filter((b) => b.name.toLowerCase().includes(q)) : items
 
-  const virtual = useVirtualizer({ count: shown.length, getScrollElement: () => scroller.current, estimateSize: () => ROW, overscan: 8 })
+  const virtual = useVirtualizer({ count: shown.length, getItemKey: (i) => shown[i]!.name, getScrollElement: () => scroller.current, estimateSize: () => ROW, overscan: 8 })
 
   useEffect(() => {
     virtual.scrollToIndex(cursor) // a seleção por teclado acompanha a lista virtualizada
@@ -58,12 +64,12 @@ export function Palette({ mode }: { mode: PaletteMode }) {
 
   const close = () => actions.setPalette(null)
   const choose = (b: Item | undefined) => {
-    if (!b) return
+    if (!b || reason) return
     close()
     b.pick()
   }
   const createBranch = () => {
-    if (!path || !query.trim()) return
+    if (!path || !query.trim() || reason) return
     close()
     void actions.execute(path, { type: 'branchCreate', name: query.trim(), start: null, checkout: true })
   }
@@ -86,7 +92,7 @@ export function Palette({ mode }: { mode: PaletteMode }) {
             else if (e.key === 'Enter') mode === 'createBranch' ? createBranch() : choose(shown[cursor])
           }}
         />
-        {mode === 'createBranch' && <button onClick={createBranch} disabled={!query.trim()}>Criar branch e fazer checkout</button>}
+        {mode === 'createBranch' && <button onClick={createBranch} disabled={!query.trim() || !!reason} title={reason}>Criar branch e fazer checkout</button>}
         <div className="palette-list" ref={scroller}>
           <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
             {virtual.getVirtualItems().map((row) => {
@@ -95,6 +101,8 @@ export function Palette({ mode }: { mode: PaletteMode }) {
               return (
                 <button
                   key={b.name}
+                  disabled={!!reason}
+                  title={reason}
                   className={row.index === cursor ? 'palette-row selected' : 'palette-row'}
                   style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: ROW, transform: `translateY(${row.start}px)` }}
                   onMouseEnter={() => setCursor(row.index)}

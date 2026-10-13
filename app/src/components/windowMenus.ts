@@ -4,6 +4,7 @@ import { core } from '../bridge'
 import { actions, runningLabel, selectActiveTab, useApp, type Tab } from '../store/app'
 import type { ActionState } from '../bridge/types'
 import type { MenuEntry } from './menuModel'
+import { PULL_MODES, toolbarAvailability } from './toolbarModel'
 
 export interface MenuContext {
   tab: Tab | undefined
@@ -29,6 +30,7 @@ export function windowMenus({ tab, tabs, running, textFocus }: MenuContext): { l
   const busy = noRepo ?? (running ? `${running} Aguarde terminar.` : undefined)
   const path = tab?.path ?? ''
   const branch = tab?.head.kind === 'branch' ? tab.head : undefined
+  const availability = tab ? toolbarAvailability(tab.head, tab.toolbar, running) : undefined
   const op = (verb: string, state: ActionState | undefined, run: () => void, shortcut: string): MenuEntry => ({
     label: state?.enabled ? state.label! : verb,
     reason: busy ?? (state?.enabled ? undefined : (state?.reason ?? undefined)),
@@ -101,18 +103,21 @@ export function windowMenus({ tab, tabs, running, textFocus }: MenuContext): { l
     {
       label: 'Repositório',
       items: [
-        { label: 'Fetch', reason: busy, run: () => void actions.execute(path, { type: 'fetch', remote: null }) },
-        soonSub('Pull'),
+        { label: 'Fetch', reason: noRepo ?? availability?.fetch, run: () => void actions.execute(path, { type: 'fetch', remote: null }) },
+        { label: 'Pull', reason: noRepo, submenu: PULL_MODES.map((mode) => ({
+          label: mode.label, reason: noRepo ?? (mode.value === 'fetch' ? availability?.fetch : availability?.pull),
+          run: () => void actions.execute(path, mode.value === 'fetch' ? { type: 'fetch', remote: null } : { type: 'pull', strategy: mode.value }),
+        })) },
         {
           label: branch ? `Push ${branch.name}` : 'Push',
-          reason: busy ?? (tab?.head.kind === 'detached' ? 'HEAD destacado: não há branch para enviar' : undefined),
-          run: () => void actions.execute(path, { type: 'push', remote: null, branch: null, setUpstream: branch?.upstream === null }),
+          reason: noRepo ?? availability?.push,
+          run: () => void actions.requestPush(path),
         },
         soon('Stash'),
         soon('Pop'),
         '-',
         soon('Nova branch', 'Ctrl+B'),
-        { label: 'Checkout…', shortcut: 'Ctrl+Shift+B', reason: busy, run: () => actions.setPalette('checkout') },
+        { label: 'Checkout…', shortcut: 'Ctrl+Shift+B', reason: noRepo ?? availability?.mutation, run: () => actions.setPalette('checkout') },
         soon('Commitar', 'Ctrl+Enter'),
         soon('Amend'),
         '-',

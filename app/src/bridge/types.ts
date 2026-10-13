@@ -23,6 +23,7 @@ export interface RepositoryInfo {
 }
 export type PullMode = 'fetch' | 'merge' | 'ffOnly' | 'rebase'
 export interface ToolbarInfo {
+  remotes: string[]
   ahead: number | null
   behind: number | null
   lastFetchEpoch: number | null
