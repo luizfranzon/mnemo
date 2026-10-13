@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { core, errorCode, errorMessage } from '../bridge'
 import type { DiscardPreview, ResetPreview, HeadInfo, OperationKind, PullMode, RepositoryInfo, ToolbarInfo, UndoRedoState } from '../bridge/types'
+import { toolbarAvailability } from '../components/toolbarModel'
 
 export interface Tab {
   /** Diretório de trabalho: a identidade da Aba (o mesmo diretório nunca abre duas vezes). */
@@ -39,6 +40,7 @@ interface AppState {
   /** Exclusão de branch remota aguardando confirmação (não desfazível). */
   deleteRemotePrompt: { path: string; remote: string; branch: string } | null
   checkoutPrompt: { path: string; target: string; remote: string | null; conflicts: number; behind: number } | null
+  pushPrompt: { path: string; branch: string; remotes: string[] } | null
   /** Descarte aguardando confirmação. */
   resetPrompt: { path: string; target: string; preview: ResetPreview } | null
   discardPrompt: { path: string; paths: string[]; preview: DiscardPreview } | null
@@ -59,6 +61,7 @@ export const useApp = create<AppState>(() => ({
   palette: null,
   deleteRemotePrompt: null,
   checkoutPrompt: null,
+  pushPrompt: null,
   resetPrompt: null,
   discardPrompt: null,
   restoreConflict: null,
@@ -156,7 +159,7 @@ export const actions = {
     set((s) => {
       const tabs = s.tabs.filter((t) => !same(t.path, path))
       const activePath = s.activePath && same(s.activePath, path) ? (tabs.at(-1)?.path ?? null) : s.activePath
-      return { tabs, activePath, selectedSha: activePath !== s.activePath ? null : s.selectedSha, retry: null } // o retry pendente era de uma aba que pode ser esta
+      return { tabs, activePath, selectedSha: activePath !== s.activePath ? null : s.selectedSha, retry: null, pushPrompt: s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt } // o retry pendente era de uma aba que pode ser esta
     })
   },
 
@@ -188,6 +191,35 @@ export const actions = {
     try {
       patchTab(path, { toolbar: await core.setPullMode(path, mode) })
     } catch (err) { fail(err) }
+  },
+
+  async requestPush(path: string) {
+    const tab = get().tabs.find((t) => same(t.path, path))
+    if (!tab || tab.head.kind !== 'branch') return
+    const reason = toolbarAvailability(tab.head, tab.toolbar, runningLabel(get(), path)).push
+    if (reason) return fail(new Error(reason))
+    if (tab.head.upstream !== null) {
+      return actions.execute(path, { type: 'push', remote: null, branch: null, setUpstream: false })
+    }
+    const remotes = tab.toolbar.remotes
+    const remote = remotes.includes('origin') ? 'origin' : remotes.length === 1 ? remotes[0] : undefined
+    if (remote) return actions.execute(path, { type: 'push', remote, branch: tab.head.name, setUpstream: true })
+    set({ pushPrompt: { path, branch: tab.head.name, remotes } })
+  },
+
+  async confirmPush(remote: string) {
+    const prompt = get().pushPrompt
+    set({ pushPrompt: null })
+    if (!prompt || !prompt.remotes.includes(remote)) return
+    const tab = get().tabs.find((t) => same(t.path, prompt.path))
+    if (!tab || tab.head.kind !== 'branch' || tab.head.name !== prompt.branch) return
+    const reason = toolbarAvailability(tab.head, tab.toolbar, runningLabel(get(), prompt.path)).push
+    if (reason) return fail(new Error(reason))
+    await actions.execute(prompt.path, { type: 'push', remote, branch: prompt.branch, setUpstream: true })
+  },
+
+  cancelPush() {
+    set({ pushPrompt: null })
   },
 
   async progressAction(path: string, action: 'continue' | 'skip' | 'abort') {

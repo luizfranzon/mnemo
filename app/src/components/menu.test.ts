@@ -31,7 +31,7 @@ const tab: Tab = {
   path: '/r',
   name: 'r',
   head: { kind: 'branch', name: 't34949', upstream: 'origin/t34949' },
-  toolbar: { ahead: 0, behind: 0, lastFetchEpoch: null, stashCount: 0, pullMode: 'merge', progress: null },
+  toolbar: { remotes: ['origin'], ahead: 0, behind: 0, lastFetchEpoch: null, stashCount: 0, pullMode: 'merge', progress: null },
   undo: { undo: { enabled: true, label: 'Desfazer checkout de t34949', reason: null }, redo: { enabled: false, label: null, reason: 'Nada para refazer' } },
 }
 const ctx = (patch: Partial<MenuContext> = {}): MenuContext => ({ tab, tabs: [tab], running: undefined, textFocus: false, ...patch })

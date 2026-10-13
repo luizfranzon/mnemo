@@ -54,6 +54,7 @@ pub struct RepositoryInfo {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolbarInfo {
+    pub remotes: Vec<String>,
     pub ahead: Option<u64>,
     pub behind: Option<u64>,
     pub last_fetch_epoch: Option<u64>,
@@ -213,6 +214,7 @@ impl Mnemo {
             ProgressInfo { kind: kind.name().into(), step: steps.map(|s| s.0), total: steps.map(|s| s.1) }
         });
         Ok(ToolbarInfo {
+            remotes: git.remotes()?,
             ahead: counts.map(|c| c.0),
             behind: counts.map(|c| c.1),
             last_fetch_epoch: git.last_fetch_epoch()?,

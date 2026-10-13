@@ -7,6 +7,7 @@ import { StatusBar } from './StatusBar'
 import { TabBar } from './TabBar'
 import { Toasts } from './Toasts'
 import { Toolbar } from './Toolbar'
+import { PushDialog } from './PushDialog'
 
 export function Workspace() {
   const path = useApp((s) => selectActiveTab(s)?.path)
@@ -27,6 +28,7 @@ export function Workspace() {
       )}
       <StatusBar />
       <DiscardDialogs />
+      <PushDialog />
 
       <Toasts />
       {palette && <Palette key={palette} mode={palette} />}

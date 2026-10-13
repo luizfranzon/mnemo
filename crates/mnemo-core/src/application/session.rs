@@ -222,7 +222,14 @@ impl RepoSession {
     }
 
     fn execute_locked(&self, kind: OperationKind) -> Result<ExecuteResult> {
-        self.ensure_ready()?;
+        // Fetch só atualiza refs remotas: pode rodar entre passos de resolução de conflito.
+        if matches!(kind, OperationKind::Fetch { .. }) {
+            if self.git.index_lock_present() {
+                return Err(CoreError::IndexLocked);
+            }
+        } else {
+            self.ensure_ready()?;
+        }
         let mut before = self.sync_external_locked()?;
         if kind.tracks_index() {
             before.index_tree = self.git.index_tree()?;

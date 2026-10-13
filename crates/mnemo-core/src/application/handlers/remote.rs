@@ -40,7 +40,7 @@ impl Handler for RemoteHandler {
             }
             Fetch { remote } => {
                 let mut a = vec!["fetch".to_string(), "--prune".into()];
-                a.extend(remote.clone());
+                a.push(remote.clone().unwrap_or_else(|| "--all".into()));
                 a
             }
             DeleteRemoteBranch { remote, branch } => {
