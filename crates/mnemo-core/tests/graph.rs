@@ -108,3 +108,16 @@ fn carrega_mais_de_dois_mil_commits_em_paginas() {
     assert_eq!(second.commits.len(), 101);
     assert!(second.next.is_none());
 }
+
+#[test]
+fn descricao_e_a_primeira_linha_do_corpo() {
+    let repo = TestRepo::new();
+    repo.write("a.txt", "a");
+    repo.git(&["add", "."]);
+    repo.git(&["commit", "-q", "-m", "assunto", "-m", "primeira linha\ncom mais texto", "-m", "outro parágrafo"]);
+    repo.write("b.txt", "b");
+    repo.commit_all("sem corpo");
+    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 10).expect("página");
+    assert_eq!(page.commits[0].description, "");
+    assert_eq!(page.commits[1].description, "primeira linha");
+}

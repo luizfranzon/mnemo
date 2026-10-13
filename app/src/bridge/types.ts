@@ -57,7 +57,7 @@ export interface RefListing {
 export interface GraphCursor { offset: number; lanes: ({ sha: string; color: number } | null)[]; nextColor: number }
 export interface GraphSegment { fromLane: number; toLane: number; color: string; kind: 'pass' | 'incoming' | 'parent' }
 export interface GraphCommit {
-  sha: string; parents: string[]; author: string; email: string; timestamp: number; subject: string
+  sha: string; parents: string[]; author: string; email: string; timestamp: number; subject: string; description: string
   lane: number; color: string; laneCount: number; segments: GraphSegment[]
   refs: { name: string; kind: 'local' | 'remote' | 'tag'; current: boolean }[]; head: boolean
 }

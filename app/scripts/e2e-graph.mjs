@@ -23,7 +23,7 @@ try {
   await ev(`document.querySelector('.graph-row .graph-sha[title="${first}"]').parentElement.click()`)
   await until(() => ev(`!!document.querySelector('.graph-row .graph-sha[title="${first}"]').parentElement.classList.contains('selected')`), true)
   await ev(`document.querySelector('.graph-row .graph-sha[title="${first}"]').parentElement.dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))`)
-  await until(() => ev(`!!document.querySelector('.detached-banner')`), true)
+  await until(() => ev(`!!document.querySelector('.progress-banner')`), true)
   await ev(`window.dispatchEvent(new KeyboardEvent('keydown', {key:'z',ctrlKey:true,bubbles:true}))`)
   await until(() => ev(`document.querySelector('[data-testid="current-branch"]')?.textContent`), 'main')
   await until(() => ev(`document.querySelectorAll('.graph-row').length === 4 && !document.querySelector('.graph-loading')`), true)

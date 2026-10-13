@@ -16,8 +16,9 @@ export function makeRepo() {
   return { repo, g }
 }
 
-export async function launch(repo, port) {
-  const app = spawn('./node_modules/.bin/electron', ['.', `--remote-debugging-port=${port}`, repo], { stdio: 'ignore' })
+/** `repo` pode ser vários caminhos ou nenhum; `userData` fixo permite reabrir o app e ver o que ele lembrou. */
+export async function launch(repo, port, userData = mkdtempSync(path.join(os.tmpdir(), 'mnemo-e2e-data-'))) {
+  const app = spawn('./node_modules/.bin/electron', ['.', `--remote-debugging-port=${port}`, `--user-data-dir=${userData}`, ...[repo ?? []].flat()], { stdio: 'ignore' })
   let target
   for (let i = 0; i < 40 && !target; i++) {
     await sleep(500)
@@ -58,5 +59,12 @@ export async function launch(repo, port) {
     if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(app.pid), '/T', '/F'])
     else app.kill()
   }
-  return { send, ev, until, click, close }
+  // fecha pela janela, como o usuário: o localStorage só chega ao disco numa saída normal (kill /F perde a última escrita)
+  const quit = async () => {
+    const exited = new Promise((r) => app.once('exit', r))
+    send('Browser.close')
+    await Promise.race([exited, sleep(8000)])
+    close()
+  }
+  return { send, ev, until, click, close, quit }
 }

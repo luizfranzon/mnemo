@@ -124,9 +124,10 @@ input:focus { border-color: var(--accent); }
 .graph-view { height: 100%; min-height: 0; display: flex; flex-direction: column; --graph-offset: 0px; overflow: hidden; }
 .graph-meta { height: 32px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); }
 .graph-meta strong { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.graph-grid { display: grid; grid-template-columns: minmax(70px, 1fr) 144px minmax(110px, 2fr) minmax(60px, .7fr) 62px 58px; }
-.graph-header { height: 33px; flex: none; align-items: center; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: var(--fs-overline); font-weight: 600; }
-.graph-header > span { padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.graph-grid { display: grid; grid-template-columns: var(--graph-cols, 150px 144px minmax(200px, 1fr) 120px 104px 70px); }
+.graph-header { padding-right: 10px; /* largura da barra de rolagem da lista */ height: 33px; flex: none; align-items: center; border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: var(--fs-overline); font-weight: 600; }
+.graph-hcell { position: relative; min-width: 0; }
+.graph-hcell > span { padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .graph-scrollbar { overflow-x: auto; overflow-y: hidden; height: 33px; position: relative; }
 .graph-scrollbar > span { position: sticky; left: 6px; display: block; padding-top: 7px; pointer-events: none; }
 .graph-list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; position: relative; }
@@ -226,3 +227,19 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .refs-virtual-row { display: flex; align-items: center; }
 .refs-more { position: absolute; right: 4px; top: 3px; width: 22px; height: 22px; padding: 0; display: none; border: 0; background: var(--hover); color: var(--text-secondary); border-radius: var(--radius-sm); }
 .refs-virtual-row:hover .refs-more, .refs-more:focus-visible { display: block; }
+
+/* Colunas do grafo: divisores, engrenagem e modo compacto */
+.col-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: col-resize; z-index: 2; }
+.col-handle.after { right: -3px; }
+.col-handle.before { left: -3px; }
+.col-handle:hover, .col-handle.dragging { background: var(--accent); opacity: .5; }
+.graph-view { position: relative; }
+.graph-gear { margin-left: auto; }
+.graph-pop-overlay { position: fixed; inset: 0; z-index: 20; }
+.graph-pop { position: absolute; top: 34px; right: 8px; z-index: 21; min-width: 220px; padding: 8px; background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: var(--radius-menu); box-shadow: var(--shadow-menu); display: flex; flex-direction: column; gap: 2px; }
+.graph-pop-row { display: flex; align-items: center; gap: 6px; }
+.graph-pop-row label { flex: 1; }
+.graph-pop-row button { width: 24px; height: 22px; padding: 0; }
+.graph-pop-reset { margin-top: 6px; }
+.graph-description { color: var(--text-muted); }
+.avatar.small { width: 18px; height: 18px; font-size: 8px; display: inline-flex; margin-right: 6px; vertical-align: middle; }

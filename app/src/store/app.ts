@@ -138,8 +138,18 @@ export const actions = {
     }
   },
 
+  /** Reabre as Abas da sessão anterior (as que sumiram do disco ficam de fora) e depois as passadas na linha de comando. */
   async openInitialPaths() {
-    for (const p of await core.initialPaths()) await actions.openRepository(p)
+    const saved = loadSession()
+    for (const p of saved.paths) {
+      try { adoptRepository(await core.openRepository(p)) } catch { /* pasta apagada ou movida */ }
+    }
+    const cli = await core.initialPaths()
+    for (const p of cli) await actions.openRepository(p)
+    const active = saved.active && get().tabs.find((t) => same(t.path, saved.active!))
+    if (active && !cli.length) set({ activePath: active.path })
+    sessionReady = true
+    saveSession()
   },
 
   async openRepository(path?: string | null) {
@@ -365,6 +375,22 @@ function adoptRepository(info: RepositoryInfo) {
     }
   })
 }
+
+// Abas abertas ficam no localStorage do Electron (dados do app) e voltam ao reabrir. Só grava depois de restaurar,
+// para a lista vazia do início não apagar a sessão salva.
+const SESSION_KEY = 'mnemo.session'
+let sessionReady = false
+function loadSession(): { paths: string[]; active: string | null } {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SESSION_KEY) ?? '{}') as { paths?: unknown; active?: unknown }
+    return { paths: Array.isArray(raw.paths) ? raw.paths.filter((p): p is string => typeof p === 'string') : [], active: typeof raw.active === 'string' ? raw.active : null }
+  } catch { return { paths: [], active: null } }
+}
+function saveSession() {
+  const { tabs, activePath } = get()
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ paths: tabs.map((t) => t.path), active: activePath })) } catch { /* sem storage */ }
+}
+useApp.subscribe((state, prev) => { if (sessionReady && (state.tabs.length !== prev.tabs.length || state.activePath !== prev.activePath)) saveSession() })
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 

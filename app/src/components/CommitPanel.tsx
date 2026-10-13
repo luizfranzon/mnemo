@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import type { CommitDetail, FileChange } from '../bridge/types'
 import { actions, useApp } from '../store/app'
+import { avatarStyle, initials } from './avatar'
 
 type View = 'path' | 'tree'
 type Sort = 'path' | 'status'
@@ -54,9 +55,6 @@ function summary(files: FileChange[]) {
   ].filter((s) => s.n)
 }
 
-const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toLocaleUpperCase()).join('') || '?'
-const hue = (text: string) => [...text].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7)
-
 export function CommitPanel({ path }: { path: string }) {
   const sha = useApp((s) => (s.selectedSha === 'wip' ? null : s.selectedSha))
   const [detail, setDetail] = useState<CommitDetail | null>(null)
@@ -85,7 +83,7 @@ export function CommitPanel({ path }: { path: string }) {
       <h2>{detail.subject}</h2>
       <p className="muted">{detail.body || 'Sem descrição.'}</p>
       <div className="commit-author">
-        <span className="avatar" style={{ background: `hsl(${hue(detail.email)} 35% 22%)`, color: `hsl(${hue(detail.email)} 70% 72%)` }}>{initials(detail.author)}</span>
+        <span className="avatar" style={avatarStyle(detail.email)}>{initials(detail.author)}</span>
         <div><div>{detail.author}</div><div className="muted">criou em {new Date(detail.timestamp * 1000).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div></div>
         {detail.parents.length > 0 && <div className="commit-parents"><span className="muted">{detail.parents.length > 1 ? 'pais' : 'pai'}</span>
           <span>{detail.parents.map((p, i) => <span key={p}>{i > 0 && ' · '}<a href="#" onClick={(e) => { e.preventDefault(); actions.selectCommit(p) }}>{p.slice(0, 6)}</a></span>)}</span></div>}

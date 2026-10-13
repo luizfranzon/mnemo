@@ -53,6 +53,8 @@ pub struct GraphCommit {
     pub email: String,
     pub timestamp: i64,
     pub subject: String,
+    /// Primeira linha não vazia do corpo da mensagem.
+    pub description: String,
     pub lane: usize,
     pub color: String,
     pub lane_count: usize,
@@ -83,6 +85,7 @@ pub struct CommitInput {
     pub email: String,
     pub timestamp: i64,
     pub subject: String,
+    pub description: String,
 }
 
 impl GraphCursor {
@@ -170,6 +173,7 @@ impl GraphCursor {
             email: input.email,
             timestamp: input.timestamp,
             subject: input.subject,
+            description: input.description,
             lane,
             color,
             lane_count,

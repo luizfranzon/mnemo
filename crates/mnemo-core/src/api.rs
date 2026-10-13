@@ -422,7 +422,7 @@ impl Mnemo {
             "--topo-order".into(),
             "--no-decorate".into(),
             "-z".into(),
-            "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%s".into(),
+            "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%s%x00%b".into(),
             format!("--skip={}", cursor.offset),
             format!("--max-count={}", limit + 1),
         ];
@@ -430,7 +430,7 @@ impl Mnemo {
         let output = git.exec(&GitCmd::new(args))?;
         let fields: Vec<&[u8]> = output.stdout.split(|b| *b == 0).collect();
         let mut inputs = Vec::new();
-        for record in fields.chunks_exact(6) {
+        for record in fields.chunks_exact(7) {
             if record[0].is_empty() {
                 continue;
             }
@@ -442,6 +442,7 @@ impl Mnemo {
                 email: string(record[3]),
                 timestamp: string(record[4]).parse().unwrap_or(0),
                 subject: string(record[5]),
+                description: string(record[6]).lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or_default().chars().take(300).collect(),
             });
         }
         let has_more = inputs.len() > limit;
