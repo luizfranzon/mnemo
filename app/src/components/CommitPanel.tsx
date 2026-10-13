@@ -4,6 +4,11 @@ import { core } from '../bridge'
 import type { CommitDetail, FileChange } from '../bridge/types'
 import { actions, useApp } from '../store/app'
 import { avatarStyle, initials } from './avatar'
+import { fileMenu, type CommitDialog } from './commitMenu'
+import { CommitDialogs } from './CommitDialogs'
+import { Menu } from './Menu'
+import { menuBase } from './menuBase'
+import type { MenuEntry, Rect } from './menuModel'
 
 type View = 'path' | 'tree'
 type Sort = 'path' | 'status'
@@ -63,7 +68,19 @@ export function CommitPanel({ path }: { path: string }) {
   const [sort, setSort] = useState<Sort>('path')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [copied, setCopied] = useState(false)
+  const [menu, setMenu] = useState<{ items: MenuEntry[]; anchor: Rect } | null>(null)
+  const [dialog, setDialog] = useState<CommitDialog | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  const openMenu = async (file: FileChange, anchor: Rect) => {
+    if (!sha) return
+    const base = await menuBase(path)
+    if (!base) return
+    const sep = path.includes('\\') ? '\\' : '/'
+    setMenu({ anchor, items: fileMenu(sha, file, {
+      ...base, dialog: setDialog, absolute: `${path.replace(/[\\/]$/, '')}${sep}${file.path.replaceAll('/', sep)}`,
+      open: (how) => void core.openFile(path, file.path, how).catch(actions.reportError),
+    }) })
+  }
   useEffect(() => {
     if (!sha) { setDetail(null); return }
     let active = true
@@ -116,13 +133,18 @@ export function CommitPanel({ path }: { path: string }) {
           }
           const st = STATUS[row.file.status]
           const title = row.file.oldPath ? `${row.file.oldPath} → ${row.file.path}` : row.file.path
-          return <div key={row.key} className="commit-file" style={style} title={`${title} (${st.label})`}>
+          return <div key={row.key} className="commit-file" style={style} title={`${title} (${st.label})`}
+            onContextMenu={(e) => { e.preventDefault(); void openMenu(row.file, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }) }}>
             <span className={`commit-status ${st.cls}`}>{st.icon}</span>
             <span className="commit-path"><span className="commit-dirpath">{row.dir}</span><span className="commit-name">{row.name}</span></span>
             {row.file.added !== null && row.file.status !== 'U' && <span className="mono commit-lines"><span className="added">+{row.file.added}</span> <span className="removed">−{row.file.removed}</span></span>}
+            <button className="refs-more" aria-label="Menu do arquivo" title="Menu do arquivo"
+              onClick={(e) => void openMenu(row.file, e.currentTarget.getBoundingClientRect())}>⋮</button>
           </div>
         })}
       </div>
     </div>
+    {menu && <Menu items={menu.items} anchor={menu.anchor} label="Menu do arquivo" onClose={() => setMenu(null)} />}
+    {dialog && <CommitDialogs path={path} dialog={dialog} close={() => setDialog(null)} />}
   </div>
 }

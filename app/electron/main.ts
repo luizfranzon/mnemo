@@ -2,9 +2,10 @@
 // O pool do libuv roda as chamadas ao core; uma fila de Operações bloqueia uma thread enquanto espera.
 process.env.UV_THREADPOOL_SIZE ??= '16'
 
-import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
+import { spawn } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 
 interface Native {
   init(dataDir: string, onEvent: (json: string) => void): void
@@ -86,6 +87,24 @@ const appCommands: Record<string, (args: Record<string, unknown>) => Promise<unk
   initial_paths() {
     const args = app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)
     return args.filter((a) => !a.startsWith('-') && existsSync(a) && statSync(a).isDirectory())
+  },
+  /** Abre um arquivo do repositório fora do app. O caminho nunca sai do diretório de trabalho. */
+  async open_file(args) {
+    const full = resolve(String(args.workdir), String(args.file))
+    if (relative(String(args.workdir), full).startsWith('..')) throw new Error('caminho fora do repositório')
+    if (args.how === 'folder') {
+      if (!existsSync(full)) throw new Error(`o arquivo não existe mais no diretório de trabalho: ${String(args.file)}`)
+      shell.showItemInFolder(full)
+    } else if (args.how === 'editor') {
+      const editor = process.env.VISUAL || process.env.EDITOR || 'code'
+      const child = spawn(editor, [full], { shell: true, detached: true, stdio: 'ignore' })
+      child.on('exit', (code) => { if (code) void shell.openPath(full) }) // editor ausente: cai no programa padrão
+      child.unref()
+    } else {
+      const error = await shell.openPath(full)
+      if (error) throw new Error(error)
+    }
+    return null
   },
   window_action(args) {
     const run = windowActions[String(args.action)]

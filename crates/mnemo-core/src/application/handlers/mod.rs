@@ -1,6 +1,7 @@
 //! Um handler por família de Operação. Cada um executa a ação git e devolve o plano de inversão.
 
 mod discard;
+mod file_ops;
 pub mod integrate;
 mod refs_ops;
 mod remote;
@@ -42,6 +43,7 @@ impl Default for HandlerSet {
             Box::new(refs_ops::RefsOps),
             Box::new(reset::ResetHandler),
             Box::new(discard::DiscardHandler),
+            Box::new(file_ops::FileOps),
             Box::new(integrate::IntegrateHandler),
             Box::new(stash::StashHandler),
             Box::new(remote::RemoteHandler),

@@ -4,6 +4,11 @@ import { core } from '../bridge'
 import type { GraphCommit, GraphPage, GraphSegment } from '../bridge/types'
 import { actions, useApp } from '../store/app'
 import { avatarStyle, initials } from './avatar'
+import { commitMenu, type CommitDialog } from './commitMenu'
+import { CommitDialogs } from './CommitDialogs'
+import { Menu } from './Menu'
+import { copyText, menuBase } from './menuBase'
+import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
 import {
   COLUMNS, DEFAULT_LAYOUT, columnWidth, dragColumnWidth, geometry, gridTemplate, loadGraphLayout, moveColumn, saveGraphLayout, visibleColumns,
   type ColId, type GraphLayout,
@@ -58,6 +63,8 @@ export function Graph({ path }: { path: string }) {
   const [gear, setGear] = useState(false)
   const [maxLanes, setMaxLanes] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [menu, setMenu] = useState<{ items: MenuEntry[]; anchor: Rect } | null>(null)
+  const [dialog, setDialog] = useState<CommitDialog | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const root = useRef<HTMLDivElement>(null)
   const busy = useRef(false)
@@ -172,6 +179,29 @@ export function Graph({ path }: { path: string }) {
     update((l) => ({ ...l, widths: { ...l.widths, [id]: dragColumnWidth(l, id, Math.ceil(wanted), room()) } }))
   }
 
+  useEffect(() => {
+    const copy = (e: KeyboardEvent) => {
+      if (!selectedSha || selectedSha === 'wip' || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (!matchesShortcut('Ctrl+Shift+C', e)) return
+      e.preventDefault()
+      copyText(selectedSha)
+    }
+    window.addEventListener('keydown', copy)
+    return () => window.removeEventListener('keydown', copy)
+  }, [selectedSha])
+  const openMenu = async (commit: GraphCommit, e: React.MouseEvent) => {
+    e.preventDefault()
+    actions.selectCommit(commit.sha)
+    const anchor = { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }
+    const base = await menuBase(path)
+    if (!base) return
+    setMenu({ anchor, items: commitMenu(commit, {
+      ...base, dialog: setDialog, execute: (kind) => void actions.execute(path, kind),
+      checkout: (sha) => void actions.checkoutRef(path, { type: 'checkout', target: sha }),
+      newBranch: (start) => actions.setPalette('createBranch', start), resetHard: (sha) => void actions.requestResetHard(path, sha),
+    }) })
+  }
+
   const branch = head?.kind === 'branch' ? head.name : head?.sha ?? 'HEAD'
   const cell = (id: ColId, commit: GraphCommit | null | undefined, wip: boolean) => {
     switch (id) {
@@ -230,6 +260,7 @@ export function Graph({ path }: { path: string }) {
           const selected = commit ? selectedSha === commit.sha : selectedSha === 'wip'
           return <div key={item.key} className={`graph-row graph-grid${selected ? ' selected' : ''}`} style={{ height: ROW, transform: `translateY(${item.start}px)` }}
             onClick={() => actions.selectCommit(commit?.sha ?? 'wip')}
+            onContextMenu={(e) => { if (commit) void openMenu(commit, e) }}
             onDoubleClick={() => { if (commit) void actions.checkoutRef(path, { type: 'checkout', target: commit.sha }) }}>
             {cols.map((id) => cell(id, commit, wip))}
           </div>
@@ -238,5 +269,7 @@ export function Graph({ path }: { path: string }) {
       {!commits.length && !loading && <div className="graph-empty">Este repositório ainda não tem commits.</div>}
       {loading && <div className="graph-loading" role="status">Carregando commits…</div>}
     </div>
+    {menu && <Menu items={menu.items} anchor={menu.anchor} label="Menu do commit" onClose={() => setMenu(null)} />}
+    {dialog && <CommitDialogs path={path} dialog={dialog} close={() => setDialog(null)} />}
   </div>
 }

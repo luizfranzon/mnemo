@@ -124,6 +124,19 @@ pub enum OperationKind {
         remote: String,
         branch: String,
     },
+    /// Só reescreve a mensagem do commit HEAD (o que está preparado fica de fora).
+    Reword {
+        message: String,
+    },
+    /// Traz o arquivo como estava em `commit` para o diretório de trabalho e o index.
+    RestoreFile {
+        commit: String,
+        path: String,
+    },
+    /// Remove o arquivo do diretório de trabalho e do index.
+    DeleteFile {
+        path: String,
+    },
 }
 
 impl OperationKind {
@@ -157,6 +170,9 @@ impl OperationKind {
             Push { .. } => "push".into(),
             Fetch { .. } => "fetch".into(),
             DeleteRemoteBranch { remote, branch } => format!("excluir {remote}/{branch}"),
+            Reword { .. } => "editar mensagem".into(),
+            RestoreFile { commit, path } => format!("restaurar {path} de {}", commit.get(..7).unwrap_or(commit)),
+            DeleteFile { path } => format!("excluir {path}"),
         }
     }
 
@@ -165,7 +181,13 @@ impl OperationKind {
         use OperationKind::*;
         matches!(
             self,
-            Commit { .. } | StashCreate { .. } | StashApply { .. } | StashPop { .. } | CheckoutWithChanges { .. }
+            Commit { .. }
+                | StashCreate { .. }
+                | StashApply { .. }
+                | StashPop { .. }
+                | CheckoutWithChanges { .. }
+                | RestoreFile { .. }
+                | DeleteFile { .. }
         ) || matches!(self, Reset { mode, .. } if *mode != ResetMode::Hard)
     }
 

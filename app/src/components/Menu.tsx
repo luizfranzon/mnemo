@@ -116,7 +116,7 @@ function MenuList({ items, anchor, side, label, close, back, keyboard }: ListPro
               aria-checked={it.checked}
               tabIndex={-1}
               data-index={i}
-              className={`menu-item${i === active ? ' active' : ''}${it.danger ? ' danger' : ''}`}
+              className={`menu-item${i === active ? ' active' : ''}${it.danger ? ' danger' : ''}${it.warn ? ' warn' : ''}`}
               aria-disabled={it.reason ? true : undefined}
               aria-haspopup={it.submenu ? 'menu' : undefined}
               aria-expanded={it.submenu ? sub?.index === i : undefined}

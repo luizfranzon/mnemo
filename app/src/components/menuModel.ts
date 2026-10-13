@@ -8,6 +8,8 @@ export type MenuEntry =
       shortcut?: string
       reason?: string
       danger?: boolean
+      /** Âmbar: ação que sobrescreve trabalho (confirma antes). */
+      warn?: boolean
       /** Cabeçalho sem ação; `checked` transforma um item em radio acessível. */
       heading?: boolean
       checked?: boolean

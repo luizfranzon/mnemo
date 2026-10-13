@@ -83,6 +83,10 @@ export type OperationKind =
   | { type: 'rebase'; onto: string }
   | { type: 'cherryPick'; commit: string }
   | { type: 'revert'; commit: string }
+  | { type: 'tagCreate'; name: string; target: string | null; message: string | null }
+  | { type: 'reword'; message: string }
+  | { type: 'restoreFile'; commit: string; path: string }
+  | { type: 'deleteFile'; path: string }
 
 export type ExecuteResult =
   | { status: 'completed'; opId: number | null; label: string; undoable: boolean; warnings: string[]; state: UndoRedoState }

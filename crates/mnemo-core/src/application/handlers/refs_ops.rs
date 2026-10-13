@@ -16,6 +16,7 @@ impl Handler for RefsOps {
                 | CheckoutRemote { .. }
                 | CheckoutWithChanges { .. }
                 | Commit { .. }
+                | Reword { .. }
                 | BranchCreate { .. }
                 | BranchRename { .. }
                 | BranchDelete { .. }
@@ -130,6 +131,12 @@ impl Handler for RefsOps {
                 }
                 git.run(args)?;
                 RefsStrategy::RefsIndex
+            }
+            Reword { message } => {
+                require(message, "mensagem do commit")?;
+                // `--only` sem caminhos: não leva para o commit o que está preparado.
+                git.run(["commit", "--amend", "--only", "--allow-empty", "-m", message.as_str()])?;
+                RefsStrategy::Refs
             }
             BranchCreate { name, start, checkout } => {
                 require(name, "nome da branch")?;

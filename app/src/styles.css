@@ -37,6 +37,7 @@ input:focus { border-color: var(--accent); }
 .menu .menu-item { display: flex; align-items: center; gap: var(--space-3); width: 100%; height: var(--h-menu-item); padding: 0 10px; background: transparent; border: 0; border-radius: var(--radius-sm); color: var(--text-secondary); text-align: left; cursor: default; }
 .menu .menu-item.active { background: var(--menu-highlight); color: var(--accent-text); }
 .menu .menu-item.danger { color: var(--danger-text); }
+.menu .menu-item.warn { color: var(--warning-text); }
 .menu .menu-item[aria-disabled] { color: var(--text-disabled); }
 .menu .menu-item[aria-disabled].active { background: var(--hover); }
 .menu-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -226,7 +227,7 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 /* Menu da branch: ⋮ no hover da linha */
 .refs-virtual-row { display: flex; align-items: center; }
 .refs-more { position: absolute; right: 4px; top: 3px; width: 22px; height: 22px; padding: 0; display: none; border: 0; background: var(--hover); color: var(--text-secondary); border-radius: var(--radius-sm); }
-.refs-virtual-row:hover .refs-more, .refs-more:focus-visible { display: block; }
+.refs-virtual-row:hover .refs-more, .commit-file:hover .refs-more, .refs-more:focus-visible { display: block; }
 
 /* Colunas do grafo: divisores, engrenagem e modo compacto */
 .col-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: col-resize; z-index: 2; }

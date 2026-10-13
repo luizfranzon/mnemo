@@ -41,9 +41,24 @@ export function remoteOf(t: BranchTarget, remotes: string[]): { remote: string; 
   return remote ? { remote, branch: up?.branch ?? t.ref.name } : null
 }
 
-export function githubBranchUrl(remoteUrl: string | null, branch: string): string | null {
+/** `https://github.com/dono/repo` a partir da URL do remoto (`null` = não é do GitHub). */
+export function githubBase(remoteUrl: string | null): string | null {
   const m = remoteUrl?.trim().match(/^(?:https?:\/\/(?:[^@/]+@)?|git@|ssh:\/\/git@)github\.com[:/](.+?)(?:\.git)?\/?$/)
-  return m ? `https://github.com/${m[1]}/tree/${encodeURI(branch)}` : null
+  return m ? `https://github.com/${m[1]}` : null
+}
+
+export function githubBranchUrl(remoteUrl: string | null, branch: string): string | null {
+  const base = githubBase(remoteUrl)
+  return base && `${base}/tree/${encodeURI(branch)}`
+}
+
+/** Reset da branch atual para `sha`: Soft e Mixed rodam direto, Hard confirma antes. */
+export function resetItem(sha: string, short: string, cur: string | null, mut: string | undefined, c: Pick<BranchMenuContext, 'execute' | 'resetHard'>, label = short): MenuEntry {
+  return { label: `Reset ${cur ?? 'HEAD'} para ${label}`, reason: mut, submenu: [
+    { label: 'Soft: mantém preparadas', run: () => c.execute({ type: 'reset', target: sha, mode: 'soft' }) },
+    { label: 'Mixed: mantém no diretório', run: () => c.execute({ type: 'reset', target: sha, mode: 'mixed' }) },
+    { label: 'Hard…: descarta', danger: true, run: () => c.resetHard(sha) },
+  ] }
 }
 
 export function branchMenu(t: BranchTarget, c: BranchMenuContext): MenuEntry[] {
@@ -89,11 +104,7 @@ export function branchMenu(t: BranchTarget, c: BranchMenuContext): MenuEntry[] {
     { label: `Commit da ponta (${short})`, submenu: [
       { label: `Cherry-pick ${short}`, reason: mut, run: () => c.execute({ type: 'cherryPick', commit: sha }) },
       { label: `Revert ${short}`, reason: mut, run: () => c.execute({ type: 'revert', commit: sha }) },
-      { label: `Reset ${cur ?? 'HEAD'} para ${short}`, reason: mut, submenu: [
-        { label: 'Soft: mantém preparadas', run: () => c.execute({ type: 'reset', target: sha, mode: 'soft' }) },
-        { label: 'Mixed: mantém no diretório', run: () => c.execute({ type: 'reset', target: sha, mode: 'mixed' }) },
-        { label: 'Hard…: descarta', danger: true, run: () => c.resetHard(sha) },
-      ] },
+      resetItem(sha, short, cur, mut, c),
       { label: 'Copiar SHA', run: () => c.copy(sha) },
     ] },
     '-')
