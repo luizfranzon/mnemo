@@ -590,6 +590,16 @@ impl Mnemo {
             let all = args.get("all").and_then(Value::as_bool).unwrap_or(false);
             return out(self.commit_detail(&path, sha, all)?);
         }
+        if cmd == "wip_status" || cmd == "stage" || cmd == "unstage" {
+            let session = self.session_for(Path::new(&path))?;
+            let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+            if cmd == "wip_status" {
+                return out(crate::application::wip::status(&git)?);
+            }
+            let paths: Vec<String> = parse(&json!(args.get("paths").cloned().unwrap_or(json!([]))))?;
+            crate::application::wip::stage(&git, &paths, cmd == "stage")?;
+            return Ok(Value::Null);
+        }
         if cmd == "remote_url" {
             let remote = args.get("remote").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("remote ausente"))?;
             return out(self.remote_url(&path, remote)?);

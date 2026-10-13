@@ -137,3 +137,5 @@ export interface CommitDetail {
   sha: string; parents: string[]; author: string; email: string; timestamp: number; subject: string; body: string
   files: FileChange[]; added: number; removed: number
 }
+
+export interface WipStatus { unstaged: FileChange[]; staged: FileChange[] }

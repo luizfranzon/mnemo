@@ -5,6 +5,7 @@ pub mod handlers;
 pub mod ports;
 pub mod queue;
 pub mod restore;
+pub mod wip;
 pub mod session;
 pub mod snapshot;
 

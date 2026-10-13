@@ -256,3 +256,57 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .graph-filter input { flex: 1; min-width: 0; }
 .graph-row.dim { opacity: .3; }
 .graph-chip { margin-left: 8px; padding: 0 8px; height: 20px; border-radius: 10px; font-size: var(--fs-body-sm); }
+
+/* Painel WIP (WIP.dc.html): valores do mockup */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; }
+.wip-panel { height: 100%; min-height: 0; display: flex; flex-direction: column; background: #121213; font-size: 13px; }
+.wip-panel button { padding: 0; border: 0; background: transparent; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.wip-head { flex: none; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px 0 16px; border-bottom: 1px solid #1F1F21; }
+.wip-title { color: #C9C6C0; white-space: nowrap; }
+.wip-branch { font-family: var(--font-mono); font-size: 12px; padding: 1px 6px; border-radius: 4px; background: #4fb3d92e; border: 1px solid #4fb3d980; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.wip-panel .wip-danger { color: #F0877F; width: 28px; height: 28px; border: 1px solid #3a2020; }
+.wip-tools { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px 16px; }
+.wip-seg { display: flex; padding: 2px; background: #0E0E0F; border: 1px solid #232325; border-radius: 8px; }
+.wip-panel .wip-seg button { height: 24px; padding: 0 10px; font-size: 12px; color: #9C9992; }
+.wip-panel .wip-seg button[aria-pressed="true"] { background: #2A2A2D; color: #E8E6E3; }
+.wip-panel .wip-icon { width: 28px; height: 28px; color: #9C9992; }
+.wip-files { flex: 1; min-height: 0; overflow: auto; padding: 0 6px; }
+.wip-section { position: absolute; top: 0; left: 0; width: 100%; display: flex; align-items: center; gap: 8px; padding: 0 6px; }
+.wip-section.staged { border-top: 1px solid #1F1F21; }
+.wip-section-name { flex: 1; font-size: 12.5px; font-weight: 600; color: #C9C6C0; }
+.wip-section-name span { font-weight: 400; color: #8A877F; }
+.wip-panel .wip-neutral, .wip-panel .wip-ghost { height: 26px; padding: 0 10px; font-size: 12px; border: 1px solid #2C2C2F; }
+.wip-panel .wip-neutral { background: #1C1C1E; color: #E8E6E3; }
+.wip-panel .wip-ghost { color: #C9C6C0; }
+.wip-panel .wip-ghost.small { height: 24px; padding: 0 8px; font-size: 11.5px; }
+.wip-panel button:disabled { opacity: .45; cursor: not-allowed; }
+.wip-file { position: absolute; top: 0; left: 0; width: 100%; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 10px; border-radius: 6px; font-size: 12.5px; }
+.wip-file:hover { background: #1F1F21; }
+.wip-glyph { width: 16px; text-align: center; font-family: var(--font-mono); font-size: 12px; flex: none; }
+.wip-path { flex: 1; min-width: 0; display: flex; overflow: hidden; white-space: nowrap; }
+.wip-dir { overflow: hidden; text-overflow: ellipsis; color: #8A877F; }
+.wip-name { flex: none; }
+.wip-lines { font-family: var(--font-mono); font-size: 11px; flex: none; }
+.wip-actions { display: none; align-items: center; gap: 8px; flex: none; }
+.wip-file:hover .wip-actions, .wip-file:focus-within .wip-actions { display: flex; }
+.wip-file:hover .wip-lines, .wip-file:focus-within .wip-lines { display: none; }
+.wip-panel .wip-actions .wip-danger { width: 24px; height: 24px; border: 0; }
+.wip-panel .wip-stage { height: 24px; padding: 0 8px; background: #22325A; color: #DFE7FF; font-size: 11.5px; }
+.wip-compose { flex: none; border-top: 1px solid #232325; background: #141415; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+.wip-tabs { display: flex; gap: 2px; margin: 0 -4px; border-bottom: 1px solid #1F1F21; }
+.wip-panel .wip-tabs button { gap: 6px; height: 36px; padding: 0 10px; border-radius: 0; color: #9C9992; font-size: 12.5px; }
+.wip-panel .wip-tabs button[aria-selected="true"] { color: #E8E6E3; box-shadow: inset 0 -2px 0 #5B8DEF; }
+.wip-amend { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #C9C6C0; }
+.wip-amend input { accent-color: #5B8DEF; margin: 0; padding: 0; }
+.wip-box { display: flex; flex-direction: column; background: #0E0E0F; border: 1px solid #5B8DEF; border-radius: 8px; box-shadow: 0 0 0 2px #22325A; }
+.wip-summary { display: flex; align-items: center; gap: 8px; padding: 8px 12px 6px; border-bottom: 1px solid #1F1F21; }
+.wip-summary input { flex: 1; min-width: 0; padding: 0; background: transparent; border: 0; color: #E8E6E3; font-size: 13.5px; }
+.wip-count { font-family: var(--font-mono); font-size: 11px; color: #8A877F; }
+.wip-box textarea { resize: none; background: transparent; border: 0; outline: none; padding: 8px 12px; color: #C9C6C0; font: inherit; font-size: 13px; line-height: 1.5; }
+.wip-panel .wip-options { justify-content: flex-start; gap: 6px; height: 26px; color: #9C9992; font-size: 12px; }
+.wip-options span { color: #8A877F; }
+.wip-buttons { display: flex; gap: 8px; }
+.wip-panel .wip-commit { flex: 1; gap: 8px; height: 40px; background: #237A3B; color: #fff; font-size: 13.5px; font-weight: 500; border-radius: 8px; }
+.wip-panel .wip-commit:disabled { background: #1C1C1E; color: #8A877F; opacity: 1; }
+.wip-commit kbd { font-family: var(--font-mono); font-size: 10.5px; color: #CFF0D8; border: 1px solid #3d9a57; border-radius: 4px; padding: 0 5px; }
+.wip-compose p { margin: 0; font-size: 11.5px; color: #8A877F; }

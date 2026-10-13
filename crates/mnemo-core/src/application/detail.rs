@@ -109,7 +109,7 @@ fn parse_name_status(bytes: &[u8]) -> Vec<FileChange> {
 }
 
 /// `-z`: `12\t3\tcaminho\0` ou, em renomeação, `12\t3\t\0antigo\0novo\0`. Binário traz `-`.
-fn parse_numstat(bytes: &[u8]) -> HashMap<String, (Option<u64>, Option<u64>)> {
+pub(crate) fn parse_numstat(bytes: &[u8]) -> HashMap<String, (Option<u64>, Option<u64>)> {
     let mut it = bytes.split(|b| *b == 0).filter(|t| !t.is_empty());
     let mut stats = HashMap::new();
     while let Some(head) = it.next() {

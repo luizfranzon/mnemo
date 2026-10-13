@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react'
 import { dragWidth, loadLayout, PANEL, RAIL, saveLayout, type Layout, type Side } from './panelLayout'
 import { CommitPanel } from './CommitPanel'
+import { WipPanel } from './WipPanel'
+import { useApp } from '../store/app'
 import { RefPanel } from './RefPanel'
 import { TOGGLE_PANEL } from './windowMenus'
 
@@ -8,6 +10,7 @@ import { TOGGLE_PANEL } from './windowMenus'
 export function Panels({ path, children }: { path: string; children: ReactNode }) {
   const [layout, setLayout] = useState(() => loadLayout(path))
   const root = useRef<HTMLDivElement>(null)
+  const wip = useApp((s) => s.selectedSha === 'wip')
 
   const update = (fn: (l: Layout) => Layout) =>
     setLayout((l) => {
@@ -41,7 +44,7 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
       {layout.rightOpen && (
         <aside className="panel panel-right" aria-label="Detalhes">
           <Divider side="right" layout={layout} root={root} update={update} />
-          <CommitPanel path={path} />
+          {wip ? <WipPanel path={path} /> : <CommitPanel path={path} />}
         </aside>
       )}
     </div>
