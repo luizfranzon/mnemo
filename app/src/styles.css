@@ -163,9 +163,9 @@ input:focus { border-color: var(--accent); }
 .graph-row .graph-refs { padding-right: 0; }
 .graph-ref-connector { flex: 1; min-width: 4px; border-top: 1px solid; opacity: .55; }
 .graph-pills { display: flex; align-items: center; gap: 3px; overflow: hidden; }
-.graph-pill { max-width: 96px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 8px; padding: 1px 5px; border: 1px solid var(--border-strong); background: var(--surface-2); font-size: 10px; }
-.graph-pill.remote { color: #8fb2ff; }
-.graph-pill.tag { color: #e0a43a; }
+.graph-pill { display: inline-flex; align-items: center; gap: 5px; max-width: 150px; min-width: 0; padding: 2px 7px; border: 1px solid var(--pill, var(--border-strong)); border-radius: 7px; background: color-mix(in srgb, var(--pill, var(--surface-2)) 16%, var(--bg)); color: var(--pill, var(--text)); font: 11px var(--font-mono); white-space: nowrap; }
+.graph-pill-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.graph-pill .ref-icon { flex: none; }
 .graph-pill-more { flex: none; color: var(--text-muted); font-size: 10px; }
 .graph-message { color: var(--text); font-weight: 500; }
 .graph-author { color: var(--text-secondary); }

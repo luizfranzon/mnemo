@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { core } from '../bridge'
 import type { GraphCommit, GraphPage } from '../bridge/types'
 import { actions, useApp } from '../store/app'
@@ -8,6 +8,7 @@ import { avatarStyle, initials } from './avatar'
 import { commitMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
 import { Menu } from './Menu'
+import { RefIcon } from './RefIcon'
 import { copyText, menuBase } from './menuBase'
 import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
 import {
@@ -40,13 +41,36 @@ function CommitSvg({ row, width, geo, compact }: { row: GraphCommit; width: numb
   </svg>
 }
 
-function Pills({ refs }: { refs: GraphCommit['refs'] }) {
+type Pill = { key: string; label: string; title: string; kind: 'branch' | 'tag'; local: boolean; remote: boolean; current: boolean }
+
+/** Local e remota de mesmo nome no mesmo commit viram um card só, com os dois ícones. */
+function pillsOf(refs: GraphCommit['refs']): Pill[] {
+  const pills = new Map<string, Pill>()
+  const locals = new Set(refs.filter((r) => r.kind === 'local').map((r) => r.name))
+  for (const ref of refs) {
+    if (ref.kind === 'tag') { pills.set(`tag:${ref.name}`, { key: `tag:${ref.name}`, label: ref.name, title: ref.name, kind: 'tag', local: false, remote: false, current: false }); continue }
+    const label = ref.kind === 'remote' ? ref.name.slice(ref.name.indexOf('/') + 1) : ref.name
+    const pill = pills.get(`branch:${label}`) ?? { key: `branch:${label}`, label, title: '', kind: 'branch' as const, local: locals.has(label), remote: false, current: false }
+    pill.remote ||= ref.kind === 'remote'
+    pill.local ||= ref.kind === 'local'
+    pill.current ||= ref.current
+    pill.title = pill.title ? `${pill.title}\n${ref.name}` : ref.name
+    pills.set(pill.key, pill)
+  }
+  return [...pills.values()]
+}
+
+function Pills({ refs, color }: { refs: GraphCommit['refs']; color: string }) {
   if (!refs.length) return null
-  return <div className="graph-pills">
-    {refs.slice(0, 2).map((ref) => <span key={`${ref.kind}:${ref.name}`} className={`graph-pill ${ref.kind}`} title={ref.name}>
-      {ref.current ? '✓ ' : ref.kind === 'remote' ? '☁ ' : ref.kind === 'tag' ? '◇ ' : '⑂ '}{ref.name}
+  const pills = pillsOf(refs)
+  return <div className="graph-pills" style={{ '--pill': color } as CSSProperties}>
+    {pills.slice(0, 2).map((pill) => <span key={pill.key} className={`graph-pill ${pill.kind}`} title={pill.title}>
+      {pill.current && <RefIcon name="check" size={11} />}
+      <span className="graph-pill-name">{pill.label}</span>
+      {pill.kind === 'tag' ? <RefIcon name="tags" size={11} /> : <>
+        {pill.local && <RefIcon name="laptop" size={11} />}{pill.remote && <RefIcon name="cloud" size={11} />}</>}
     </span>)}
-    {refs.length > 2 && <span className="graph-pill-more" title={refs.slice(2).map((ref) => ref.name).join('\n')}>+{refs.length - 2}</span>}
+    {pills.length > 2 && <span className="graph-pill-more" title={pills.slice(2).map((pill) => pill.label).join('\n')}>+{pills.length - 2}</span>}
   </div>
 }
 
@@ -223,7 +247,7 @@ export function Graph({ path }: { path: string }) {
   const branch = head?.kind === 'branch' ? head.name : head?.sha ?? 'HEAD'
   const cell = (id: ColId, commit: GraphCommit | null | undefined, wip: boolean) => {
     switch (id) {
-      case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} />}{commit && commit.refs.length > 0 &&
+      case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} />}{commit && commit.refs.length > 0 &&
         <span className="graph-ref-connector" style={{ borderColor: commit.color }} />}</div>
       case 'graph': return <div key={id} className="graph-cell">
         <div className="graph-canvas" style={{ width: contentWidth }}>
