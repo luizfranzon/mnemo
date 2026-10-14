@@ -261,12 +261,11 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .commit-dir .commit-name { flex: 1; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .commit-lines { flex: none; padding-right: 6px; }
 
-/* Rolagem custom: trilho invisível; o polegar some em repouso e aparece (fade) ao rolar */
+/* Rolagem custom: trilho invisível; o polegar fica sempre visível */
 ::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
 ::-webkit-scrollbar-corner { background: transparent; }
-::-webkit-scrollbar-thumb { background-color: transparent; border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; transition: background-color .4s ease; }
-[data-scrolling]::-webkit-scrollbar-thumb { background-color: rgba(154, 152, 146, .45); transition-duration: .12s; }
-[data-scrolling]::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { background-color: rgba(154, 152, 146, .75); }
+::-webkit-scrollbar-thumb { background-color: rgba(154, 152, 146, .45); border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active { background-color: rgba(154, 152, 146, .75); }
 
 /* Menu da branch: ⋮ no hover da linha */
 .refs-virtual-row { display: flex; align-items: center; }
