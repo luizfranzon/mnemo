@@ -27,7 +27,7 @@ try {
   assert.equal(read('a.txt'), 'original\n')
 
   // desfazer: tudo volta
-  await until(() => click('↶ Desfazer'), true)
+  await until(() => click('Desfazer'), true)
   await until(() => existsSync(f('b.txt')), true)
   assert.equal(read('a.txt'), 'mudado\n')
 
@@ -37,7 +37,7 @@ try {
   await click('Descartar')
   await until(() => existsSync(f('b.txt')), false)
   writeFileSync(f('a.txt'), 'outra edicao\n')
-  await until(() => click('↶ Desfazer'), true)
+  await until(() => click('Desfazer'), true)
   await until(() => text('.modal h2'), 'Conflito ao desfazer')
   assert.equal(read('a.txt'), 'outra edicao\n')
   await click('Restaurar como cópia ao lado')

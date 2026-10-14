@@ -354,3 +354,5 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .wip-panel .wip-commit:disabled { background: #1C1C1E; color: #8A877F; opacity: 1; }
 .wip-commit kbd { font-family: var(--font-mono); font-size: 10.5px; color: #CFF0D8; border: 1px solid #3d9a57; border-radius: 4px; padding: 0 5px; }
 .wip-compose p { margin: 0; font-size: 11.5px; color: #8A877F; }
+.toolbar .ref-icon, .toolbar .behind .ref-icon { flex: none; }
+.toolbar .behind, .toolbar .ahead { display: inline-flex; }

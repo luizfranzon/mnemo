@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { OperationKind, PullMode } from '../bridge/types'
 import { actions, runningLabel, selectActiveTab, useApp } from '../store/app'
+import { RefIcon } from './RefIcon'
 import { Menu } from './Menu'
 import type { MenuEntry, Rect } from './menuModel'
 import { PULL_MODES, toolbarAvailability } from './toolbarModel'
@@ -107,27 +108,27 @@ export function Toolbar() {
       <FetchButton epoch={toolbar.lastFetchEpoch} reason={reason.fetch} label={spinLabel('fetch')} run={fetching} />
       <span className="toolbar-divider" />
       <button disabled={!undo.undo.enabled || !!executing} title={reason.busy ?? (undo.undo.enabled ? `Desfazer: ${undo.undo.label} (Ctrl+Z)` : undo.undo.reason ?? '')}
-        onClick={() => void run('undo', 'Desfazendo…', () => actions.undo(path))}>{spinLabel('undo') ? <Spinner label={spinLabel('undo')!} /> : '↶ Desfazer'}</button>
+        onClick={() => void run('undo', 'Desfazendo…', () => actions.undo(path))}>{spinLabel('undo') ? <Spinner label={spinLabel('undo')!} /> : <><RefIcon name="undo" size={16} /> Desfazer</>}</button>
       <button disabled={!undo.redo.enabled || !!executing} title={reason.busy ?? (undo.redo.enabled ? `Refazer: ${undo.redo.label} (Ctrl+Y)` : undo.redo.reason ?? '')}
-        onClick={() => void run('redo', 'Refazendo…', () => actions.redo(path))}>{spinLabel('redo') ? <Spinner label={spinLabel('redo')!} /> : '↷ Refazer'}</button>
+        onClick={() => void run('redo', 'Refazendo…', () => actions.redo(path))}>{spinLabel('redo') ? <Spinner label={spinLabel('redo')!} /> : <><RefIcon name="redo" size={16} /> Refazer</>}</button>
       <div className="toolbar-split">
         <button disabled={!!(mode.value === 'fetch' ? reason.fetch : reason.pull)} title={(mode.value === 'fetch' ? reason.fetch : reason.pull) ?? mode.label} onClick={() => doMode(mode.value)}>
-          {spinLabel('pull') ? <Spinner label={spinLabel('pull')!} /> : <><span className="behind">↓</span> {mode.button}</>}
+          {spinLabel('pull') ? <Spinner label={spinLabel('pull')!} /> : <><span className="behind"><RefIcon name="pull" size={16} /></span> {mode.button}</>}
           {!!toolbar.behind && <span className="count-badge blue">{toolbar.behind}</span>}
         </button>
         {menuButton('pull', 'Opções de pull', reason.busy)}
       </div>
       <button className="push-button" disabled={!!reason.push} title={reason.push ?? (head.kind === 'branch' && head.upstream ? `Push ${branchName} para ${head.upstream}` : `Push ${branchName}: definir upstream`)}
         onClick={() => void run('push', 'Fazendo push…', () => actions.requestPush(path))}>
-        {spinLabel('push') ? <Spinner label={spinLabel('push')!} /> : <><span className="ahead">↑</span> Push <span className="push-branch">{branchName}</span></>}
+        {spinLabel('push') ? <Spinner label={spinLabel('push')!} /> : <><span className="ahead"><RefIcon name="push" size={16} /></span> Push <span className="push-branch">{branchName}</span></>}
         {!!toolbar.ahead && <span className="count-badge green">{toolbar.ahead}</span>}
       </button>
       <button disabled={!!reason.mutation} title={reason.mutation ?? 'Nova branch'} onClick={() => actions.setPalette('createBranch')}>
-        {spinLabel('branch') ? <Spinner label={spinLabel('branch')!} /> : '⑂ Branch'}</button>
+        {spinLabel('branch') ? <Spinner label={spinLabel('branch')!} /> : <><RefIcon name="branch" size={16} /> Branch</>}</button>
       <div className="toolbar-split plain">
         <button disabled={!!reason.mutation} title={reason.mutation ?? 'Guardar mudanças locais'}
           onClick={() => execute('stash', 'Executando criar stash…', { type: 'stashCreate', message: null, includeUntracked: false })}>
-          {spinLabel('stash') ? <Spinner label={spinLabel('stash')!} /> : '▣ Stash'}{!!toolbar.stashCount && <span className="stash-count">{toolbar.stashCount}</span>}
+          {spinLabel('stash') ? <Spinner label={spinLabel('stash')!} /> : <><RefIcon name="stash" size={16} /> Stash</>}{!!toolbar.stashCount && <span className="stash-count">{toolbar.stashCount}</span>}
         </button>
         {menuButton('stash', 'Opções de stash', reason.mutation)}
       </div>
