@@ -17,7 +17,8 @@ import {
 } from './graphColumns'
 
 const PAGE = 2000
-const date = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+const date = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+const fullDate = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeStyle: 'short' })
 type Geo = ReturnType<typeof geometry>
 
 
@@ -244,6 +245,10 @@ export function Graph({ path }: { path: string }) {
     }) })
   }
 
+  const openFind = () => {
+    setFind((f) => f ?? { text: '', author: '' })
+    requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>('.graph-filter input')?.focus())
+  }
   const branch = head?.kind === 'branch' ? head.name : head?.sha ?? 'HEAD'
   const cell = (id: ColId, commit: GraphCommit | null | undefined, wip: boolean) => {
     switch (id) {
@@ -256,18 +261,20 @@ export function Graph({ path }: { path: string }) {
           </svg>}
         </div>
       </div>
-      case 'message': return <span key={id} className="graph-message">{wip ? `// WIP  ✎${page?.wip.changed ?? 0} +${page?.wip.untracked ?? 0}` : commit?.subject}</span>
+      case 'message': return wip
+        ? <span key={id} className="graph-message graph-wip"><em>// WIP</em>
+          <span className="wip-chip changed"><RefIcon name="edit" size={11} />{page?.wip.changed ?? 0}</span>
+          <span className="wip-chip added">+ {page?.wip.untracked ?? 0}</span></span>
+        : <span key={id} className={`graph-message${commit && commit.parents.length > 1 ? ' merge' : ''}`} title={commit?.subject}>{commit?.subject}</span>
       case 'description': return <span key={id} className="graph-description" title={commit?.description}>{commit?.description}</span>
       case 'author': return <span key={id} className="graph-author" title={commit?.email}>
         {commit && layout.compact && <span className="avatar small" style={avatarStyle(commit.email)}>{initials(commit.author)}</span>}{commit?.author}</span>
-      case 'date': return <span key={id}>{commit ? date.format(new Date(commit.timestamp * 1000)) : ''}</span>
+      case 'date': return <span key={id} className="graph-date" title={commit ? fullDate.format(new Date(commit.timestamp * 1000)) : undefined}>{commit ? date.format(new Date(commit.timestamp * 1000)).replace(',', '') : ''}</span>
       case 'sha': return <span key={id} className="graph-sha" title={commit?.sha}>{commit?.sha.slice(0, 7)}</span>
     }
   }
   return <div className="graph-view" ref={root}>
-    <div className="graph-meta"><span>Histórico</span><strong data-testid="current-branch">{branch}</strong>
-      {vis.solo && <button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} ✕</button>}
-      <button className="graph-gear" aria-label="Colunas do grafo" title="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)}>⚙</button></div>
+    <span className="sr-only" data-testid="current-branch">{branch}</span>
     {gear && <>
       <div className="graph-pop-overlay" onMouseDown={() => setGear(false)} />
       <div className="graph-pop" role="dialog" aria-label="Colunas do grafo" onKeyDown={(e) => { if (e.key === 'Escape') setGear(false) }}>
@@ -291,12 +298,17 @@ export function Graph({ path }: { path: string }) {
       <button aria-label="Fechar busca" onClick={() => setFind(null)}>✕</button>
     </div>}
     <div className="graph-header graph-grid">
+      <button className="graph-gear" aria-label="Colunas do grafo" title="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)}><RefIcon name="sliders" size={15} /></button>
       {cols.map((id) => <div key={id} className="graph-hcell">
         {id === 'graph'
           ? <div className="graph-scrollbar" onScroll={(e) => root.current?.style.setProperty('--graph-offset', `${-e.currentTarget.scrollLeft}px`)}>
             <span>Grafo</span><div style={{ width: contentWidth, height: 1 }} />
           </div>
-          : <span>{COLUMNS[id].label}</span>}
+          : <span className="graph-title">{COLUMNS[id].label}
+            {id === 'message' && <button className="graph-tool" aria-label="Buscar na mensagem" title="Buscar na mensagem (Ctrl+F)" onClick={() => openFind()}><RefIcon name="search" size={13} /></button>}
+            {id === 'author' && <button className="graph-tool" aria-label="Filtrar por autor" title="Filtrar por autor" onClick={() => openFind()}><RefIcon name="filter" size={13} /></button>}
+            {id === 'message' && vis.solo && <button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} ✕</button>}
+          </span>}
         {id !== 'message' && <div className={`col-handle ${cols.indexOf(id) < cols.indexOf('message') ? 'after' : 'before'}`} role="separator" aria-orientation="vertical"
           aria-label={`Redimensionar ${COLUMNS[id].label}`} onPointerDown={(e) => resize(id, e)} onDoubleClick={() => fit(id)} />}
       </div>)}
