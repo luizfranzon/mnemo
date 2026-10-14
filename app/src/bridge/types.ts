@@ -85,7 +85,7 @@ export type OperationKind =
   | { type: 'cherryPick'; commit: string }
   | { type: 'revert'; commit: string }
   | { type: 'tagCreate'; name: string; target: string | null; message: string | null }
-  | { type: 'reword'; message: string }
+  | { type: 'reword'; message: string; commit?: string }
   | { type: 'restoreFile'; commit: string; path: string }
   | { type: 'deleteFile'; path: string }
 

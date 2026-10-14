@@ -362,7 +362,9 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .commit-subject, .commit-body { border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; padding: 8px 10px; }
 .commit-subject { font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--border-subtle); }
 .commit-body { height: 88px; resize: none; font-size: 12px; line-height: 1.45; }
-.commit-msg-actions { height: 30px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.commit-msg-actions button { flex: 1; height: 28px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer; }
-.commit-msg-actions button.primary:not(:disabled) { border-color: #3f8f55; }
-.commit-msg-actions button:disabled { opacity: .48; cursor: default; }
+.commit-msg-actions { height: 40px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.commit-msg-actions button { display: inline-flex; align-items: center; justify-content: center; border: 0; font: inherit; cursor: pointer; }
+.commit-msg-actions .wip-commit { flex: 1; height: 40px; background: #237A3B; color: #fff; font-size: 13.5px; font-weight: 500; border-radius: 8px; }
+.commit-msg-actions .wip-commit:disabled { background: #1C1C1E; color: #8A877F; cursor: default; }
+.commit-msg-cancel { height: 40px; padding: 0 14px; border: 1px solid var(--border) !important; border-radius: 8px; background: transparent; color: var(--text-secondary); font-size: 13px; }
+.commit-msg-cancel:disabled { opacity: .48; cursor: default !important; }

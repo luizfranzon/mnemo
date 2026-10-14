@@ -124,9 +124,12 @@ pub enum OperationKind {
         remote: String,
         branch: String,
     },
-    /// Só reescreve a mensagem do commit HEAD (o que está preparado fica de fora).
+    /// Reescreve a mensagem de `commit` (HEAD quando ausente). Em commit mais antigo, os descendentes são refeitos (rebase).
+    /// O que está preparado fica de fora.
     Reword {
         message: String,
+        #[serde(default)]
+        commit: Option<String>,
     },
     /// Traz o arquivo como estava em `commit` para o diretório de trabalho e o index.
     RestoreFile {

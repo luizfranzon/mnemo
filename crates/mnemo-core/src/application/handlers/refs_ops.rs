@@ -132,10 +132,18 @@ impl Handler for RefsOps {
                 git.run(args)?;
                 RefsStrategy::RefsIndex
             }
-            Reword { message } => {
+            Reword { message, commit } => {
                 require(message, "mensagem do commit")?;
-                // `--only` sem caminhos: não leva para o commit o que está preparado.
-                git.run(["commit", "--amend", "--only", "--allow-empty", "-m", message.as_str()])?;
+                let target = match commit {
+                    Some(c) => git.rev_parse(c)?,
+                    None => String::new(),
+                };
+                if target.is_empty() || Some(&target) == git.head_sha().as_ref() {
+                    // `--only` sem caminhos: não leva para o commit o que está preparado.
+                    git.run(["commit", "--amend", "--only", "--allow-empty", "-m", message.as_str()])?;
+                } else {
+                    reword_older(git, &target, message)?;
+                }
                 RefsStrategy::Refs
             }
             BranchCreate { name, start, checkout } => {
@@ -189,4 +197,29 @@ fn require(value: &str, what: &str) -> Result<()> {
     } else {
         Ok(())
     }
+}
+
+/// Cria o commit com a nova mensagem (mesma árvore, pais e autor) e refaz os descendentes sobre ele.
+fn reword_older(git: &crate::application::git::RepoGit, target: &str, message: &str) -> Result<()> {
+    let ancestor = git.exec(&GitCmd::new(["merge-base", "--is-ancestor", target, "HEAD"]).also_ok(1))?;
+    if ancestor.code != 0 {
+        return Err(CoreError::invalid("só dá para editar a mensagem de um commit da branch atual"));
+    }
+    let meta = git.text(["log", "-1", "--format=%an%x00%ae%x00%aI", target])?;
+    let mut f = meta.split('\0');
+    let (name, email, date) = (f.next().unwrap_or(""), f.next().unwrap_or(""), f.next().unwrap_or(""));
+    let mut args = vec!["commit-tree".to_string(), format!("{target}^{{tree}}")];
+    for parent in git.text(["rev-list", "--parents", "-n", "1", target])?.split_whitespace().skip(1) {
+        args.extend(["-p".into(), parent.into()]);
+    }
+    let created = git
+        .exec(
+            &GitCmd::new(args)
+                .stdin(format!("{}\n", message.trim_end()))
+                .env("GIT_AUTHOR_NAME", name)
+                .env("GIT_AUTHOR_EMAIL", email)
+                .env("GIT_AUTHOR_DATE", date),
+        )?
+        .text();
+    git.run(["rebase", "--autostash", "--rebase-merges", "--onto", created.as_str(), target])
 }

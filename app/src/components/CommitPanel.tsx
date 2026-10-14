@@ -63,7 +63,6 @@ function summary(files: FileChange[]) {
 export function CommitPanel({ path }: { path: string }) {
   const sha = useApp((s) => (s.selectedSha === 'wip' ? null : s.selectedSha))
   const [detail, setDetail] = useState<CommitDetail | null>(null)
-  const [headSha, setHeadSha] = useState<string | null>(null)
   const [draft, setDraft] = useState({ subject: '', body: '' })
   const [all, setAll] = useState(false)
   const [view, setView] = useState<View>('path')
@@ -86,9 +85,9 @@ export function CommitPanel({ path }: { path: string }) {
   useEffect(() => {
     if (!sha) { setDetail(null); return }
     let active = true
-    void Promise.all([core.commitDetail(path, sha, all), core.commitDetail(path, 'HEAD', false).catch(() => null)]).then(([next, head]) => {
+    void core.commitDetail(path, sha, all).then((next) => {
       if (!active) return
-      setDetail(next); setHeadSha(head?.sha ?? null); setCollapsed(new Set()); setDraft({ subject: next.subject, body: next.body })
+      setDetail(next); setCollapsed(new Set()); setDraft({ subject: next.subject, body: next.body })
     }, (err) => { if (active) { setDetail(null); actions.reportError(err) } })
     return () => { active = false }
   }, [path, sha, all])
@@ -96,14 +95,16 @@ export function CommitPanel({ path }: { path: string }) {
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current, estimateSize: () => ROW_HEIGHT,
     overscan: 10, getItemKey: (index) => rows[index]!.key })
   if (!sha || !detail) return <div className="commit-panel commit-empty">{sha ? 'Carregando…' : 'Selecione um commit no grafo.'}</div>
-  const editable = detail.sha === headSha // o core só reescreve a mensagem do HEAD
   const dirty = draft.subject.trim() !== detail.subject.trim() || draft.body.trim() !== detail.body.trim()
   const update = async () => {
     const subject = draft.subject.trim()
     if (!subject) return
-    await actions.execute(path, { type: 'reword', message: draft.body.trim() ? `${subject}\n\n${draft.body.trim()}` : subject })
+    const wasHead = (await core.commitDetail(path, 'HEAD', false).catch(() => null))?.sha === detail.sha
+    await actions.execute(path, { type: 'reword', commit: detail.sha, message: draft.body.trim() ? `${subject}\n\n${draft.body.trim()}` : subject })
+    // o hash muda (e o dos descendentes): acompanha o HEAD; um commit mais antigo deixa de existir e a seleção vai para o WIP
     const head = await core.commitDetail(path, 'HEAD', false).catch(() => null)
-    if (head) actions.selectCommit(head.sha) // o hash mudou
+    const gone = await core.commitDetail(path, detail.sha, false).then(() => false, () => true)
+    if (gone) actions.selectCommit(wasHead && head ? head.sha : 'wip')
   }
   const copy = () => { void navigator.clipboard.writeText(detail.sha).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) }, () => {}) }
   return <div className="commit-panel">
@@ -111,16 +112,14 @@ export function CommitPanel({ path }: { path: string }) {
       <div className="commit-sha"><code title={detail.sha}>{detail.sha.slice(0, 10)}</code>
         <button onClick={copy} aria-label="Copiar SHA" title="Copiar SHA">{copied ? 'Copiado' : '⧉'}</button></div>
       <div className="commit-msg">
-        <input className="commit-subject" aria-label="Título do commit" value={draft.subject} readOnly={!editable}
+        <input className="commit-subject" aria-label="Título do commit" value={draft.subject}
           onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
-        <textarea className="commit-body" aria-label="Descrição do commit" placeholder="Descrição" value={draft.body} readOnly={!editable}
+        <textarea className="commit-body" aria-label="Descrição do commit" placeholder="Descrição" value={draft.body}
           onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
       </div>
       <div className="commit-msg-actions">
-        {editable ? <>
-          <button className="primary" disabled={!dirty || !draft.subject.trim()} onClick={() => void update()}>Atualizar mensagem</button>
-          <button disabled={!dirty} onClick={() => setDraft({ subject: detail.subject, body: detail.body })}>Cancelar</button>
-        </> : <span className="muted">Só a mensagem do commit HEAD pode ser editada.</span>}
+        <button className="wip-commit" disabled={!dirty || !draft.subject.trim()} onClick={() => void update()}>Atualizar mensagem</button>
+        <button className="commit-msg-cancel" disabled={!dirty} onClick={() => setDraft({ subject: detail.subject, body: detail.body })}>Cancelar</button>
       </div>
       <div className="commit-author">
         <span className="avatar" style={avatarStyle(detail.email)}>{initials(detail.author)}</span>

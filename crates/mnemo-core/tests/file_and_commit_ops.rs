@@ -56,8 +56,25 @@ fn editar_mensagem_do_head_sem_levar_o_que_esta_preparado() {
     repo.write("preparado.txt", "p\n");
     repo.git(&["add", "preparado.txt"]);
 
-    repo.exec(OperationKind::Reword { message: "nova mensagem".into() });
+    repo.exec(OperationKind::Reword { message: "nova mensagem".into(), commit: None });
     assert_eq!(repo.git(&["log", "-1", "--format=%s"]).trim(), "nova mensagem");
     assert_eq!(repo.rev("HEAD^{tree}"), tree);
     assert!(repo.status().contains("preparado.txt"));
+}
+
+#[test]
+fn editar_mensagem_de_commit_antigo_refaz_os_descendentes() {
+    let repo = TestRepo::new();
+    repo.write("a2.txt", "a\n");
+    repo.commit_all("meio");
+    let middle = repo.rev("HEAD");
+    repo.write("a3.txt", "b\n");
+    repo.commit_all("topo");
+    let tree = repo.rev("HEAD^{tree}");
+    let author = repo.git(&["log", "-1", "--format=%an|%aI", &middle]);
+
+    repo.exec(OperationKind::Reword { message: "meio novo".into(), commit: Some(middle) });
+    assert_eq!(repo.git(&["log", "-2", "--format=%s"]).trim(), "topo\nmeio novo");
+    assert_eq!(repo.rev("HEAD^{tree}"), tree);
+    assert_eq!(repo.git(&["log", "-1", "--format=%an|%aI", "HEAD^"]), author);
 }
