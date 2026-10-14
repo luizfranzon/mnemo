@@ -166,3 +166,25 @@ fn remote_url_devolve_a_url_do_remoto_ou_nada() {
     assert!(repo.core.remote_url(&path, "origin").expect("url").is_some());
     assert_eq!(repo.core.remote_url(&path, "inexistente").expect("url"), None);
 }
+
+#[test]
+fn autores_vem_um_por_email_com_o_nome_mais_recente_e_em_ordem_alfabetica() {
+    let repo = TestRepo::new();
+    let commit = |name: &str, email: &str, file: &str| {
+        repo.write(file, name);
+        repo.git(&["add", "."]);
+        repo.git(&["-c", &format!("user.name={name}"), "-c", &format!("user.email={email}"), "commit", "-qm", file]);
+    };
+    commit("Zé", "ze@x.com", "a");
+    commit("Ana Antiga", "ana@x.com", "b");
+    commit("Ana", "ANA@x.com", "c");
+    let authors = repo.core.list_authors(&repo.path().to_string_lossy()).expect("autores");
+    let ana = authors.iter().find(|a| a.email.eq_ignore_ascii_case("ana@x.com")).expect("ana");
+    assert_eq!(ana.name, "Ana");
+    assert_eq!(authors.iter().filter(|a| a.email.eq_ignore_ascii_case("ana@x.com")).count(), 1);
+    let names: Vec<_> = authors.iter().map(|a| a.name.as_str()).collect();
+    let mut sorted = names.clone();
+    sorted.sort_by_key(|n| n.to_lowercase());
+    assert_eq!(names, sorted);
+    assert!(names.contains(&"Zé"));
+}

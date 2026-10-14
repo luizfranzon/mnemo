@@ -89,6 +89,13 @@ pub struct RemoteBranchInfo {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AuthorInfo {
+    pub name: String,
+    pub email: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LocalRef {
     pub name: String,
     pub sha: String,
@@ -253,6 +260,23 @@ impl Mnemo {
         let session = self.session_for(Path::new(path))?;
         let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
         Ok(git.remote_branches()?.into_iter().map(|(remote, name)| RemoteBranchInfo { remote, name }).collect())
+    }
+
+    /// Autores de todo o histórico, um por email (sem diferenciar maiúsculas), com o nome do commit mais
+    /// recente e em ordem alfabética de nome.
+    pub fn list_authors(&self, path: &str) -> Result<Vec<AuthorInfo>> {
+        let session = self.session_for(Path::new(path))?;
+        let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+        let raw = git.text(["log", "--all", "--format=%an%x00%ae"])?;
+        let mut seen = std::collections::HashSet::new();
+        let mut authors: Vec<AuthorInfo> = raw
+            .lines()
+            .filter_map(|line| line.split_once('\0'))
+            .filter(|(_, email)| seen.insert(email.to_lowercase()))
+            .map(|(name, email)| AuthorInfo { name: name.into(), email: email.into() })
+            .collect();
+        authors.sort_by_key(|a| a.name.to_lowercase());
+        Ok(authors)
     }
 
     /// Um retrato das refs do painel esquerdo. A contagem de ahead/behind vem do
@@ -571,6 +595,9 @@ impl Mnemo {
         }
         if cmd == "list_remote_branches" {
             return out(self.list_remote_branches(&path)?);
+        }
+        if cmd == "list_authors" {
+            return out(self.list_authors(&path)?);
         }
         if cmd == "list_refs" {
             return out(self.list_refs(&path)?);

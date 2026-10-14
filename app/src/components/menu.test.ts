@@ -33,6 +33,7 @@ const tab: Tab = {
   head: { kind: 'branch', name: 't34949', upstream: 'origin/t34949' },
   toolbar: { remotes: ['origin'], ahead: 0, behind: 0, lastFetchEpoch: null, stashCount: 0, pullMode: 'merge', progress: null },
   undo: { undo: { enabled: true, label: 'Desfazer checkout de t34949', reason: null }, redo: { enabled: false, label: null, reason: 'Nada para refazer' } },
+  authors: [],
 }
 const ctx = (patch: Partial<MenuContext> = {}): MenuContext => ({ tab, tabs: [tab], running: undefined, textFocus: false, ...patch })
 const items = (c: MenuContext, menu: string) => windowMenus(c).find((m) => m.label === menu)!.items.filter((i): i is Exclude<MenuEntry, '-'> => i !== '-')

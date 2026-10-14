@@ -1,6 +1,6 @@
 // Único módulo da UI que conhece como falar com o backend. Mesmo formato do `@tauri-apps/api`:
 // na migração para o Tauri, só este arquivo troca. Nenhum componente importa `electron`.
-import type { BranchInfo, CoreError, CoreEvent, DiscardPreview, ExecuteResult, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepositoryInfo, ToolbarInfo, UndoRedoState, WindowAction, WipStatus } from './types'
+import type { AuthorInfo, BranchInfo, CoreError, CoreEvent, DiscardPreview, ExecuteResult, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepositoryInfo, ToolbarInfo, UndoRedoState, WindowAction, WipStatus } from './types'
 
 interface Transport {
   invoke(cmd: string, args: Record<string, unknown>): Promise<unknown>
@@ -42,6 +42,7 @@ export const core = {
   closeRepository: (path: string) => invoke<null>('close_repository', { path }),
   listBranches: (path: string) => invoke<BranchInfo[]>('list_branches', { path }),
   listRemoteBranches: (path: string) => invoke<RemoteBranchInfo[]>('list_remote_branches', { path }),
+  listAuthors: (path: string) => invoke<AuthorInfo[]>('list_authors', { path }),
   listRefs: (path: string) => invoke<RefListing>('list_refs', { path }),
   checkoutConflictCount: (path: string, target: string) => invoke<number>('checkout_conflict_count', { path, target }),
   graphPage: (path: string, cursor: GraphCursor | null, limit = 2000, visibility?: GraphVisibilityArg) => invoke<GraphPage>('graph_page', { path, cursor, limit, visibility }),

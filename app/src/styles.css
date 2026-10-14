@@ -235,7 +235,9 @@ input:focus { border-color: var(--accent); }
 .commit-author { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .commit-author > div:not(.commit-parents) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .commit-parents { display: flex; flex-direction: column; align-items: flex-end; font-family: var(--font-mono); font-size: 11.5px; }
-.avatar { width: 32px; height: 32px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+.avatar { position: relative; overflow: hidden; width: 32px; height: 32px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; }
+.avatar img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.avatar.checked { background: var(--accent-primary); color: var(--accent-text); font-size: 15px; }
 .commit-summary, .commit-tools { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 12px 8px 16px; flex-wrap: wrap; }
 .chip { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; font-size: 11.5px; }
 .chip.modified { background: var(--warning-bg); color: var(--warning-text, #f0c06a); }
@@ -297,6 +299,15 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 /* Busca e filtro por autor (Ctrl+F): linhas que não casam ficam esmaecidas, as lanes não mudam */
 .graph-filter { display: flex; gap: 6px; padding: 4px 8px; border-bottom: 1px solid var(--border-subtle); }
 .graph-filter input { flex: 1; min-width: 0; }
+.graph-header .graph-tool.active { color: var(--accent); }
+.author-filter { position: fixed; width: 300px; padding: 6px; background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: var(--radius-menu); box-shadow: var(--shadow-menu); display: flex; flex-direction: column; gap: 6px; }
+.author-list { max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
+.author-row { position: absolute; left: 0; right: 0; display: flex; align-items: center; gap: 10px; padding: 0 6px; border: 0; background: transparent; text-align: left; text-transform: none; }
+.author-row:hover { background: var(--menu-highlight); }
+.author-text { display: flex; flex-direction: column; min-width: 0; }
+.author-text > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.author-text .muted { font-size: 11px; }
+.author-empty { padding: 8px; color: var(--text-muted); }
 .graph-row.dim { opacity: .3; }
 .graph-chip { margin-left: 8px; padding: 0 8px; height: 20px; border-radius: 10px; font-size: var(--fs-body-sm); }
 

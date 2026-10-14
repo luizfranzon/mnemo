@@ -10,6 +10,8 @@ export interface Tab {
   head: HeadInfo
   undo: UndoRedoState
   toolbar: ToolbarInfo
+  /** Emails (minúsculos) do filtro de Autores do grafo; vazio = sem filtro. Vive só enquanto a aba está aberta. */
+  authors: string[]
 }
 
 export interface Toast {
@@ -177,6 +179,7 @@ export const actions = {
     set({ activePath: path, selectedSha: null })
   },
   selectCommit(sha: string) { set({ selectedSha: sha }) },
+  setAuthorFilter(path: string, authors: string[]) { patchTab(path, { authors }) },
 
   async execute(path: string, kind: OperationKind) {
     try {
@@ -377,7 +380,8 @@ function refreshHead(path: string): Promise<void> {
 function adoptRepository(info: RepositoryInfo) {
   set((s) => {
     const exists = s.tabs.some((t) => same(t.path, info.path))
-    const tab: Tab = { path: info.path, name: info.name, head: info.head, undo: info.undo, toolbar: info.toolbar }
+    const authors = s.tabs.find((t) => same(t.path, info.path))?.authors ?? []
+    const tab: Tab = { path: info.path, name: info.name, head: info.head, undo: info.undo, toolbar: info.toolbar, authors }
     return {
       tabs: exists ? s.tabs.map((t) => (same(t.path, info.path) ? tab : t)) : [...s.tabs, tab],
       activePath: info.path,

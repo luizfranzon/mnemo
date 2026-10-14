@@ -7,6 +7,7 @@ const tab: Tab = {
   path: '/repo', name: 'repo', head: { kind: 'branch', name: 'feature', upstream: null },
   toolbar: { remotes: ['company', 'personal'], ahead: null, behind: null, lastFetchEpoch: null, stashCount: 0, pullMode: 'rebase', progress: null },
   undo: { undo: { enabled: false, label: null, reason: 'Nada para desfazer' }, redo: { enabled: false, label: null, reason: 'Nada para refazer' } },
+  authors: [],
 }
 
 test('Push pede o remoto quando não há origin; cancelar não executa Operação', async () => {

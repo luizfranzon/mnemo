@@ -38,6 +38,8 @@ export interface BranchInfo {
   current: boolean
 }
 
+export interface AuthorInfo { name: string; email: string }
+
 export interface RemoteBranchInfo {
   remote: string
   name: string

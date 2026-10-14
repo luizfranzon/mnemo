@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import type { CommitDetail, FileChange } from '../bridge/types'
 import { actions, useApp } from '../store/app'
-import { avatarStyle, initials } from './avatar'
+import { Avatar } from './avatar'
 import { fileMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
 import { Menu } from './Menu'
@@ -122,7 +122,7 @@ export function CommitPanel({ path }: { path: string }) {
         <button className="commit-msg-cancel" disabled={!dirty} onClick={() => setDraft({ subject: detail.subject, body: detail.body })}>Cancelar</button>
       </div>
       <div className="commit-author">
-        <span className="avatar" style={avatarStyle(detail.email)}>{initials(detail.author)}</span>
+        <Avatar name={detail.author} email={detail.email} />
         <div><div>{detail.author}</div><div className="muted">criou em {new Date(detail.timestamp * 1000).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div></div>
         {detail.parents.length > 0 && <div className="commit-parents"><span className="muted">{detail.parents.length > 1 ? 'pais' : 'pai'}</span>
           <span>{detail.parents.map((p, i) => <span key={p}>{i > 0 && ' · '}<a href="#" onClick={(e) => { e.preventDefault(); actions.selectCommit(p) }}>{p.slice(0, 6)}</a></span>)}</span></div>}

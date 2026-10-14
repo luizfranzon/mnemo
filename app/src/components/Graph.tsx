@@ -5,7 +5,8 @@ import { core } from '../bridge'
 import type { GraphCommit, GraphPage } from '../bridge/types'
 import { actions, useApp } from '../store/app'
 import { graphVisibility, selectVisibility, updateVisibility, useVisibility } from '../store/visibility'
-import { avatarStyle, initials } from './avatar'
+import { AuthorFilter } from './AuthorFilter'
+import { Avatar, initials, useGravatar } from './avatar'
 import type { BranchTarget } from './branchMenu'
 import { commitMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
@@ -27,6 +28,7 @@ type Geo = ReturnType<typeof geometry>
 
 function CommitSvg({ row, width, geo, compact }: { row: GraphCommit; width: number; geo: Geo; compact: boolean }) {
   const x = geo.first + row.lane * geo.lane
+  const photo = useGravatar(row.email)
   return <svg width={width} height={ROW} viewBox={`0 0 ${width} ${ROW}`} aria-label={`Grafo de ${row.sha.slice(0, 7)}`}>
     {row.refs.length > 0 && <path d={`M0 14 H${x}`} stroke={row.color} strokeOpacity="0.55" strokeWidth="1" />}
     {row.segments.map((segment, index) => <path key={`${segment.kind}:${segment.fromLane}:${segment.toLane}:${index}`}
@@ -40,7 +42,10 @@ function CommitSvg({ row, width, geo, compact }: { row: GraphCommit; width: numb
         <circle cx={x} cy="14" r="10" fill="var(--surface-2)" stroke={row.color} strokeWidth="2" />
         {row.parents.length > 1
           ? <circle cx={x} cy="14" r="4" fill="none" stroke={row.color} strokeWidth="2" />
-          : <text x={x} y="17" textAnchor="middle" fill="var(--text)" fontSize="7" fontWeight="600">{initials(row.author)}</text>}
+          : <>
+            <text x={x} y="17" textAnchor="middle" fill="var(--text)" fontSize="7" fontWeight="600">{initials(row.author)}</text>
+            {photo.url && <image href={photo.url} x={x - 9} y="5" width="18" height="18" style={{ clipPath: 'circle(50%)' }} onError={photo.fail} />}
+          </>}
       </>}
   </svg>
 }
@@ -128,7 +133,9 @@ export function Graph({ path }: { path: string }) {
   const revision = useApp((s) => s.graphRevision[path.replace(/\\/g, '/').toLowerCase()] ?? s.graphRevision[path.replace(/\\/g, '/')] ?? 0)
   const head = useApp((s) => s.tabs.find((t) => t.path === path)?.head)
   const vis = useVisibility(selectVisibility(path))
-  const [find, setFind] = useState<{ text: string; author: string; byAuthor: boolean } | null>(null)
+  const [find, setFind] = useState<{ text: string } | null>(null)
+  const authors = useApp((s) => s.tabs.find((t) => t.path === path)?.authors)
+  const [authorAnchor, setAuthorAnchor] = useState<Rect | null>(null)
 
   const geo = geometry(layout.compact)
   const contentWidth = geo.first * 2 + maxLanes * geo.lane
@@ -273,15 +280,16 @@ export function Graph({ path }: { path: string }) {
     const open = (e: KeyboardEvent) => {
       if (!matchesShortcut('Ctrl+F', e)) return
       e.preventDefault()
-      setFind((f) => f ?? { text: '', author: '', byAuthor: false })
+      setFind((f) => f ?? { text: '' })
       requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>('.graph-filter input')?.focus())
     }
     window.addEventListener('keydown', open)
     return () => window.removeEventListener('keydown', open)
   }, [])
   const needle = find?.text.trim().toLocaleLowerCase() ?? ''
-  /** Busca e autor só esmaecem as linhas: filtrar tiraria commits e quebraria as lanes. */
-  const matches = (c: GraphCommit) => !find || ((!needle || `${c.subject}\n${c.description}\n${c.sha}`.toLocaleLowerCase().includes(needle)) && (!find.author || c.author === find.author))
+  /** Busca e Autores só esmaecem as linhas: filtrar tiraria commits e quebraria as lanes. */
+  const matches = (c: GraphCommit) => (!needle || `${c.subject}\n${c.description}\n${c.sha}`.toLocaleLowerCase().includes(needle))
+    && (!authors?.length || authors.includes(c.email.toLowerCase()))
   const openMenu = async (commit: GraphCommit, e: React.MouseEvent) => {
     e.preventDefault()
     actions.selectCommit(commit.sha)
@@ -295,9 +303,8 @@ export function Graph({ path }: { path: string }) {
     }) })
   }
 
-  /** Ctrl+F e a lupa abrem só a busca; o seletor de autor só vem pelo filtro da coluna Autor. */
-  const openFind = (byAuthor: boolean) => {
-    setFind((f) => f ? { ...f, byAuthor: f.byAuthor || byAuthor } : { text: '', author: '', byAuthor })
+  const openFind = () => {
+    setFind((f) => f ?? { text: '' })
     requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>('.graph-filter input')?.focus())
   }
   const branchActions = useBranchActions(path)
@@ -336,7 +343,7 @@ export function Graph({ path }: { path: string }) {
         : <span key={id} className={`graph-message${commit && commit.parents.length > 1 ? ' merge' : ''}`} title={commit?.subject}>{commit?.subject}</span>
       case 'description': return <span key={id} className="graph-description" title={commit?.description}>{commit?.description}</span>
       case 'author': return <span key={id} className="graph-author" title={commit?.email}>
-        {commit && layout.compact && <span className="avatar small" style={avatarStyle(commit.email)}>{initials(commit.author)}</span>}{commit?.author}</span>
+        {commit && layout.compact && <Avatar small name={commit.author} email={commit.email} />}{commit?.author}</span>
       case 'date': return <span key={id} className="graph-date" title={commit ? fullDate.format(new Date(commit.timestamp * 1000)) : undefined}>{commit ? date.format(new Date(commit.timestamp * 1000)).replace(',', '') : ''}</span>
       case 'sha': return <span key={id} className="graph-sha" title={commit?.sha}>{commit?.sha.slice(0, 7)}</span>
     }
@@ -364,19 +371,16 @@ export function Graph({ path }: { path: string }) {
       </div>
     </>}
     {find && <div className="graph-filter" role="search" onKeyDown={(e) => { if (e.key === 'Escape') setFind(null) }}>
-      <input value={find.text} onChange={(e) => setFind({ ...find, text: e.target.value })} placeholder="Buscar na mensagem…" aria-label="Buscar na mensagem" />
-      {find.byAuthor && <select value={find.author} onChange={(e) => setFind({ ...find, author: e.target.value })} aria-label="Filtrar por autor">
-        <option value="">Todos os autores</option>
-        {[...new Set(commits.map((c) => c.author))].sort().map((a) => <option key={a} value={a}>{a}</option>)}
-      </select>}
+      <input value={find.text} onChange={(e) => setFind({ text: e.target.value })} placeholder="Buscar na mensagem…" aria-label="Buscar na mensagem" />
       <button aria-label="Fechar busca" onClick={() => setFind(null)}>✕</button>
     </div>}
     <div className="graph-header graph-grid">
       <button className="graph-gear" aria-label="Colunas do grafo" title="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)}><RefIcon name="sliders" size={15} /></button>
       {cols.map((id) => <div key={id} className="graph-hcell">
         <span className="graph-title">{COLUMNS[id].label}
-            {id === 'message' && <button className="graph-tool" aria-label="Buscar na mensagem" title="Buscar na mensagem (Ctrl+F)" onClick={() => openFind(false)}><RefIcon name="search" size={13} /></button>}
-            {id === 'author' && <button className="graph-tool" aria-label="Filtrar por autor" title="Filtrar por autor" onClick={() => openFind(true)}><RefIcon name="filter" size={13} /></button>}
+            {id === 'message' && <button className="graph-tool" aria-label="Buscar na mensagem" title="Buscar na mensagem (Ctrl+F)" onClick={openFind}><RefIcon name="search" size={13} /></button>}
+            {id === 'author' && <button className={`graph-tool${authors?.length ? ' active' : ''}`} aria-label="Filtrar por autor" title="Filtrar por autor"
+              aria-expanded={!!authorAnchor} onClick={(e) => setAuthorAnchor(e.currentTarget.getBoundingClientRect())}><RefIcon name="filter" size={13} /></button>}
             {id === 'message' && vis.solo && <button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} ✕</button>}
           </span>
         {id !== 'message' && <div className={`col-handle ${cols.indexOf(id) < cols.indexOf('message') ? 'after' : 'before'}`} role="separator" aria-orientation="vertical"
@@ -415,6 +419,7 @@ export function Graph({ path }: { path: string }) {
         <div className="graph-scroll-span" />
       </div>
     </div>
+    {authorAnchor && <AuthorFilter path={path} anchor={authorAnchor} onClose={() => setAuthorAnchor(null)} />}
     {menu && <Menu items={menu.items} anchor={menu.anchor} label="Menu do commit" onClose={() => setMenu(null)} />}
     {branchActions.overlay}
     {dialog && <CommitDialogs path={path} dialog={dialog} close={() => setDialog(null)} />}

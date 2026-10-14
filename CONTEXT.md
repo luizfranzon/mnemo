@@ -41,6 +41,10 @@ _Avoid_: upstream (upstream é a remota que a branch rastreia), branch pai
 
 ### Identidade
 
+**Autor**:
+Quem escreveu um commit, identificado pelo email (sem diferenciar maiúsculas). O nome mostrado é o do commit mais recente com aquele email. A mesma pessoa com dois emails conta como dois Autores. A foto vem do Gravatar e, sem ela, aparecem as iniciais.
+_Avoid_: committer (no git é quem aplicou o commit, que pode ser outra pessoa), usuário
+
 **Perfil**:
 Identidade de quem commita: nome, email e chave de assinatura. Um perfil fica ativo para todos os repositórios, e um repositório pode fixar outro. A escolha vale também para o git usado fora do Mnemo. O que vale no fim é a identidade configurada no git: se ela não bater com nenhum perfil, o Mnemo mostra essa identidade como está e não a sobrescreve.
 _Avoid_: conta, usuário
