@@ -2,9 +2,9 @@
 // O pool do libuv roda as chamadas ao core; uma fila de Operações bloqueia uma thread enquanto espera.
 process.env.UV_THREADPOOL_SIZE ??= '16'
 
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electron'
 import { spawn } from 'node:child_process'
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 
 interface Native {
@@ -61,10 +61,25 @@ const windowActions: Record<string, (w: BrowserWindow) => void> = {
   selectAll: (w) => w.webContents.selectAll(),
 }
 
+const stateFile = () => join(app.getPath('userData'), 'window-state.json')
+
+/** Tamanho/posição e maximizada da última sessão. Posição só vale se ainda cai em algum monitor. */
+function loadWindowState(): { bounds?: Electron.Rectangle; maximized: boolean } {
+  try {
+    const s = JSON.parse(readFileSync(stateFile(), 'utf8')) as { bounds?: Electron.Rectangle; maximized?: boolean }
+    const b = s.bounds
+    const ok = !!b && [b.x, b.y, b.width, b.height].every(Number.isFinite)
+      && screen.getAllDisplays().some((d) => b.x < d.workArea.x + d.workArea.width && b.x + b.width > d.workArea.x && b.y < d.workArea.y + d.workArea.height && b.y + b.height > d.workArea.y)
+    return { bounds: ok ? b : undefined, maximized: s.maximized === true }
+  } catch { return { maximized: false } }
+}
+
 function createWindow() {
+  const saved = loadWindowState()
   window = new BrowserWindow({
     width: 1280,
     height: 800,
+    ...saved.bounds,
     minWidth: 900,
     minHeight: 560,
     frame: false, // menus e controles da janela moram na barra de título da UI
@@ -74,6 +89,12 @@ function createWindow() {
   const dev = process.env.MNEMO_DEV_URL
   if (dev) void window.loadURL(dev)
   else void window.loadFile(join(__dirname, '..', 'dist', 'index.html'))
+  if (saved.maximized) window.maximize()
+  // minimizada não grava: abrir o app não pode abrir minimizado
+  window.on('close', () => {
+    if (!window || window.isMinimized()) return
+    try { writeFileSync(stateFile(), JSON.stringify({ bounds: window.getNormalBounds(), maximized: window.isMaximized() })) } catch { /* sem gravar: só não lembra */ }
+  })
   window.on('closed', () => (window = null))
 }
 
