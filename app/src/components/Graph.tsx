@@ -56,6 +56,9 @@ export function Graph({ path }: { path: string }) {
   const [gear, setGear] = useState(false)
   const [maxLanes, setMaxLanes] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [reloading, setReloading] = useState(false)
+  const [version, setVersion] = useState(0)
+  const loadedPath = useRef<string | null>(null)
   const [menu, setMenu] = useState<{ items: MenuEntry[]; anchor: Rect } | null>(null)
   const [dialog, setDialog] = useState<CommitDialog | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
@@ -85,18 +88,25 @@ export function Graph({ path }: { path: string }) {
   useEffect(() => {
     const current = ++generation.current
     busy.current = true
-    pageRef.current = null
-    setPage(null)
-    setMaxLanes(1)
+    // mesmo repositório: mantém o grafo antigo sob um véu até chegarem os dados novos
+    const same = loadedPath.current === path && pageRef.current !== null
+    if (!same) {
+      pageRef.current = null
+      setPage(null)
+      setMaxLanes(1)
+    }
+    setReloading(same)
     setLoading(true)
     void core.graphPage(path, null, PAGE, graphVisibility(vis)).then((next) => {
       if (generation.current !== current) return
       pageRef.current = next
+      loadedPath.current = path
       setPage(next)
+      setVersion((v) => v + 1)
       setMaxLanes(Math.max(1, ...next.commits.map((commit) => commit.laneCount)))
       if (!useApp.getState().selectedSha && next.commits[0]) actions.selectCommit(next.commits[0].sha)
     }, (err) => { if (generation.current === current) actions.reportError(err) }).finally(() => {
-      if (generation.current === current) { busy.current = false; setLoading(false) }
+      if (generation.current === current) { busy.current = false; setLoading(false); setReloading(false) }
     })
     return () => { generation.current++ }
   }, [path, revision, vis.hidden, vis.solo, vis.smart])
@@ -267,11 +277,12 @@ export function Graph({ path }: { path: string }) {
           aria-label={`Redimensionar ${COLUMNS[id].label}`} onPointerDown={(e) => resize(id, e)} onDoubleClick={() => fit(id)} />}
       </div>)}
     </div>
+    <div className="graph-body">
     <div className="graph-list" ref={scroller} onScroll={(e) => {
       const box = e.currentTarget
       if (box.scrollTop + box.clientHeight > box.scrollHeight - 500) loadMore()
     }}>
-      <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
+      <div key={version} className="graph-rows" style={{ height: virtual.getTotalSize(), position: 'relative' }}>
         {virtual.getVirtualItems().map((item) => {
           const commit = item.index ? commits[item.index - 1] : null
           const wip = !item.index
@@ -285,7 +296,9 @@ export function Graph({ path }: { path: string }) {
         })}
       </div>
       {!commits.length && !loading && <div className="graph-empty">Este repositório ainda não tem commits.</div>}
-      {loading && <div className="graph-loading" role="status">Carregando commits…</div>}
+      {loading && !reloading && <div className="graph-loading" role="status">Carregando commits…</div>}
+    </div>
+    {reloading && <div className="graph-veil" role="status"><span className="spin" aria-hidden="true">⟳</span> Atualizando grafo</div>}
     </div>
     {menu && <Menu items={menu.items} anchor={menu.anchor} label="Menu do commit" onClose={() => setMenu(null)} />}
     {dialog && <CommitDialogs path={path} dialog={dialog} close={() => setDialog(null)} />}

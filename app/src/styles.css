@@ -132,6 +132,12 @@ input:focus { border-color: var(--accent); }
 .graph-hcell > span { padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .graph-scrollbar { overflow-x: auto; overflow-y: hidden; height: 33px; position: relative; }
 .graph-scrollbar > span { position: sticky; left: 6px; display: block; padding-top: 7px; pointer-events: none; }
+.graph-body { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.graph-veil { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; gap: 8px; background: color-mix(in srgb, var(--bg) 62%, transparent); color: var(--text-secondary); font-size: 12px; animation: graph-fade .15s ease-out; }
+.graph-rows { animation: graph-reveal .2s ease-out; }
+@keyframes graph-reveal { from { opacity: .4; } }
+@keyframes graph-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .graph-veil, .graph-rows { animation: none; } }
 .graph-list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; position: relative; }
 .graph-row { position: absolute; top: 0; left: 0; width: 100%; align-items: center; border-bottom: 1px solid var(--border-subtle); cursor: pointer; }
 .graph-row:hover { background: var(--hover); }
