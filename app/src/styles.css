@@ -1,6 +1,8 @@
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 body { background: var(--bg); color: var(--text); font-family: var(--font-ui); font-size: var(--fs-body-sm); }
+body { user-select: none; }
+input, textarea, [contenteditable] { user-select: text; }
 code { font-family: var(--font-mono); background: var(--control); padding: 1px 5px; border-radius: var(--radius-xs); }
 h1 { font-size: var(--fs-title-1); font-weight: 600; margin: 0 0 var(--space-2); }
 button { font: inherit; color: var(--text-secondary); background: var(--control); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 5px 10px; cursor: pointer; white-space: nowrap; }
