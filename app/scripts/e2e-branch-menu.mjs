@@ -32,13 +32,13 @@ try {
   await until(async () => (await items()).includes('Merge feat em main'), true)
   const labels = await items()
   assert.ok(labels.includes('feat · ↑0 ↓0 · rastreia origin/feat'), labels.join(' | '))
-  assert.ok(labels.includes('Rebase main sobre feat') && labels.includes('Excluir feat…') && labels.includes('Pull feat'))
+  assert.ok(labels.includes('Rebase main sobre feat') && labels.includes('Excluir feat') && labels.includes('Pull feat'))
 
   assert.ok(await click('Merge feat em main'))
   await until(() => g('log', '-1', '--format=%s').toString().trim(), 'da feat')
 
   await rightClick('feat')
-  await until(() => click('Renomear…'), true)
+  await until(() => click('Renomear'), true)
   await until(() => ev(`!!document.querySelector('dialog #branch-new-name')`), true)
   await typeInto('#branch-new-name', 'feat2')
   assert.ok(await click('Renomear'))
@@ -46,7 +46,7 @@ try {
 
   await until(() => ev(`!!document.querySelector('${row('feat2')}')`), true)
   await rightClick('feat2')
-  await until(() => click('Excluir feat2…'), true)
+  await until(() => click('Excluir feat2'), true)
   await until(() => ev(`document.querySelector('dialog h2')?.textContent ?? ''`), 'Excluir branch')
   await ev(`document.querySelectorAll('dialog input[type=checkbox]')[1].click()`) // marca também a remota (origin/feat)
   await until(() => ev(`!!document.querySelector('dialog .warning')`), true)

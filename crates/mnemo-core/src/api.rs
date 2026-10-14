@@ -396,7 +396,7 @@ impl Mnemo {
             revs.push(refname);
             labels.push((
                 branch.sha.clone(),
-                GraphRef { name: branch.name.clone(), kind: "local".into(), current: branch.current },
+                GraphRef { name: branch.name.clone(), kind: "local".into(), current: branch.current, upstream: branch.upstream.clone() },
             ));
         }
         for group in &refs.remotes {
@@ -415,6 +415,7 @@ impl Mnemo {
                         name: format!("{}/{}", remote.remote, remote.name),
                         kind: "remote".into(),
                         current: false,
+                        upstream: None,
                     },
                 ));
             }
@@ -423,7 +424,7 @@ impl Mnemo {
             if visibility.solo.is_none() && !visibility.smart {
                 revs.push(format!("refs/tags/{}", tag.name));
             }
-            labels.push((tag.sha.clone(), GraphRef { name: tag.name.clone(), kind: "tag".into(), current: false }));
+            labels.push((tag.sha.clone(), GraphRef { name: tag.name.clone(), kind: "tag".into(), current: false, upstream: None }));
         }
         let current = refs.local.iter().find(|b| b.current);
         let head_visible = current.map_or(true, |b| visibility.shows(&format!("refs/heads/{}", b.name), &smart_set));

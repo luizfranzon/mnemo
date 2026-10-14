@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { DEFAULT_LAYOUT, dragColumnWidth, gridTemplate, moveColumn, sanitize, segmentPath } from './graphColumns'
 
 test('padrão: Descrição oculta; Mensagem flexível com mínimo de 200px', () => {
-  assert.equal(gridTemplate(DEFAULT_LAYOUT), 'minmax(70px, 150px) minmax(56px, 144px) minmax(200px, 1fr) minmax(60px, 120px) minmax(70px, 104px) minmax(56px, 70px)')
+  assert.equal(gridTemplate(DEFAULT_LAYOUT), 'minmax(70px, 190px) minmax(56px, 144px) minmax(200px, 1fr) minmax(60px, 120px) minmax(70px, 104px) minmax(56px, 70px)')
 })
 
 test('arrasto nunca deixa a Mensagem abaixo de 200px nem a coluna abaixo do mínimo', () => {

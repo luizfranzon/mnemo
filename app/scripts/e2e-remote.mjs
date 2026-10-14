@@ -29,7 +29,7 @@ try {
   const row = '.refs-row[title="origin/nova"]'
   await until(() => ev(`!!document.querySelector('${row}')`), true) // a lista de refs atualiza depois do Push
   await ev(`document.querySelector('${row}').parentElement.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 60, clientY: 200 }))`)
-  await until(() => click('Excluir origin/nova…'), true)
+  await until(() => click('Excluir origin/nova'), true)
   await until(() => ev(`document.querySelector('dialog h2')?.textContent ?? ''`), 'Excluir branch')
   assert.ok(await click('Excluir'), 'botão de confirmar ausente')
   await until(() => remoteBranches().includes('nova'), false)

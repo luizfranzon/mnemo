@@ -1,13 +1,16 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { core } from '../bridge'
 import type { GraphCommit, GraphPage } from '../bridge/types'
 import { actions, useApp } from '../store/app'
 import { graphVisibility, selectVisibility, updateVisibility, useVisibility } from '../store/visibility'
 import { avatarStyle, initials } from './avatar'
+import type { BranchTarget } from './branchMenu'
 import { commitMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
 import { Menu } from './Menu'
+import { useBranchActions } from './useBranchActions'
 import { RefIcon } from './RefIcon'
 import { copyText, menuBase } from './menuBase'
 import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
@@ -42,36 +45,63 @@ function CommitSvg({ row, width, geo, compact }: { row: GraphCommit; width: numb
   </svg>
 }
 
-type Pill = { key: string; label: string; title: string; kind: 'branch' | 'tag'; local: boolean; remote: boolean; current: boolean }
+type Pill = { key: string; label: string; title: string; kind: 'branch' | 'tag'; local: string | null; remote: string | null; current: boolean }
 
-/** Local e remota de mesmo nome no mesmo commit viram um card só, com os dois ícones. */
+const rank = (p: Pill) => p.current ? 0 : p.local && p.remote ? 1 : p.local ? 2 : p.remote ? 3 : 4
+
+/** Uma pill por branch: a remota que a local rastreia entra na pill dela; qualquer outra remota ou tag tem pill própria. A primeira da lista é a que aparece. */
 function pillsOf(refs: GraphCommit['refs']): Pill[] {
-  const pills = new Map<string, Pill>()
-  const locals = new Set(refs.filter((r) => r.kind === 'local').map((r) => r.name))
+  const pills: Pill[] = []
+  const tracked = new Set(refs.flatMap((r) => (r.kind === 'local' && r.upstream ? [r.upstream] : [])))
   for (const ref of refs) {
-    if (ref.kind === 'tag') { pills.set(`tag:${ref.name}`, { key: `tag:${ref.name}`, label: ref.name, title: ref.name, kind: 'tag', local: false, remote: false, current: false }); continue }
-    const label = ref.kind === 'remote' ? ref.name.slice(ref.name.indexOf('/') + 1) : ref.name
-    const pill = pills.get(`branch:${label}`) ?? { key: `branch:${label}`, label, title: '', kind: 'branch' as const, local: locals.has(label), remote: false, current: false }
-    pill.remote ||= ref.kind === 'remote'
-    pill.local ||= ref.kind === 'local'
-    pill.current ||= ref.current
-    pill.title = pill.title ? `${pill.title}\n${ref.name}` : ref.name
-    pills.set(pill.key, pill)
+    if (ref.kind === 'tag') pills.push({ key: `tag:${ref.name}`, label: ref.name, title: ref.name, kind: 'tag', local: null, remote: null, current: false })
+    else if (ref.kind === 'local') {
+      const remote = ref.upstream && refs.some((r) => r.kind === 'remote' && r.name === ref.upstream) ? ref.upstream : null
+      pills.push({ key: `local:${ref.name}`, label: ref.name, title: remote ? `${ref.name}\n${remote}` : ref.name, kind: 'branch', local: ref.name, remote, current: ref.current })
+    } else if (!tracked.has(ref.name)) pills.push({ key: `remote:${ref.name}`, label: ref.name, title: ref.name, kind: 'branch', local: null, remote: ref.name, current: false })
   }
-  return [...pills.values()]
+  return pills.sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label))
 }
 
-function Pills({ refs, color }: { refs: GraphCommit['refs']; color: string }) {
-  if (!refs.length) return null
+interface PillHandlers {
+  checkout(pill: Pill): void
+  menu(pill: Pill, e: React.MouseEvent): void
+}
+
+function PillView({ pill, on }: { pill: Pill; on: PillHandlers }) {
+  return <span className={`graph-pill ${pill.kind}`} title={pill.title}
+    onDoubleClick={(e) => { if (pill.kind === 'branch') { e.stopPropagation(); on.checkout(pill) } }}
+    onContextMenu={(e) => { if (pill.kind === 'branch') { e.preventDefault(); e.stopPropagation(); on.menu(pill, e) } }}>
+    {pill.current && <RefIcon name="check" size={11} />}
+    <span className="graph-pill-name">{pill.label}</span>
+    {pill.kind === 'tag' ? <RefIcon name="tags" size={11} /> : <>
+      {pill.local && <RefIcon name="laptop" size={11} />}{pill.remote && <RefIcon name="cloud" size={11} />}</>}
+  </span>
+}
+
+/** Mostra só a primeira pill; as demais abrem numa lista sobreposta (portal, fora do clip da linha e sem mudar a altura dela). */
+function Pills({ refs, color, on }: { refs: GraphCommit['refs']; color: string; on: PillHandlers }) {
+  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  const box = useRef<HTMLDivElement>(null)
   const pills = pillsOf(refs)
-  return <div className="graph-pills" style={{ '--pill': color } as CSSProperties}>
-    {pills.slice(0, 2).map((pill) => <span key={pill.key} className={`graph-pill ${pill.kind}`} title={pill.title}>
-      {pill.current && <RefIcon name="check" size={11} />}
-      <span className="graph-pill-name">{pill.label}</span>
-      {pill.kind === 'tag' ? <RefIcon name="tags" size={11} /> : <>
-        {pill.local && <RefIcon name="laptop" size={11} />}{pill.remote && <RefIcon name="cloud" size={11} />}</>}
-    </span>)}
-    {pills.length > 2 && <span className="graph-pill-more" title={pills.slice(2).map((pill) => pill.label).join('\n')}>+{pills.length - 2}</span>}
+  useEffect(() => {
+    if (!anchor) return
+    const close = () => setAnchor(null)
+    window.addEventListener('scroll', close, true)
+    return () => window.removeEventListener('scroll', close, true)
+  }, [anchor])
+  if (!pills.length) return null
+  const [first, ...rest] = pills
+  const open = () => { if (rest.length && box.current) setAnchor(box.current.getBoundingClientRect()) }
+  const style = { '--pill': color } as CSSProperties
+  const close: PillHandlers = { checkout: (p) => { setAnchor(null); on.checkout(p) }, menu: (p, e) => { setAnchor(null); on.menu(p, e) } }
+  return <div ref={box} className="graph-pills" style={style} onMouseEnter={open} onMouseLeave={() => setAnchor(null)}>
+    <PillView pill={first!} on={close} />
+    {rest.length > 0 && <button className="graph-pill-more" aria-haspopup="true" aria-expanded={!!anchor} aria-label={`Mais ${rest.length} refs`}
+      onFocus={open} onBlur={() => setAnchor(null)}>+{rest.length}</button>}
+    {anchor && createPortal(<div className="graph-pill-list" style={{ ...style, left: anchor.left, top: anchor.bottom - 4 }}>
+      {rest.map((pill) => <PillView key={pill.key} pill={pill} on={close} />)}
+    </div>, document.body)}
   </div>
 }
 
@@ -268,10 +298,27 @@ export function Graph({ path }: { path: string }) {
     setFind((f) => f ?? { text: '', author: '' })
     requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>('.graph-filter input')?.focus())
   }
+  const branchActions = useBranchActions(path)
+  /** Resolve a pill na ref completa (a lista de refs traz upstream e se a local existe) antes de agir. */
+  const targetOf = async (pill: Pill): Promise<BranchTarget | null> => {
+    const refs = await core.listRefs(path).catch(() => null)
+    if (!refs) return null
+    const local = pill.local ? refs.local.find((b) => b.name === pill.local) : undefined
+    if (local) return { kind: 'local', ref: local }
+    const remote = refs.remotes.flatMap((g) => [...g.branches, ...g.folders.flatMap((f) => f.branches)]).find((r) => `${r.remote}/${r.name}` === pill.remote)
+    return remote ? { kind: 'remote', ref: remote, local: refs.local.find((b) => b.name === remote.name) } : null
+  }
+  const pillHandlers: PillHandlers = {
+    checkout: (pill) => void targetOf(pill).then((t) => { if (t) branchActions.checkout(t) }),
+    menu: (pill, e) => {
+      const anchor = { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }
+      void targetOf(pill).then((t) => { if (t) void branchActions.open(t, anchor) })
+    },
+  }
   const branch = head?.kind === 'branch' ? head.name : head?.sha ?? 'HEAD'
   const cell = (id: ColId, commit: GraphCommit | null | undefined, wip: boolean) => {
     switch (id) {
-      case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} />}{commit && commit.refs.length > 0 &&
+      case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} on={pillHandlers} />}{commit && commit.refs.length > 0 &&
         <span className="graph-ref-connector" style={{ borderColor: commit.color }} />}</div>
       case 'graph': return <div key={id} className="graph-cell">
         <div className="graph-canvas" style={{ width: contentWidth }}>
@@ -347,7 +394,7 @@ export function Graph({ path }: { path: string }) {
           return <div key={item.key} className={`graph-row graph-grid${selected ? ' selected' : ''}${commit && !matches(commit) ? ' dim' : ''}`} style={{ height: ROW, transform: `translateY(${item.start}px)` }}
             onClick={() => actions.selectCommit(commit?.sha ?? 'wip')}
             onContextMenu={(e) => { if (commit) void openMenu(commit, e) }}
-            onDoubleClick={() => { if (commit) void actions.checkoutRef(path, { type: 'checkout', target: commit.sha }) }}>
+            >
             {cells(commit, wip)}
           </div>
         })}
@@ -364,6 +411,7 @@ export function Graph({ path }: { path: string }) {
       </div>
     </div>
     {menu && <Menu items={menu.items} anchor={menu.anchor} label="Menu do commit" onClose={() => setMenu(null)} />}
+    {branchActions.overlay}
     {dialog && <CommitDialogs path={path} dialog={dialog} close={() => setDialog(null)} />}
   </div>
 }

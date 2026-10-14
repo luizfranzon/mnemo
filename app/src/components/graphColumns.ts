@@ -4,7 +4,7 @@ export type ColId = 'refs' | 'graph' | 'message' | 'description' | 'author' | 'd
 
 /** `message` é a coluna flexível; `graph` e `message` nunca somem. */
 export const COLUMNS: Record<ColId, { label: string; def: number; min: number; hideable: boolean }> = {
-  refs: { label: 'Branch / Tag', def: 150, min: 70, hideable: true },
+  refs: { label: 'Branch / Tag', def: 190, min: 70, hideable: true },
   graph: { label: 'Grafo', def: 144, min: 56, hideable: false },
   message: { label: 'Mensagem', def: 0, min: 200, hideable: false },
   description: { label: 'Descrição', def: 220, min: 80, hideable: true },

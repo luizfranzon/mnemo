@@ -42,6 +42,8 @@ pub struct GraphRef {
     pub name: String,
     pub kind: String,
     pub current: bool,
+    /// Só nas locais: `remoto/branch` que ela rastreia.
+    pub upstream: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]

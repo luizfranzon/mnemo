@@ -28,33 +28,33 @@ try {
   await until(() => ev(`document.querySelectorAll('.commit-file').length`), 1)
 
   // arquivo: restaurar a versão do commit sobrescreve a mudança local
-  await openIdle(() => rightClick('.commit-file', 'true'), 'Restaurar versão deste commit…')
-  assert.ok(await click('Restaurar versão deste commit…'))
+  await openIdle(() => rightClick('.commit-file', 'true'), 'Restaurar versão deste commit')
+  assert.ok(await click('Restaurar versão deste commit'))
   await until(() => ev(`document.querySelector('dialog h2')?.textContent ?? ''`), 'Restaurar versão deste commit?')
   assert.ok(await click('Restaurar'))
   await until(() => readFileSync(file, 'utf8').trim(), 'v2') // trim: o autocrlf do Windows grava \r\n
 
   // arquivo: excluir (rastreado) sai do diretório de trabalho
-  await openIdle(() => rightClick('.commit-file', 'true'), 'Excluir arquivo…')
-  assert.ok(await click('Excluir arquivo…'))
+  await openIdle(() => rightClick('.commit-file', 'true'), 'Excluir arquivo')
+  assert.ok(await click('Excluir arquivo'))
   await until(() => ev(`!!document.querySelector('dialog')`), true)
   assert.ok(await click('Excluir'))
   await until(() => existsSync(file), false)
 
   // commit: cabeçalho, rótulos com o nome da branch e tag
-  await openIdle(() => commitRow('v1'), 'Criar tag aqui…')
+  await openIdle(() => commitRow('v1'), 'Criar tag aqui')
   const items = await labels()
   assert.ok(items.includes('Cherry-pick em main') && items.includes('Reset main para este commit'), items.join(' | '))
   assert.ok(await disabled('Editar mensagem'), 'só o HEAD pode ter a mensagem editada')
-  assert.ok(await click('Criar tag aqui…'))
+  assert.ok(await click('Criar tag aqui'))
   await until(() => ev(`!!document.querySelector('dialog #tag-name')`), true)
   await typeInto('#tag-name', 'marco')
   assert.ok(await click('Criar tag'))
   await until(() => g('tag', '--points-at', 'HEAD~1').toString().trim(), 'marco')
 
   // commit: editar a mensagem do HEAD não leva a exclusão preparada para o commit
-  await openIdle(() => commitRow('v2'), 'Editar mensagem…')
-  assert.ok(await click('Editar mensagem…'))
+  await openIdle(() => commitRow('v2'), 'Editar mensagem')
+  assert.ok(await click('Editar mensagem'))
   await until(() => ev(`document.querySelector('dialog #reword-message')?.disabled === false`), true)
   await typeInto('#reword-message', 'v2 editado', 'HTMLTextAreaElement')
   assert.ok(await click('Salvar'))

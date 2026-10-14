@@ -20,6 +20,13 @@ _Avoid_: fixado, pinned
 Coluna vertical do grafo onde corre uma linha de desenvolvimento. Cada lane tem uma cor fixa, tirada da sequência de cores do grafo.
 _Avoid_: trilha, coluna (coluna é do cabeçalho da tabela do grafo)
 
+**Pill**:
+Rótulo de uma ref no grafo, na coluna Branch / Tag. Cada branch tem uma pill: a remota que a local rastreia entra na pill dela (💻☁). Remota de outro remoto, remota sem local e tag têm pill própria, com o nome completo. Duplo clique numa pill de branch faz checkout da branch (nunca do commit, que deixaria o HEAD destacado); tag não tem duplo clique.
+_Avoid_: card, tag (tag é a ref `refs/tags`)
+
+**Pills de um commit**:
+Quando um commit tem várias pills, só a primeira aparece, mais um chip `+N` com as demais; passar o mouse sobre o conjunto abre a lista sobreposta, sem mudar a altura da linha. Ordem: branch atual, local com remota, só local, só remota, tags; alfabética dentro do nível.
+
 **Visibilidade inteligente**:
 Modo do grafo que mostra só a branch atual e a Base dela. Commits mergeados nelas aparecem por fazerem parte da história; as outras branches não ganham pill.
 _Avoid_: filtro inteligente, modo foco

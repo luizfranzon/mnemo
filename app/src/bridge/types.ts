@@ -59,7 +59,7 @@ export interface GraphSegment { fromLane: number; toLane: number; color: string;
 export interface GraphCommit {
   sha: string; parents: string[]; author: string; email: string; timestamp: number; subject: string; description: string
   lane: number; color: string; laneCount: number; segments: GraphSegment[]
-  refs: { name: string; kind: 'local' | 'remote' | 'tag'; current: boolean }[]; head: boolean
+  refs: { name: string; kind: 'local' | 'remote' | 'tag'; current: boolean; upstream: string | null }[]; head: boolean
 }
 export interface GraphVisibilityArg { hidden: string[]; solo: string | null; smart: boolean }
 export interface GraphPage { commits: GraphCommit[]; next: GraphCursor | null; wip: { changed: number; untracked: number } }

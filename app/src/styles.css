@@ -176,9 +176,13 @@ input:focus { border-color: var(--accent); }
 .graph-ref-connector { flex: 1; min-width: 4px; border-top: 1px solid; opacity: .55; }
 .graph-pills { display: flex; align-items: center; gap: 3px; overflow: hidden; }
 .graph-pill { display: inline-flex; align-items: center; gap: 5px; max-width: 150px; min-width: 0; padding: 2px 7px; border: 1px solid var(--pill, var(--border-strong)); border-radius: 7px; background: color-mix(in srgb, var(--pill, var(--surface-2)) 16%, var(--bg)); color: var(--text); font: 12px var(--font-mono); white-space: nowrap; }
-.graph-pill-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.graph-pill .ref-icon { flex: none; color: var(--text-secondary); }
-.graph-pill-more { flex: none; color: var(--text-muted); font-size: 10px; }
+.graph-pill-name { min-width: 4ch; overflow: hidden; text-overflow: ellipsis; }
+.graph-pill .ref-icon { flex: none; color: var(--text); }
+.graph-pills { min-width: 0; }
+.graph-pills > .graph-pill { flex: 0 1 auto; }
+.graph-pill-more { flex: none; padding: 2px 6px; border: 1px solid var(--pill); border-radius: 7px; background: color-mix(in srgb, var(--pill) 16%, var(--bg)); color: var(--text); font: 12px var(--font-mono); line-height: 1.3; cursor: default; }
+.graph-pill-list { position: fixed; z-index: 40; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding-top: 4px; }
+.graph-pill-list .graph-pill { max-width: 260px; box-shadow: 0 4px 12px rgba(0, 0, 0, .4); }
 .graph-message { color: var(--text); }
 .graph-message.merge { color: var(--text-muted); }
 .graph-author, .graph-date { color: var(--text-muted); }

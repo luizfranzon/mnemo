@@ -3,13 +3,11 @@ import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import type { LocalRef, RefListing, RemoteRef } from '../bridge/types'
 import { actions, runningLabel, useApp } from '../store/app'
-import { localRef, remoteRef, selectVisibility, toggleHidden, togglePinned, toggleSolo, updateVisibility, useVisibility, type Visibility } from '../store/visibility'
-import { BranchDialogs } from './BranchDialogs'
-import { branchMenu, remoteOf, type BranchDialog, type BranchTarget } from './branchMenu'
-import { Menu } from './Menu'
-import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
+import { localRef, remoteRef, selectVisibility, toggleHidden, updateVisibility, useVisibility } from '../store/visibility'
+import type { BranchTarget } from './branchMenu'
+import { matchesShortcut, type Rect } from './menuModel'
 import { RefIcon, type RefIconName } from './RefIcon'
-import { toolbarAvailability } from './toolbarModel'
+import { useBranchActions } from './useBranchActions'
 
 type Section = 'pinned' | 'local' | 'remotes' | 'worktrees' | 'stashes' | 'tags' | 'submodules'
 type Row =
@@ -116,10 +114,7 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
   const scroller = useRef<HTMLDivElement>(null)
   const running = useApp((s) => runningLabel(s, path))
   const undo = useApp((s) => s.tabs.find((t) => t.path === path)?.undo)
-  const head = useApp((s) => s.tabs.find((t) => t.path === path)?.head)
-  const toolbar = useApp((s) => s.tabs.find((t) => t.path === path)?.toolbar)
-  const [menu, setMenu] = useState<{ items: MenuEntry[]; anchor: Rect } | null>(null)
-  const [dialog, setDialog] = useState<BranchDialog | null>(null)
+  const branch = useBranchActions(path)
   useEffect(() => {
     if (running) return
     let active = true
@@ -149,37 +144,22 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current,
     estimateSize: (index) => rows[index]?.type === 'section' ? SECTION_HEIGHT : ROW_HEIGHT, overscan: 10, getItemKey: (index) => rows[index]!.key })
   const checkout = (row: Row) => {
-    if (row.type === 'local' && !row.ref.current) void actions.checkoutRef(path, { type: 'checkout', target: row.ref.name })
-    if (row.type === 'remote') {
-      const local = refs?.local.find((b) => b.name === row.ref.name)
-      if (local) void actions.checkoutRef(path, { type: 'checkout', target: local.name }, local.upstream === `${row.ref.remote}/${row.ref.name}` ? (local.behind ?? 0) : 0)
-      else void actions.checkoutRef(path, { type: 'checkoutRemote', remote: row.ref.remote, branch: row.ref.name })
-    }
+    const target = targetOf(row)
+    if (target) branch.checkout(target)
   }
-  const viewOf = (row: Row) => ({ hidden: vis.hidden.includes(refName(row)), solo: vis.solo === refName(row), pinned: vis.pinned.includes(refName(row)) })
   const targetOf = (row: Row): BranchTarget | null =>
     row.type === 'local' ? { kind: 'local', ref: row.ref }
       : row.type === 'remote' ? { kind: 'remote', ref: row.ref, local: refs?.local.find((b) => b.name === row.ref.name) } : null
-  const entries = (row: Row, target: BranchTarget, remoteUrl: string | null) => branchMenu(target, {
-    head: head!, toolbar: toolbar!, remoteUrl, mutation: toolbarAvailability(head!, toolbar!, running).mutation,
-    execute: (kind) => void actions.execute(path, kind), checkout: () => checkout(row), pull: () => void actions.pullNow(path),
-    push: () => void actions.requestPush(path), newBranch: (start) => actions.setPalette('createBranch', start),
-    resetHard: (sha) => void actions.requestResetHard(path, sha), dialog: setDialog,
-    copy: (text) => void navigator.clipboard.writeText(text).catch(() => undefined),
-    view: viewOf(row), toggleView: (what) => updateVisibility(path, (v) => ({ hidden: toggleHidden, solo: toggleSolo, pinned: togglePinned })[what](v, refName(row))),
-  })
-  const openMenu = async (row: Row, anchor: Rect) => {
+  const openMenu = (row: Row, anchor: Rect) => {
     const target = targetOf(row)
-    if (!target || !head || !toolbar) return
+    if (!target || !branch.ready) return
     setSelected(row.key)
-    const remote = remoteOf(target, toolbar.remotes)
-    const url = remote ? await core.remoteUrl(path, remote.remote).catch(() => null) : null
-    setMenu({ items: entries(row, target, url), anchor })
+    void branch.open(target, anchor)
   }
   const shortcut = (e: React.KeyboardEvent) => {
     const row = rows.find((r) => r.key === selected)
-    const target = row && head && toolbar && !(e.target instanceof HTMLInputElement) ? targetOf(row) : null
-    const item = target && entries(row!, target, null).find((i) => i !== '-' && i.shortcut && matchesShortcut(i.shortcut, e.nativeEvent))
+    const target = row && branch.ready && !(e.target instanceof HTMLInputElement) ? targetOf(row) : null
+    const item = target && branch.entries(target, null).find((i) => i !== '-' && i.shortcut && matchesShortcut(i.shortcut, e.nativeEvent))
     if (item && item !== '-' && !item.reason) { e.preventDefault(); item.run?.() }
   }
   if (rail) return <div className="refs-rail" aria-label="Seções de refs">
@@ -192,7 +172,7 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
     <div className="refs-heading">
       <label className="refs-search">
         <RefIcon name="search" size={16} />
-        <input ref={input} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtrar refs" aria-label="Filtrar refs" />
+        <input ref={input} className="refs-filter" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtrar refs" aria-label="Filtrar refs" />
         <kbd>Ctrl Alt F</kbd>
       </label>
       <button className="refs-collapse" aria-label="Recolher painel de refs" title="Recolher painel de refs" onClick={collapse}><RefIcon name="collapse" size={18} /></button>
@@ -205,7 +185,7 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
           const open = !collapsed.has(row.type === 'section' ? row.section : row.key)
           const point = (e: React.MouseEvent) => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY })
           return <div key={row.key} className="refs-virtual-row" style={{ transform: `translateY(${item.start}px)`, height: item.size }}
-            onContextMenu={(e) => { if (!targetOf(row)) return; e.preventDefault(); void openMenu(row, point(e)) }}>
+            onContextMenu={(e) => { if (!targetOf(row)) return; e.preventDefault(); openMenu(row, point(e)) }}>
             {row.type === 'section' || row.type === 'folder'
               ? <button className={`refs-row refs-group ${row.type === 'section' ? 'refs-section depth-0' : `refs-folder depth-${row.depth}`}`} onClick={() => toggle(row.type === 'section' ? row.section : row.key)}
                   aria-expanded={open} title={row.type === 'section' ? row.label : row.name}>
@@ -232,13 +212,12 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
                 title={vis.hidden.includes(refName(row)) ? 'Mostrar no grafo' : 'Ocultar no grafo'}
                 onClick={() => updateVisibility(path, (v) => toggleHidden(v, refName(row)))}>{vis.hidden.includes(refName(row)) ? '◌' : '◉'}</button>
               <button className="refs-more" aria-label="Menu da branch" title="Menu da branch"
-                onClick={(e) => void openMenu(row, e.currentTarget.getBoundingClientRect())}>⋮</button>
+                onClick={(e) => openMenu(row, e.currentTarget.getBoundingClientRect())}>⋮</button>
             </>}
           </div>
         })}
       </div>
     </div>
-    {menu && <Menu items={menu.items} anchor={menu.anchor} label="Menu da branch" onClose={() => setMenu(null)} />}
-    {dialog && <BranchDialogs path={path} dialog={dialog} close={() => setDialog(null)} />}
+    {branch.overlay}
   </div>
 }
