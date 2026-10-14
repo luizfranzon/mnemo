@@ -8,6 +8,7 @@ import { TabBar } from './TabBar'
 import { Toasts } from './Toasts'
 import { Toolbar } from './Toolbar'
 import { PushDialog } from './PushDialog'
+import { PrefsDialog } from './PrefsDialog'
 
 export function Workspace() {
   const path = useApp((s) => selectActiveTab(s)?.path)
@@ -29,6 +30,7 @@ export function Workspace() {
       <StatusBar />
       <DiscardDialogs />
       <PushDialog />
+      <PrefsDialog />
 
       <Toasts />
       {palette && <Palette key={palette} mode={palette} />}

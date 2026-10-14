@@ -11,8 +11,10 @@ export const isTextField = (el: EventTarget | null) =>
 export function useUndoShortcuts() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || isTextField(e.target)) return
+      if (!(e.ctrlKey || e.metaKey)) return
       const key = e.key.toLowerCase()
+      if (key === ',') { e.preventDefault(); actions.setPrefsOpen(true); return }
+      if (isTextField(e.target)) return
       const tab = selectActiveTab(useApp.getState())
       if (!tab) return
       if (key === 'z' && !e.shiftKey) {

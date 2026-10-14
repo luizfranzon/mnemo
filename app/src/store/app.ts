@@ -48,6 +48,15 @@ interface AppState {
   discardPrompt: { path: string; paths: string[]; preview: DiscardPreview } | null
   /** Desfazer de um descarte que bateu em edição posterior: oferece a cópia ao lado. */
   restoreConflict: { path: string; opId: number; paths: string[] } | null
+  /** Preferências globais (dados do app). Preferência de repositório fica no `.git/config` (ADR 0005). */
+  prefs: Prefs
+  prefsOpen: boolean
+}
+
+export interface Prefs { gravatar: boolean }
+const PREFS_KEY = 'mnemo.prefs'
+function loadPrefs(): Prefs {
+  try { return { gravatar: JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}').gravatar !== false } } catch { return { gravatar: true } }
 }
 
 export const useApp = create<AppState>(() => ({
@@ -67,6 +76,8 @@ export const useApp = create<AppState>(() => ({
   resetPrompt: null,
   discardPrompt: null,
   restoreConflict: null,
+  prefs: loadPrefs(),
+  prefsOpen: false,
 }))
 
 const set = useApp.setState
@@ -307,6 +318,16 @@ export const actions = {
 
   dismissRestoreConflict() {
     set({ restoreConflict: null })
+  },
+
+  setPrefsOpen(prefsOpen: boolean) {
+    set({ prefsOpen })
+  },
+
+  setPref<K extends keyof Prefs>(key: K, value: Prefs[K]) {
+    const prefs = { ...get().prefs, [key]: value }
+    set({ prefs })
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)) } catch { /* sem storage */ }
   },
 
   setPalette(palette: PaletteMode | null, start: string | null = null) {

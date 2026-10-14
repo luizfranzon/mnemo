@@ -55,7 +55,7 @@ export function windowMenus({ tab, tabs, running, textFocus }: MenuContext): { l
         soon('Abrir terminal', 'Alt+T'),
         soon('Abrir pasta', 'Alt+O'),
         '-',
-        soon('Preferências', 'Ctrl+,'),
+        { label: 'Preferências', shortcut: 'Ctrl+,', run: () => actions.setPrefsOpen(true) },
         { label: 'Sair', shortcut: 'Ctrl+Q', run: () => void core.window('quit') },
       ],
     },

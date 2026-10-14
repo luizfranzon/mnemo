@@ -2,6 +2,8 @@
 
 Preferências que mudam comportamento num repositório (modelo de mensagem, ação padrão do Pull, diretório de hooks, codificação, Base de cada branch, Perfil fixado) ficam no `.git/config` do repo, em chaves `mnemo.*` ou `branch.<nome>.mnemoBase`. Assim elas continuam valendo se o repo mudar de pasta, servem para todos os worktrees e nunca são commitadas. O Perfil fixado escreve direto em `user.*`, para o git do terminal usar a mesma identidade. O estado de layout (larguras de painéis e colunas, seções recolhidas) fica nos dados do app, indexado pelo caminho do diretório de trabalho, porque muda a cada arraste e não deve fazer barulho no config do git.
 
+Preferências globais, que não pertencem a um repositório (fotos do Gravatar, tela de Preferências), ficam nos dados do app, no mesmo `localStorage` do layout e da sessão, na chave `mnemo.prefs`. Não vão para o `~/.gitconfig` para não poluir a config do git do usuário.
+
 ## Considered Options
 
 - **Tudo nos dados do app**: rejeitado, porque mover o repo de pasta perde as preferências e cada worktree teria as suas.
