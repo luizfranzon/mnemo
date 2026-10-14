@@ -64,3 +64,53 @@ pub fn stage(git: &RepoGit, paths: &[String], on: bool) -> Result<()> {
     }
     git.run(args)
 }
+
+/// Acrescenta `pattern` ao `.gitignore` da raiz (se ainda não estiver lá). Não é Operação: é uma edição de arquivo.
+pub fn ignore(git: &RepoGit, pattern: &str) -> Result<()> {
+    let pattern = pattern.trim();
+    if pattern.is_empty() || pattern.contains(['\n', '\r']) {
+        return Err(crate::domain::error::CoreError::invalid("padrão de .gitignore inválido"));
+    }
+    let file = git.workdir().join(".gitignore");
+    // só a falta do arquivo vira texto vazio: qualquer outro erro não pode acabar reescrevendo o .gitignore
+    let mut text = match std::fs::read_to_string(&file) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        other => other?,
+    };
+    if text.lines().any(|l| l.trim() == pattern) {
+        return Ok(());
+    }
+    if !text.is_empty() && !text.ends_with('\n') {
+        text.push('\n');
+    }
+    text.push_str(pattern);
+    text.push('\n');
+    std::fs::write(file, text)?;
+    Ok(())
+}
+
+/// Arquivos de um stash: os rastreados (contra a base do stash) e os não rastreados que ele guardou (`A`).
+/// O `bool` diz se veio da parte não rastreada (`stash^3`).
+pub fn stash_files(git: &RepoGit, sha: &str) -> Result<Vec<(FileChange, bool)>> {
+    let base = format!("{sha}^1");
+    let tracked = git.exec(&GitCmd::new(["diff-tree", "-r", "-z", "--no-renames", "--name-status", &base, sha]))?;
+    let mut files: Vec<(FileChange, bool)> =
+        crate::application::detail::parse_name_status(&tracked.stdout).into_iter().map(|f| (f, false)).collect();
+    let third = format!("{sha}^3");
+    if git.exec(&GitCmd::new(["rev-parse", "-q", "--verify", &third]).also_ok(1))?.code == 0 {
+        let out = git.exec(&GitCmd::new(["ls-tree", "-r", "-z", "--name-only", &third]))?;
+        for p in out.stdout.split(|b| *b == 0).filter(|p| !p.is_empty()) {
+            let path = String::from_utf8_lossy(p).into_owned();
+            files.push((FileChange { path, old_path: None, status: "A".into(), added: None, removed: None }, true));
+        }
+    }
+    Ok(files)
+}
+
+/// `path` é o próprio arquivo ou uma pasta que o contém.
+pub fn in_paths(file: &str, paths: &[String]) -> bool {
+    paths.iter().any(|p| {
+        let p = p.trim_end_matches('/');
+        file == p || file.strip_prefix(p).is_some_and(|rest| rest.starts_with('/'))
+    })
+}

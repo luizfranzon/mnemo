@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as Reac
 import { dragWidth, loadLayout, PANEL, RAIL, saveLayout, type Layout, type Side } from './panelLayout'
 import { CommitPanel } from './CommitPanel'
 import { WipPanel } from './WipPanel'
-import { useApp } from '../store/app'
+import { selectDiff, useApp } from '../store/app'
+import { DiffView } from './DiffView'
 import { RefPanel } from './RefPanel'
 import { TOGGLE_PANEL } from './windowMenus'
 
@@ -11,6 +12,11 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
   const [layout, setLayout] = useState(() => loadLayout(path))
   const root = useRef<HTMLDivElement>(null)
   const wip = useApp((s) => s.selectedSha === 'wip')
+  // com o diff aberto o painel de refs vira rail sem mexer no layout salvo; expandir vale até o diff fechar
+  const diffOpen = useApp((s) => selectDiff(path)(s) !== null)
+  const [peek, setPeek] = useState(false)
+  useEffect(() => { if (!diffOpen) setPeek(false) }, [diffOpen])
+  const leftOpen = diffOpen ? peek : layout.leftOpen
 
   const update = (fn: (l: Layout) => Layout) =>
     setLayout((l) => {
@@ -30,17 +36,18 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
 
   // reaplica a cada render: o arrasto escreveu direto no DOM, e o React não sabe disso
   useLayoutEffect(() => {
-    root.current?.style.setProperty('--left-w', `${layout.leftOpen ? layout.left : RAIL}px`)
+    root.current?.style.setProperty('--left-w', `${leftOpen ? layout.left : RAIL}px`)
     root.current?.style.setProperty('--right-w', `${layout.right}px`)
   })
 
   return (
     <div className="panels" ref={root}>
-      <aside className={layout.leftOpen ? 'panel panel-left' : 'panel panel-left rail'} aria-label="Refs">
-        <RefPanel path={path} rail={!layout.leftOpen} expand={() => update((l) => ({ ...l, leftOpen: true }))} collapse={() => update((l) => ({ ...l, leftOpen: false }))} />
+      <aside className={leftOpen ? 'panel panel-left' : 'panel panel-left rail'} aria-label="Refs">
+        <RefPanel path={path} rail={!leftOpen} expand={() => (diffOpen ? setPeek(true) : update((l) => ({ ...l, leftOpen: true })))}
+          collapse={() => (diffOpen ? setPeek(false) : update((l) => ({ ...l, leftOpen: false })))} />
         <Divider side="left" layout={layout} root={root} update={update} />
       </aside>
-      <main className="panel-center">{children}</main>
+      <main className="panel-center">{children}{diffOpen && <DiffView path={path} />}</main>
       {layout.rightOpen && (
         <aside className="panel panel-right" aria-label="Detalhes">
           <Divider side="right" layout={layout} root={root} update={update} />

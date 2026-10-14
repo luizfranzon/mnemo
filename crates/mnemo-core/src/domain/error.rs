@@ -32,6 +32,8 @@ pub enum CoreError {
     WipChanged,
     #[error("Conflito ao restaurar: {} arquivo(s)", paths.len())]
     RestoreConflict { op_id: u64, paths: Vec<String> },
+    #[error("Arquivo em conflito não entra no stash ({}). Resolva o conflito antes.", paths.join(", "))]
+    StashConflicted { paths: Vec<String> },
     #[error("Não há nada para fazer: {reason}")]
     NothingToDo { reason: String },
     #[error("Entrada inválida: {reason}")]

@@ -8,13 +8,11 @@ import { fileMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
 import { Menu } from './Menu'
 import { menuBase } from './menuBase'
+import { fileRows } from './fileTree'
 import type { MenuEntry, Rect } from './menuModel'
 
 type View = 'path' | 'tree'
 type Sort = 'path' | 'status'
-type Row =
-  | { type: 'dir'; key: string; name: string; depth: number; count: number }
-  | { type: 'file'; key: string; file: FileChange; dir: string; name: string; depth: number }
 
 const ROW_HEIGHT = 26
 const STATUS: Record<FileChange['status'], { icon: string; cls: string; label: string }> = {
@@ -30,28 +28,6 @@ function sorted(files: FileChange[], sort: Sort) {
     || a.path.localeCompare(b.path))
 }
 
-function rowsFor(files: FileChange[], view: View, sort: Sort, collapsed: Set<string>): Row[] {
-  const list = sorted(files, sort)
-  const split = (path: string) => { const i = path.lastIndexOf('/'); return { dir: path.slice(0, i + 1), name: path.slice(i + 1) } }
-  if (view === 'path') return list.map((file) => ({ type: 'file', key: file.path, file, ...split(file.path), depth: 0 }))
-  const rows: Row[] = []
-  const seen = new Set<string>()
-  for (const file of list) {
-    const parts = file.path.split('/')
-    let hidden = false
-    for (let i = 0; i < parts.length - 1; i++) {
-      const dir = parts.slice(0, i + 1).join('/')
-      if (!seen.has(dir)) {
-        seen.add(dir)
-        if (!hidden) rows.push({ type: 'dir', key: `dir:${dir}`, name: parts[i]!, depth: i, count: list.filter((f) => f.path.startsWith(`${dir}/`)).length })
-      }
-      if (collapsed.has(`dir:${dir}`)) hidden = true
-    }
-    if (!hidden) rows.push({ type: 'file', key: file.path, file, dir: '', name: parts.at(-1)!, depth: parts.length - 1 })
-  }
-  return rows
-}
-
 function summary(files: FileChange[]) {
   const n = (s: string) => files.filter((f) => f.status === s).length
   return [
@@ -62,6 +38,7 @@ function summary(files: FileChange[]) {
 
 export function CommitPanel({ path }: { path: string }) {
   const sha = useApp((s) => (s.selectedSha === 'wip' ? null : s.selectedSha))
+  const opened = useApp((s) => (s.diff?.source.kind === 'commit' ? s.diff.file.path : null))
   const [detail, setDetail] = useState<CommitDetail | null>(null)
   const [draft, setDraft] = useState({ subject: '', body: '' })
   const [all, setAll] = useState(false)
@@ -91,7 +68,7 @@ export function CommitPanel({ path }: { path: string }) {
     }, (err) => { if (active) { setDetail(null); actions.reportError(err) } })
     return () => { active = false }
   }, [path, sha, all])
-  const rows = detail ? rowsFor(detail.files, view, sort, collapsed) : []
+  const rows = detail ? fileRows(sorted(detail.files, sort), view, collapsed) : []
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current, estimateSize: () => ROW_HEIGHT,
     overscan: 10, getItemKey: (index) => rows[index]!.key })
   if (!sha || !detail) return <div className="commit-panel commit-empty">{sha ? 'Carregando…' : 'Selecione um commit no grafo.'}</div>
@@ -106,6 +83,7 @@ export function CommitPanel({ path }: { path: string }) {
     const gone = await core.commitDetail(path, detail.sha, false).then(() => false, () => true)
     if (gone) actions.selectCommit(wasHead && head ? head.sha : 'wip')
   }
+  const openDiff = (file: FileChange) => actions.openDiff({ path, file, source: { kind: 'commit', sha: detail.sha, oldPath: file.oldPath } })
   const copy = () => { void navigator.clipboard.writeText(detail.sha).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) }, () => {}) }
   return <div className="commit-panel">
     <div className="commit-head">
@@ -155,13 +133,15 @@ export function CommitPanel({ path }: { path: string }) {
           }
           const st = STATUS[row.file.status]
           const title = row.file.oldPath ? `${row.file.oldPath} → ${row.file.path}` : row.file.path
-          return <div key={row.key} className="commit-file" style={style} title={`${title} (${st.label})`}
+          return <div key={row.key} className={opened === row.file.path ? 'commit-file active' : 'commit-file'} style={style} title={`${title} (${st.label})`}
+            role="button" tabIndex={0} onClick={() => openDiff(row.file)}
+            onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openDiff(row.file) } }}
             onContextMenu={(e) => { e.preventDefault(); void openMenu(row.file, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }) }}>
             <span className={`commit-status ${st.cls}`}>{st.icon}</span>
             <span className="commit-path"><span className="commit-dirpath">{row.dir}</span><span className="commit-name">{row.name}</span></span>
             {row.file.added !== null && row.file.status !== 'U' && <span className="mono commit-lines"><span className="added">+{row.file.added}</span> <span className="removed">−{row.file.removed}</span></span>}
             <button className="refs-more" aria-label="Menu do arquivo" title="Menu do arquivo"
-              onClick={(e) => void openMenu(row.file, e.currentTarget.getBoundingClientRect())}>⋮</button>
+              onClick={(e) => { e.stopPropagation(); void openMenu(row.file, e.currentTarget.getBoundingClientRect()) }}>⋮</button>
           </div>
         })}
       </div>

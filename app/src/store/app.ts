@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { core, errorCode, errorMessage } from '../bridge'
-import type { DiscardPreview, ResetPreview, HeadInfo, OperationKind, PullMode, RepositoryInfo, ToolbarInfo, UndoRedoState } from '../bridge/types'
+import type { DiffSource, DiscardPreview, FileChange, ResetPreview, HeadInfo, OperationKind, PullMode, RepositoryInfo, ToolbarInfo, UndoRedoState } from '../bridge/types'
 import { toolbarAvailability } from '../components/toolbarModel'
 
 export interface Tab {
@@ -32,6 +32,10 @@ interface AppState {
   activePath: string | null
   selectedSha: string | null
   graphRevision: Record<string, number>
+  /** Muda quando o WIP muda sem Operação (preparar, tirar, ignorar): painel WIP e diff releem. */
+  wipRevision: Record<string, number>
+  /** Diff aberto no centro (o grafo fica montado por baixo). */
+  diff: DiffTarget | null
   /** Operação em curso, por diretório (a toolbar mostra o texto). */
   running: Record<string, string>
   toasts: Toast[]
@@ -53,6 +57,8 @@ interface AppState {
   prefsOpen: boolean
 }
 
+export interface DiffTarget { path: string; file: FileChange; source: DiffSource }
+
 export interface Prefs { gravatar: boolean }
 const PREFS_KEY = 'mnemo.prefs'
 function loadPrefs(): Prefs {
@@ -65,6 +71,8 @@ export const useApp = create<AppState>(() => ({
   activePath: null,
   selectedSha: null,
   graphRevision: {},
+  wipRevision: {},
+  diff: null,
   running: {},
   toasts: [],
   error: null,
@@ -182,14 +190,18 @@ export const actions = {
     set((s) => {
       const tabs = s.tabs.filter((t) => !same(t.path, path))
       const activePath = s.activePath && same(s.activePath, path) ? (tabs.at(-1)?.path ?? null) : s.activePath
-      return { tabs, activePath, selectedSha: activePath !== s.activePath ? null : s.selectedSha, retry: null, pushPrompt: s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt } // o retry pendente era de uma aba que pode ser esta
+      return { tabs, activePath, diff: s.diff && same(s.diff.path, path) ? null : s.diff, selectedSha: activePath !== s.activePath ? null : s.selectedSha, retry: null, pushPrompt: s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt } // o retry pendente era de uma aba que pode ser esta
     })
   },
 
   focusTab(path: string) {
-    set({ activePath: path, selectedSha: null })
+    set({ activePath: path, selectedSha: null, diff: null })
   },
-  selectCommit(sha: string) { set({ selectedSha: sha }) },
+  selectCommit(sha: string) { set((s) => ({ selectedSha: sha, diff: s.selectedSha === sha ? s.diff : null })) },
+  openDiff(diff: DiffTarget) { set({ diff }) },
+  closeDiff() { set({ diff: null }) },
+  /** Preparar/tirar/ignorar mudaram o WIP: quem mostra o WIP relê. */
+  wipChanged(path: string) { set((s) => ({ wipRevision: { ...s.wipRevision, [norm(path)]: (s.wipRevision[norm(path)] ?? 0) + 1 } })) },
   setAuthorFilter(path: string, authors: string[]) { patchTab(path, { authors }) },
 
   async execute(path: string, kind: OperationKind) {
@@ -432,3 +444,6 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 export const selectActiveTab = (s: AppState) => s.tabs.find((t) => s.activePath !== null && same(t.path, s.activePath))
 export const runningLabel = (s: AppState, path: string) => s.running[norm(path)]
+export const selectWipRevision = (path: string) => (s: AppState) => (s.graphRevision[norm(path)] ?? 0) + (s.wipRevision[norm(path)] ?? 0)
+/** Diff aberto nesta Aba (o de outra Aba não aparece aqui). */
+export const selectDiff = (path: string) => (s: AppState) => (s.diff && same(s.diff.path, path) ? s.diff : null)

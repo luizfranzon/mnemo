@@ -99,9 +99,12 @@ pub enum OperationKind {
     Pull {
         strategy: Option<PullStrategy>,
     },
+    /// `paths` vazio = todo o WIP; senão só esses arquivos/pastas. Com arquivo em conflito o git recusa o stash (erro com os caminhos).
     StashCreate {
         message: Option<String>,
         include_untracked: bool,
+        #[serde(default)]
+        paths: Vec<String>,
     },
     StashApply {
         index: usize,
@@ -111,6 +114,11 @@ pub enum OperationKind {
     },
     StashDrop {
         index: usize,
+    },
+    /// Traz para o diretório de trabalho só estes arquivos/pastas do stash, sem preparar e sem tirá-lo da lista.
+    StashApplyPaths {
+        index: usize,
+        paths: Vec<String>,
     },
     Push {
         remote: Option<String>,
@@ -166,10 +174,14 @@ impl OperationKind {
             CherryPick { commit } => format!("cherry-pick de {commit}"),
             Revert { commit } => format!("revert de {commit}"),
             Pull { .. } => "pull".into(),
+            StashCreate { paths, .. } if paths.len() == 1 => format!("guardar {} no stash", paths[0]),
+            StashCreate { paths, .. } if !paths.is_empty() => format!("guardar {} itens no stash", paths.len()),
             StashCreate { .. } => "criar stash".into(),
             StashApply { index } => format!("aplicar stash@{{{index}}}"),
             StashPop { index } => format!("pop de stash@{{{index}}}"),
             StashDrop { index } => format!("excluir stash@{{{index}}}"),
+            StashApplyPaths { index, paths } if paths.len() == 1 => format!("aplicar {} de stash@{{{index}}}", paths[0]),
+            StashApplyPaths { index, paths } => format!("aplicar {} itens de stash@{{{index}}}", paths.len()),
             Push { .. } => "push".into(),
             Fetch { .. } => "fetch".into(),
             DeleteRemoteBranch { remote, branch } => format!("excluir {remote}/{branch}"),
@@ -188,6 +200,7 @@ impl OperationKind {
                 | StashCreate { .. }
                 | StashApply { .. }
                 | StashPop { .. }
+                | StashApplyPaths { .. }
                 | CheckoutWithChanges { .. }
                 | RestoreFile { .. }
                 | DeleteFile { .. }

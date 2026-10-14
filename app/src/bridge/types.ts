@@ -78,7 +78,9 @@ export type OperationKind =
   | { type: 'push'; remote: string | null; branch: string | null; setUpstream: boolean }
   | { type: 'fetch'; remote: string | null }
   | { type: 'pull'; strategy: 'merge' | 'ffOnly' | 'rebase' }
-  | { type: 'stashCreate'; message: string | null; includeUntracked: boolean }
+  | { type: 'stashCreate'; message: string | null; includeUntracked: boolean; paths?: string[] }
+  | { type: 'stashApplyPaths'; index: number; paths: string[] }
+  | { type: 'stashApply'; index: number }
   | { type: 'stashPop'; index: number }
   | { type: 'deleteRemoteBranch'; remote: string; branch: string }
   | { type: 'branchRename'; from: string; to: string }
@@ -141,3 +143,12 @@ export interface CommitDetail {
 }
 
 export interface WipStatus { unstaged: FileChange[]; staged: FileChange[] }
+
+/** De onde vem o diff de um arquivo: commit (contra o 1º pai), index → diretório, HEAD → index. */
+export type DiffSource = { kind: 'commit'; sha: string; oldPath?: string | null } | { kind: 'unstaged' } | { kind: 'staged' }
+export interface DiffLine { kind: 'context' | 'add' | 'del'; old: number | null; new: number | null; text: string; noNewline: boolean; hunk: number | null }
+export interface DiffHunk { header: string; oldStart: number; oldLines: number; newStart: number; newLines: number; start: number; len: number }
+export interface FileDiff {
+  path: string; oldPath: string | null; binary: boolean; tooLarge: boolean; encoding: string
+  added: number; removed: number; hunks: DiffHunk[]; lines: DiffLine[]
+}

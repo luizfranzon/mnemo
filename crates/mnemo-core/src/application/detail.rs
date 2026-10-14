@@ -92,7 +92,7 @@ fn tokens(bytes: &[u8]) -> impl Iterator<Item = String> + '_ {
 }
 
 /// `-z`: `M\0caminho\0` ou `R100\0antigo\0novo\0`.
-fn parse_name_status(bytes: &[u8]) -> Vec<FileChange> {
+pub(crate) fn parse_name_status(bytes: &[u8]) -> Vec<FileChange> {
     let mut it = tokens(bytes);
     let mut files = Vec::new();
     while let Some(code) = it.next() {

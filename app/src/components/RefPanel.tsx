@@ -5,8 +5,10 @@ import type { LocalRef, RefListing, RemoteRef } from '../bridge/types'
 import { actions, runningLabel, useApp } from '../store/app'
 import { localRef, remoteRef, selectVisibility, toggleHidden, updateVisibility, useVisibility } from '../store/visibility'
 import type { BranchTarget } from './branchMenu'
-import { matchesShortcut, type Rect } from './menuModel'
+import { Menu } from './Menu'
+import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
 import { RefIcon, type RefIconName } from './RefIcon'
+import { StashApplyDialog } from './StashApplyDialog'
 import { useBranchActions } from './useBranchActions'
 
 type Section = 'pinned' | 'local' | 'remotes' | 'worktrees' | 'stashes' | 'tags' | 'submodules'
@@ -115,6 +117,19 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
   const running = useApp((s) => runningLabel(s, path))
   const undo = useApp((s) => s.tabs.find((t) => t.path === path)?.undo)
   const branch = useBranchActions(path)
+  const [stashMenu, setStashMenu] = useState<{ items: MenuEntry[]; anchor: Rect } | null>(null)
+  const [stashApply, setStashApply] = useState<{ index: number; name: string } | null>(null)
+  const openStashMenu = (name: string, anchor: Rect) => {
+    const index = Number(/^stash@\{(\d+)\}/.exec(name)?.[1] ?? -1)
+    if (index < 0) return
+    const label = `stash@{${index}}`
+    setStashMenu({ anchor, items: [
+      { label: name, heading: true },
+      { label: `Aplicar ${label}`, run: () => void actions.execute(path, { type: 'stashApply', index }) },
+      { label: `Pop de ${label}`, run: () => void actions.execute(path, { type: 'stashPop', index }) },
+      { label: 'Aplicar arquivos do stash…', run: () => setStashApply({ index, name: label }) },
+    ] })
+  }
   useEffect(() => {
     if (running) return
     let active = true
@@ -185,7 +200,10 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
           const open = !collapsed.has(row.type === 'section' ? row.section : row.key)
           const point = (e: React.MouseEvent) => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY })
           return <div key={row.key} className="refs-virtual-row" style={{ transform: `translateY(${item.start}px)`, height: item.size }}
-            onContextMenu={(e) => { if (!targetOf(row)) return; e.preventDefault(); openMenu(row, point(e)) }}>
+            onContextMenu={(e) => {
+              if (row.type === 'plain' && row.section === 'stashes') { e.preventDefault(); openStashMenu(row.name, point(e)); return }
+              if (!targetOf(row)) return; e.preventDefault(); openMenu(row, point(e))
+            }}>
             {row.type === 'section' || row.type === 'folder'
               ? <button className={`refs-row refs-group ${row.type === 'section' ? 'refs-section depth-0' : `refs-folder depth-${row.depth}`}`} onClick={() => toggle(row.type === 'section' ? row.section : row.key)}
                   aria-expanded={open} title={row.type === 'section' ? row.label : row.name}>
@@ -206,6 +224,8 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
                   {row.type === 'local' && row.ref.upstream && <span className="refs-tracking" title={`Upstream: ${row.ref.upstream}`}>
                     {!!row.ref.behind && <span>↓{row.ref.behind}</span>}{!!row.ref.ahead && <span>↑{row.ref.ahead}</span>}</span>}
                 </button>}
+            {row.type === 'plain' && row.section === 'stashes' && <button className="refs-more" aria-label="Menu do stash" title="Menu do stash"
+              onClick={(e) => openStashMenu(row.name, e.currentTarget.getBoundingClientRect())}>⋮</button>}
             {(row.type === 'local' || row.type === 'remote') && <>
               <button className={`refs-eye${vis.hidden.includes(refName(row)) ? ' off' : ''}${vis.solo === refName(row) ? ' solo' : ''}`}
                 aria-pressed={!vis.hidden.includes(refName(row))} aria-label={vis.hidden.includes(refName(row)) ? 'Mostrar no grafo' : 'Ocultar no grafo'}
@@ -219,5 +239,7 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
       </div>
     </div>
     {branch.overlay}
+    {stashMenu && <Menu items={stashMenu.items} anchor={stashMenu.anchor} label="Menu do stash" onClose={() => setStashMenu(null)} />}
+    {stashApply && <StashApplyDialog path={path} index={stashApply.index} name={stashApply.name} close={() => setStashApply(null)} />}
   </div>
 }

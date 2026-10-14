@@ -618,11 +618,36 @@ impl Mnemo {
             let all = args.get("all").and_then(Value::as_bool).unwrap_or(false);
             return out(self.commit_detail(&path, sha, all)?);
         }
-        if cmd == "wip_status" || cmd == "stage" || cmd == "unstage" {
+        if matches!(cmd, "wip_status" | "stage" | "unstage" | "file_diff" | "stage_lines" | "stash_files" | "ignore") {
             let session = self.session_for(Path::new(&path))?;
             let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
-            if cmd == "wip_status" {
-                return out(crate::application::wip::status(&git)?);
+            let text = |k: &str| args.get(k).and_then(Value::as_str).ok_or_else(|| CoreError::invalid(format!("{k} ausente")));
+            match cmd {
+                "wip_status" => return out(crate::application::wip::status(&git)?),
+                "file_diff" => {
+                    let source: crate::application::diff::DiffSource =
+                        parse(&json!(args.get("source").cloned().unwrap_or(Value::Null)))?;
+                    let full = args.get("full").and_then(Value::as_bool).unwrap_or(false);
+                    return out(crate::application::diff::file_diff(&git, text("file")?, &source, full)?);
+                }
+                "stage_lines" => {
+                    let lines: Vec<(usize, usize)> = parse(&json!(args.get("lines").cloned().unwrap_or(json!([]))))?;
+                    let unstage = args.get("unstage").and_then(Value::as_bool).unwrap_or(false);
+                    crate::application::diff::stage_lines(&git, text("file")?, unstage, &lines)?;
+                    return Ok(Value::Null);
+                }
+                "stash_files" => {
+                    let index = args.get("index").and_then(Value::as_u64).ok_or_else(|| CoreError::invalid("index ausente"))?;
+                    let entry = git.stash_list()?.into_iter().nth(index as usize)
+                        .ok_or_else(|| CoreError::invalid(format!("stash@{{{index}}} não existe")))?;
+                    let files = crate::application::wip::stash_files(&git, &entry.sha)?;
+                    return out(files.into_iter().map(|(f, _)| f).collect::<Vec<_>>());
+                }
+                "ignore" => {
+                    crate::application::wip::ignore(&git, text("pattern")?)?;
+                    return Ok(Value::Null);
+                }
+                _ => {}
             }
             let paths: Vec<String> = parse(&json!(args.get("paths").cloned().unwrap_or(json!([]))))?;
             crate::application::wip::stage(&git, &paths, cmd == "stage")?;

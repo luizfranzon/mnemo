@@ -1,6 +1,6 @@
 // Único módulo da UI que conhece como falar com o backend. Mesmo formato do `@tauri-apps/api`:
 // na migração para o Tauri, só este arquivo troca. Nenhum componente importa `electron`.
-import type { AuthorInfo, BranchInfo, CoreError, CoreEvent, DiscardPreview, ExecuteResult, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepositoryInfo, ToolbarInfo, UndoRedoState, WindowAction, WipStatus } from './types'
+import type { AuthorInfo, BranchInfo, CoreError, CoreEvent, DiffSource, DiscardPreview, ExecuteResult, FileChange, FileDiff, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepositoryInfo, ToolbarInfo, UndoRedoState, WindowAction, WipStatus } from './types'
 
 interface Transport {
   invoke(cmd: string, args: Record<string, unknown>): Promise<unknown>
@@ -49,6 +49,13 @@ export const core = {
   wipStatus: (path: string) => invoke<WipStatus>('wip_status', { path }),
   /** Preparar / tirar do stage; paths vazio = todos. Não são Operações. */
   stage: (path: string, paths: string[], on: boolean) => invoke<null>(on ? 'stage' : 'unstage', { path, paths }),
+  /** `full`: o arquivo inteiro (linhas entre trechos com `hunk` nulo); senão só os trechos. */
+  fileDiff: (path: string, file: string, source: DiffSource, full: boolean) => invoke<FileDiff>('file_diff', { path, file, source, full }),
+  /** Prepara (ou tira) só estas linhas `[trecho, linha no trecho]`; mexe só no index. Não é Operação. */
+  stageLines: (path: string, file: string, unstage: boolean, lines: [number, number][]) => invoke<null>('stage_lines', { path, file, unstage, lines }),
+  stashFiles: (path: string, index: number) => invoke<FileChange[]>('stash_files', { path, index }),
+  /** Acrescenta um padrão ao `.gitignore` da raiz. */
+  ignore: (path: string, pattern: string) => invoke<null>('ignore', { path, pattern }),
   commitDetail: (path: string, sha: string, all: boolean) => invoke<CommitDetail>('commit_detail', { path, sha, all }),
   remoteUrl: (path: string, remote: string) => invoke<string | null>('remote_url', { path, remote }),
   execute: (path: string, kind: OperationKind) => invoke<ExecuteResult>('execute_operation', { path, kind }),

@@ -211,7 +211,7 @@ fn criar_stash_e_desfazer_devolve_o_wip_e_remove_o_stash() {
     let repo = TestRepo::new();
     repo.write("a.txt", "wip\n");
     repo.write("u.txt", "untracked\n");
-    repo.exec(OperationKind::StashCreate { message: Some("meu".into()), include_untracked: true });
+    repo.exec(OperationKind::StashCreate { message: Some("meu".into()), include_untracked: true, paths: vec![] });
     assert!(repo.status().is_empty());
     assert_eq!(stash_list(&repo).lines().count(), 1);
 
@@ -283,7 +283,7 @@ fn excluir_stash_e_desfazer_recria_com_o_mesmo_conteudo() {
 fn desfazer_stash_nao_sobrescreve_edicao_feita_depois() {
     let repo = TestRepo::new();
     repo.write("a.txt", "wip\n");
-    repo.exec(OperationKind::StashCreate { message: None, include_untracked: false });
+    repo.exec(OperationKind::StashCreate { message: None, include_untracked: false, paths: vec![] });
     repo.write("a.txt", "editei depois\n");
     assert!(matches!(repo.session().undo(), Err(CoreError::WipChanged)));
     assert_eq!(repo.read("a.txt"), "editei depois\n");
