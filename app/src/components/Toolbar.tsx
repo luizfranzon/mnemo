@@ -88,7 +88,7 @@ export function Toolbar() {
         run: () => execute('stash', 'Executando pop de stash…', { type: 'stashPop', index: 0 }) },
     ],
     more: [
-      { label: 'Descartar tudo…', reason: reason.mutation, run: () => void actions.requestDiscard(path, []) },
+      { label: 'Descartar tudo', reason: reason.mutation, run: () => void actions.requestDiscard(path, []) },
     ],
   }
   const menuButton = (which: OpenMenu['name'], label: string, blocked?: string) => <button
@@ -132,7 +132,7 @@ export function Toolbar() {
         {menuButton('stash', 'Opções de stash', reason.mutation)}
       </div>
       <button className="temporary-action" disabled={!!reason.mutation} title={reason.mutation ?? 'Descartar todas as mudanças'} onClick={() => void actions.requestDiscard(path, [])}>
-        {spinLabel('discard') ? <Spinner label={spinLabel('discard')!} /> : 'Descartar tudo…'}</button>
+        {spinLabel('discard') ? <Spinner label={spinLabel('discard')!} /> : 'Descartar tudo'}</button>
       <div className="toolbar-more">{menuButton('more', 'Mais ações do repositório', reason.mutation)}</div>
       {executing && <span className="operation-indicator" role="status">{executing}</span>}
       <button className="toolbar-search" aria-label="Buscar branch" disabled={!!reason.busy} title={reason.busy ?? 'Buscar branch (Ctrl+P)'} onClick={() => actions.setPalette('checkout')}>

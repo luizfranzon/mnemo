@@ -60,7 +60,7 @@ export function resetItem(sha: string, short: string, cur: string | null, mut: s
   return { label: `Reset ${cur ?? 'HEAD'} para ${label}`, reason: mut, submenu: [
     { label: 'Soft: mantém preparadas', run: () => c.execute({ type: 'reset', target: sha, mode: 'soft' }) },
     { label: 'Mixed: mantém no diretório', run: () => c.execute({ type: 'reset', target: sha, mode: 'mixed' }) },
-    { label: 'Hard…: descarta', danger: true, run: () => c.resetHard(sha) },
+    { label: 'Hard: descarta', danger: true, run: () => c.resetHard(sha) },
   ] }
 }
 
@@ -98,11 +98,11 @@ export function branchMenu(t: BranchTarget, c: BranchMenuContext): MenuEntry[] {
       { label: `Push ${name}`, reason: mut ?? noRemote ?? (current ? undefined : noUpstream),
         run: () => (current ? c.push() : c.execute({ type: 'push', remote: up?.remote ?? null, branch: name, setUpstream: false })) },
       c.toolbar.remotes.length > 1
-        ? { label: 'Definir upstream…', reason: mut, submenu: c.toolbar.remotes.map((r) => ({ label: r, run: () => c.execute(setUpstream(r)) })) }
-        : { label: 'Definir upstream…', reason: mut ?? noRemote, run: () => c.execute(setUpstream(c.toolbar.remotes[0]!)) })
+        ? { label: 'Definir upstream', reason: mut, submenu: c.toolbar.remotes.map((r) => ({ label: r, run: () => c.execute(setUpstream(r)) })) }
+        : { label: 'Definir upstream', reason: mut ?? noRemote, run: () => c.execute(setUpstream(c.toolbar.remotes[0]!)) })
   }
   items.push('-',
-    { label: 'Nova branch a partir daqui…', shortcut: 'Ctrl+B', reason: mut, run: () => c.newBranch(name) },
+    { label: 'Nova branch a partir daqui', shortcut: 'Ctrl+B', reason: mut, run: () => c.newBranch(name) },
     '-',
     { label: `Commit da ponta (${short})`, submenu: [
       { label: `Cherry-pick ${short}`, reason: mut, run: () => c.execute({ type: 'cherryPick', commit: sha }) },
@@ -111,9 +111,9 @@ export function branchMenu(t: BranchTarget, c: BranchMenuContext): MenuEntry[] {
       { label: 'Copiar SHA', run: () => c.copy(sha) },
     ] },
     '-')
-  if (local) items.push({ label: 'Renomear…', shortcut: 'F2', reason: mut, run: () => c.dialog({ type: 'rename', from: name }) })
+  if (local) items.push({ label: 'Renomear', shortcut: 'F2', reason: mut, run: () => c.dialog({ type: 'rename', from: name }) })
   items.push(
-    { label: `Excluir ${name}…`, danger: true, reason: mut ?? (current && !up ? 'Não dá para excluir a branch atual' : undefined), run: () => c.dialog(deleteDialog()) },
+    { label: `Excluir ${name}`, danger: true, reason: mut ?? (current && !up ? 'Não dá para excluir a branch atual' : undefined), run: () => c.dialog(deleteDialog()) },
     { label: 'Copiar nome', run: () => c.copy(name) },
     { label: 'Copiar link no GitHub', reason: link ? undefined : 'O remoto não é do GitHub', run: () => link && c.copy(link) },
     '-',
