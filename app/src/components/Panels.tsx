@@ -37,7 +37,7 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
   return (
     <div className="panels" ref={root}>
       <aside className={layout.leftOpen ? 'panel panel-left' : 'panel panel-left rail'} aria-label="Refs">
-        <RefPanel path={path} rail={!layout.leftOpen} expand={() => update((l) => ({ ...l, leftOpen: true }))} />
+        <RefPanel path={path} rail={!layout.leftOpen} expand={() => update((l) => ({ ...l, leftOpen: true }))} collapse={() => update((l) => ({ ...l, leftOpen: false }))} />
         <Divider side="left" layout={layout} root={root} update={update} />
       </aside>
       <main className="panel-center">{children}</main>

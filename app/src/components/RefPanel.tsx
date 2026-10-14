@@ -8,6 +8,7 @@ import { BranchDialogs } from './BranchDialogs'
 import { branchMenu, remoteOf, type BranchDialog, type BranchTarget } from './branchMenu'
 import { Menu } from './Menu'
 import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
+import { RefIcon, type RefIconName } from './RefIcon'
 import { toolbarAvailability } from './toolbarModel'
 
 type Section = 'pinned' | 'local' | 'remotes' | 'worktrees' | 'stashes' | 'tags' | 'submodules'
@@ -21,10 +22,11 @@ type Row =
 const LABEL: Record<Section, string> = {
   pinned: 'Fixadas', local: 'Local', remotes: 'Remotos', worktrees: 'Worktrees', stashes: 'Stashes', tags: 'Tags', submodules: 'Submódulos',
 }
-const ICON: Record<Section, string> = {
-  pinned: '⚑', local: '⑂', remotes: '☁', worktrees: '▱', stashes: '▣', tags: '◇', submodules: '▤',
+const ICON: Record<Section, RefIconName> = {
+  pinned: 'pin', local: 'laptop', remotes: 'cloud', worktrees: 'worktrees', stashes: 'stashes', tags: 'tags', submodules: 'submodules',
 }
-const ROW_HEIGHT = 28
+const SECTION_HEIGHT = 36
+const ROW_HEIGHT = 30
 
 /** Refs fixadas à esquerda que ainda existem, na ordem em que foram fixadas. */
 function pinnedRows(refs: RefListing, pinned: string[]): Row[] {
@@ -105,7 +107,7 @@ function loadCollapsed(path: string): Set<string> {
 }
 
 /** A lista inteira tem uma só área de rolagem virtualizada; pastas vêm agrupadas do core. */
-export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; expand: () => void }) {
+export function RefPanel({ path, rail, expand, collapse }: { path: string; rail: boolean; expand: () => void; collapse: () => void }) {
   const [refs, setRefs] = useState<RefListing | null>(null)
   const [collapsed, setCollapsed] = useState(() => loadCollapsed(path))
   const [query, setQuery] = useState('')
@@ -145,7 +147,7 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
   const rows = refs && !rail ? visibleRows(refs, collapsed, query, pinned) : []
   const sectionCounts = refs ? counts(refs, pinned.length) : null
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current,
-    estimateSize: () => ROW_HEIGHT, overscan: 10, getItemKey: (index) => rows[index]!.key })
+    estimateSize: (index) => rows[index]?.type === 'section' ? SECTION_HEIGHT : ROW_HEIGHT, overscan: 10, getItemKey: (index) => rows[index]!.key })
   const checkout = (row: Row) => {
     if (row.type === 'local' && !row.ref.current) void actions.checkoutRef(path, { type: 'checkout', target: row.ref.name })
     if (row.type === 'remote') {
@@ -183,12 +185,18 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
   if (rail) return <div className="refs-rail" aria-label="Seções de refs">
     {sectionCounts && (Object.keys(LABEL) as Section[]).filter((s) => sectionCounts[s]).map((s) =>
       <button key={s} title={`${LABEL[s]} (${sectionCounts[s]})`} aria-label={`${LABEL[s]}: ${sectionCounts[s]}`} onClick={expand}>
-        <span>{ICON[s]}</span><small>{sectionCounts[s]}</small>
+        <RefIcon name={ICON[s]} size={16} /><small>{sectionCounts[s]}</small>
       </button>)}
   </div>
   return <div className="refs-panel" onKeyDown={shortcut}>
-    <div className="refs-heading"><strong>Refs</strong><button aria-label="Filtrar refs" title="Filtrar refs (Ctrl+Alt+F)" onClick={() => input.current?.focus()}>⌕</button></div>
-    <input ref={input} className="refs-filter" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtrar refs…" aria-label="Filtrar refs" />
+    <div className="refs-heading">
+      <label className="refs-search">
+        <RefIcon name="search" size={16} />
+        <input ref={input} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtrar refs" aria-label="Filtrar refs" />
+        <kbd>Ctrl Alt F</kbd>
+      </label>
+      <button className="refs-collapse" aria-label="Recolher painel de refs" title="Recolher painel de refs" onClick={collapse}><RefIcon name="collapse" size={18} /></button>
+    </div>
     <div className="refs-scroll" ref={scroller}>
       <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
         {virtual.getVirtualItems().map((item) => {
@@ -196,12 +204,15 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
           if (!row) return null
           const open = !collapsed.has(row.type === 'section' ? row.section : row.key)
           const point = (e: React.MouseEvent) => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY })
-          return <div key={row.key} className="refs-virtual-row" style={{ transform: `translateY(${item.start}px)`, height: ROW_HEIGHT }}
+          return <div key={row.key} className="refs-virtual-row" style={{ transform: `translateY(${item.start}px)`, height: item.size }}
             onContextMenu={(e) => { if (!targetOf(row)) return; e.preventDefault(); void openMenu(row, point(e)) }}>
             {row.type === 'section' || row.type === 'folder'
-              ? <button className={`refs-row refs-group depth-${row.type === 'folder' ? row.depth : 0}`} onClick={() => toggle(row.type === 'section' ? row.section : row.key)}
+              ? <button className={`refs-row refs-group ${row.type === 'section' ? 'refs-section depth-0' : `refs-folder depth-${row.depth}`}`} onClick={() => toggle(row.type === 'section' ? row.section : row.key)}
                   aria-expanded={open} title={row.type === 'section' ? row.label : row.name}>
-                  <span className="refs-chevron">{open ? '▾' : '▸'}</span><span className="refs-label">{row.type === 'section' ? row.label : row.name}</span><span className="refs-count">{row.count}</span>
+                  <span className={`refs-chevron${open ? ' open' : ''}`}><RefIcon name="chevron" size={14} /></span>
+                  {row.type === 'section' ? <RefIcon name={ICON[row.section]} size={16} /> : row.depth > 1 && <RefIcon name="folder" size={16} />}
+                  <span className="refs-label">{row.type === 'section' ? row.label : row.name}</span>
+                  {(row.type === 'section' || row.depth > 1) && <span className="refs-count">{row.count.toLocaleString('pt-BR')}</span>}
                 </button>
               : <button className={`refs-row refs-item depth-${row.depth}${selected === row.key ? ' selected' : ''}${row.type === 'local' && row.ref.current ? ' current' : ''}`}
                   title={row.type === 'remote' ? `${row.ref.remote}/${row.ref.name}` : row.type === 'local' ? row.ref.name : row.name}
@@ -210,9 +221,10 @@ export function RefPanel({ path, rail, expand }: { path: string; rail: boolean; 
                     if (row.type === 'local' || (row.type === 'remote' && row.ref.localExists)) actions.selectCommit(row.ref.sha)
                     else if (row.type === 'plain' && row.section === 'tags' && row.sha) actions.selectCommit(row.sha)
                   }} onDoubleClick={() => checkout(row)}>
-                  <span className="refs-symbol">{row.type === 'local' && row.ref.current ? '✓' : row.type === 'remote' ? '☁' : '⑂'}</span>
+                  <span className="refs-symbol"><RefIcon name={row.type === 'local' && row.ref.current ? 'check' : row.type === 'plain' ? ICON[row.section] : 'branch'} /></span>
                   <span className="refs-label">{row.type === 'remote' ? row.ref.name.split('/').at(-1) : row.type === 'local' ? row.ref.name : row.name}</span>
-                  {row.type === 'local' && row.ref.upstream && <span className="refs-tracking" title={`Upstream: ${row.ref.upstream}`}>↓{row.ref.behind} ↑{row.ref.ahead}</span>}
+                  {row.type === 'local' && row.ref.upstream && <span className="refs-tracking" title={`Upstream: ${row.ref.upstream}`}>
+                    {!!row.ref.behind && <span>↓{row.ref.behind}</span>}{!!row.ref.ahead && <span>↑{row.ref.ahead}</span>}</span>}
                 </button>}
             {(row.type === 'local' || row.type === 'remote') && <>
               <button className={`refs-eye${vis.hidden.includes(refName(row)) ? ' off' : ''}${vis.solo === refName(row) ? ' solo' : ''}`}
