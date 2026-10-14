@@ -63,6 +63,8 @@ function summary(files: FileChange[]) {
 export function CommitPanel({ path }: { path: string }) {
   const sha = useApp((s) => (s.selectedSha === 'wip' ? null : s.selectedSha))
   const [detail, setDetail] = useState<CommitDetail | null>(null)
+  const [headSha, setHeadSha] = useState<string | null>(null)
+  const [draft, setDraft] = useState({ subject: '', body: '' })
   const [all, setAll] = useState(false)
   const [view, setView] = useState<View>('path')
   const [sort, setSort] = useState<Sort>('path')
@@ -84,21 +86,42 @@ export function CommitPanel({ path }: { path: string }) {
   useEffect(() => {
     if (!sha) { setDetail(null); return }
     let active = true
-    void core.commitDetail(path, sha, all).then((next) => { if (active) { setDetail(next); setCollapsed(new Set()) } },
-      (err) => { if (active) { setDetail(null); actions.reportError(err) } })
+    void Promise.all([core.commitDetail(path, sha, all), core.commitDetail(path, 'HEAD', false).catch(() => null)]).then(([next, head]) => {
+      if (!active) return
+      setDetail(next); setHeadSha(head?.sha ?? null); setCollapsed(new Set()); setDraft({ subject: next.subject, body: next.body })
+    }, (err) => { if (active) { setDetail(null); actions.reportError(err) } })
     return () => { active = false }
   }, [path, sha, all])
   const rows = detail ? rowsFor(detail.files, view, sort, collapsed) : []
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current, estimateSize: () => ROW_HEIGHT,
     overscan: 10, getItemKey: (index) => rows[index]!.key })
   if (!sha || !detail) return <div className="commit-panel commit-empty">{sha ? 'Carregando…' : 'Selecione um commit no grafo.'}</div>
+  const editable = detail.sha === headSha // o core só reescreve a mensagem do HEAD
+  const dirty = draft.subject.trim() !== detail.subject.trim() || draft.body.trim() !== detail.body.trim()
+  const update = async () => {
+    const subject = draft.subject.trim()
+    if (!subject) return
+    await actions.execute(path, { type: 'reword', message: draft.body.trim() ? `${subject}\n\n${draft.body.trim()}` : subject })
+    const head = await core.commitDetail(path, 'HEAD', false).catch(() => null)
+    if (head) actions.selectCommit(head.sha) // o hash mudou
+  }
   const copy = () => { void navigator.clipboard.writeText(detail.sha).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) }, () => {}) }
   return <div className="commit-panel">
     <div className="commit-head">
       <div className="commit-sha"><code title={detail.sha}>{detail.sha.slice(0, 10)}</code>
         <button onClick={copy} aria-label="Copiar SHA" title="Copiar SHA">{copied ? 'Copiado' : '⧉'}</button></div>
-      <h2>{detail.subject}</h2>
-      <p className="muted">{detail.body || 'Sem descrição.'}</p>
+      <div className="commit-msg">
+        <input className="commit-subject" aria-label="Título do commit" value={draft.subject} readOnly={!editable}
+          onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
+        <textarea className="commit-body" aria-label="Descrição do commit" placeholder="Descrição" value={draft.body} readOnly={!editable}
+          onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
+      </div>
+      <div className="commit-msg-actions">
+        {editable ? <>
+          <button className="primary" disabled={!dirty || !draft.subject.trim()} onClick={() => void update()}>Atualizar mensagem</button>
+          <button disabled={!dirty} onClick={() => setDraft({ subject: detail.subject, body: detail.body })}>Cancelar</button>
+        </> : <span className="muted">Só a mensagem do commit HEAD pode ser editada.</span>}
+      </div>
       <div className="commit-author">
         <span className="avatar" style={avatarStyle(detail.email)}>{initials(detail.author)}</span>
         <div><div>{detail.author}</div><div className="muted">criou em {new Date(detail.timestamp * 1000).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div></div>

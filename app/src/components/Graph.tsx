@@ -215,7 +215,7 @@ export function Graph({ path }: { path: string }) {
     if (!target) return
     if (target === 'wip') { virtual.scrollToIndex(0); pendingSelection.current = null; return }
     const index = page.commits.findIndex((commit) => commit.sha === target)
-    if (index >= 0) { virtual.scrollToIndex(index + 1, { align: 'center' }); pendingSelection.current = null }
+    if (index >= 0) { virtual.scrollToIndex(index + 1, { align: 'auto' }); pendingSelection.current = null }
     else if (page.next) loadMore()
     else pendingSelection.current = null
   }, [selectedSha, page])

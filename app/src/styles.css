@@ -355,3 +355,14 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .wip-compose p { margin: 0; font-size: 11.5px; color: #8A877F; }
 .toolbar .ref-icon, .toolbar .behind .ref-icon { flex: none; }
 .toolbar .behind, .toolbar .ahead { display: inline-flex; }
+
+/* Mensagem do commit: altura fixa, o texto rola dentro e o painel não pula entre commits */
+.commit-msg { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+.commit-msg:focus-within { border-color: var(--accent, #6c8cff); }
+.commit-subject, .commit-body { border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; padding: 8px 10px; }
+.commit-subject { font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--border-subtle); }
+.commit-body { height: 88px; resize: none; font-size: 12px; line-height: 1.45; }
+.commit-msg-actions { height: 30px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.commit-msg-actions button { flex: 1; height: 28px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer; }
+.commit-msg-actions button.primary:not(:disabled) { border-color: #3f8f55; }
+.commit-msg-actions button:disabled { opacity: .48; cursor: default; }
