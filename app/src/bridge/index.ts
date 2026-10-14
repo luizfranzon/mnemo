@@ -57,6 +57,8 @@ export const core = {
   undo: (path: string) => invoke<UndoRedoState>('undo', { path }),
   redo: (path: string) => invoke<UndoRedoState>('redo', { path }),
   syncExternal: (path: string) => invoke<UndoRedoState>('sync_external', { path }),
+  /** Adota merge concluído fora e confere Mudança externa; devolve o merge adotado, se houve. */
+  refreshExternal: (path: string) => invoke<ExecuteResult | null>('refresh_external', { path }),
   /** Arquivo do repositório fora do app: editor (`$VISUAL`/`$EDITOR`/code), programa padrão ou pasta. */
   openFile: (workdir: string, file: string, how: 'editor' | 'default' | 'folder') => invoke<null>('open_file', { workdir, file, how }),
   /** Controles da janela e edição nativa (a janela não tem moldura nem menu do sistema). */

@@ -73,9 +73,7 @@ impl RepoSession {
         };
         {
             let _turn = session.queue.enter();
-            if session.git.in_progress().is_none() {
-                lock(&session.state).stored.pending = None;
-            }
+            session.adopt_finished_locked()?;
             session.sync_external_locked()?;
         }
         Ok(session)
@@ -118,6 +116,17 @@ impl RepoSession {
             self.sync_external_locked()?;
         }
         Ok(self.undo_state())
+    }
+
+    /// Ao voltar o foco: adota merge concluído fora e confere Mudança externa. `Some` quando adotou.
+    pub fn refresh_external(&self) -> Result<Option<ExecuteResult>> {
+        let Some(_turn) = self.queue.try_enter() else { return Ok(None) };
+        let adopted = self.adopt_finished_locked()?;
+        self.sync_external_locked()?;
+        if adopted.is_some() {
+            self.emit_history();
+        }
+        Ok(adopted)
     }
 
     pub fn discard_preview(&self, paths: &[String]) -> Result<DiscardPreview> {
@@ -172,7 +181,11 @@ impl RepoSession {
 
     fn advance_in_progress(&self, action: &str, label: &str) -> Result<ExecuteResult> {
         self.in_turn(label, || {
-            let kind = self.progress_or_err()?;
+            let kind = match self.progress_or_err() {
+                Ok(k) => k,
+                // concluído fora enquanto a UI ainda mostrava o conflito
+                Err(e) => return self.adopt_finished_locked()?.ok_or(e),
+            };
             let cmd = progress_command(kind, action);
             let out = self.git.exec(&cmd)?;
             if out.code != 0 {
@@ -260,7 +273,8 @@ impl RepoSession {
             }
             HandlerOutcome::Conflict { kind: progress, plan } => {
                 let label = kind.label();
-                self.set_pending(Some(PendingOperation { id: op_id, kind, before, plan }));
+                let merge_head = if progress == ProgressKind::Merge { self.git.rev_parse("MERGE_HEAD").ok() } else { None };
+                self.set_pending(Some(PendingOperation { id: op_id, kind, before, plan, merge_head }));
                 let mut result = self.conflict_result(progress);
                 if let ExecuteResult::Conflict { label: l, .. } = &mut result {
                     *l = label;
@@ -465,6 +479,23 @@ impl RepoSession {
         self.release(&cut);
         self.emit_history();
         Ok(current)
+    }
+
+    /// Pendência sem nada em andamento foi concluída ou abortada fora. Vira a Operação só se HEAD
+    /// é exatamente aquele merge (1º pai = HEAD de antes, 2º = `MERGE_HEAD`); senão é descartada.
+    fn adopt_finished_locked(&self) -> Result<Option<ExecuteResult>> {
+        if self.git.in_progress().is_some() {
+            return Ok(None);
+        }
+        let Some(p) = lock(&self.state).stored.pending.clone() else { return Ok(None) };
+        self.set_pending(None);
+        let (Some(ours), Some(theirs)) = (p.before.head_sha.as_deref(), p.merge_head.as_deref()) else { return Ok(None) };
+        let line = self.git.text(["rev-list", "--parents", "-n", "1", "HEAD"])?;
+        let after = self.git.capture_state(p.kind.tracks_index())?;
+        if !line.split_whitespace().skip(1).eq([ours, theirs]) || after.head_ref != p.before.head_ref {
+            return Ok(None);
+        }
+        self.record(p.id, p.kind, p.before, after, p.plan, Vec::new()).map(Some)
     }
 
     fn ensure_ready(&self) -> Result<()> {

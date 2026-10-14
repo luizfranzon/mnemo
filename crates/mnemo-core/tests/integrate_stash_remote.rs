@@ -393,3 +393,71 @@ fn lista_branches_remotas_sem_o_head_simbolico() {
         .collect();
     assert_eq!(list, [("origin".to_string(), "feat/x".to_string()), ("origin".into(), "main".into())]);
 }
+
+#[test]
+fn merge_concluido_fora_entra_no_historico_ao_atualizar_e_desfaz_inteiro() {
+    let repo = conflitante();
+    let before = repo.head();
+    repo.exec(OperationKind::Merge { target: "feat".into() });
+    repo.write("a.txt", "resolvido\ndois\ntres\n");
+    repo.git(&["add", "a.txt"]);
+    repo.git(&["commit", "-q", "--no-edit"]);
+
+    let r = repo.session().refresh_external().expect("atualiza");
+    assert!(matches!(r, Some(ExecuteResult::Completed { op_id: Some(_), .. })));
+    repo.session().undo().expect("desfaz o merge inteiro");
+    assert_eq!(repo.head(), before);
+    assert_eq!(repo.read("a.txt"), "MAIN\ndois\ntres\n");
+}
+
+#[test]
+fn merge_concluido_fora_entra_no_historico_ao_reabrir_o_core() {
+    let repo = conflitante();
+    let before = repo.head();
+    repo.exec(OperationKind::Merge { target: "feat".into() });
+    drop(repo.session());
+    repo.write("a.txt", "resolvido\n");
+    repo.git(&["add", "a.txt"]);
+    repo.git(&["commit", "-q", "--no-edit"]);
+    let (_core, session) = repo.reopen();
+    session.undo().expect("desfaz o merge adotado");
+    assert_eq!(repo.head(), before);
+}
+
+#[test]
+fn continuar_depois_de_concluir_fora_adota_o_merge() {
+    let repo = conflitante();
+    repo.exec(OperationKind::Merge { target: "feat".into() });
+    repo.write("a.txt", "resolvido\n");
+    repo.git(&["add", "a.txt"]);
+    repo.git(&["commit", "-q", "--no-edit"]);
+    let r = repo.session().continue_in_progress().expect("adota");
+    assert!(matches!(r, ExecuteResult::Completed { op_id: Some(_), .. }));
+}
+
+#[test]
+fn merge_concluido_fora_com_commit_por_cima_e_mudanca_externa() {
+    let repo = conflitante();
+    repo.git(&["branch", "x"]);
+    repo.checkout("x");
+    repo.checkout("main");
+    repo.exec(OperationKind::Merge { target: "feat".into() });
+    repo.write("a.txt", "resolvido\n");
+    repo.git(&["add", "a.txt"]);
+    repo.git(&["commit", "-q", "--no-edit"]);
+    repo.write("b.txt", "b\n");
+    repo.commit_all("depois");
+
+    assert!(repo.session().refresh_external().expect("atualiza").is_none());
+    let state = repo.session().undo_state();
+    assert_eq!(state.undo.reason.as_deref(), Some("O repositório mudou fora do Mnemo"));
+}
+
+#[test]
+fn merge_abortado_fora_some_sem_entrar_no_historico() {
+    let repo = conflitante();
+    repo.exec(OperationKind::Merge { target: "feat".into() });
+    repo.git(&["merge", "--abort"]);
+    assert!(repo.session().refresh_external().expect("atualiza").is_none());
+    assert!(matches!(repo.session().continue_in_progress(), Err(CoreError::NothingInProgress { .. })));
+}

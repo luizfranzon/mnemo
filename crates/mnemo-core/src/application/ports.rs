@@ -82,6 +82,9 @@ pub struct PendingOperation {
     pub kind: crate::domain::operation::OperationKind,
     pub before: RepoState,
     pub plan: crate::domain::operation::UndoPlan,
+    /// Commit em `MERGE_HEAD` ao parar: prova que um merge concluído fora é este.
+    #[serde(default)]
+    pub merge_head: Option<String>,
 }
 
 /// Persistência do Histórico de Operações, chaveada pelo diretório de trabalho.

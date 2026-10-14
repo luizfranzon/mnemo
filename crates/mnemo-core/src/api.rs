@@ -619,6 +619,7 @@ impl Mnemo {
             "redo" => out(s.redo()?),
             "undo_state" => out(s.undo_state()),
             "sync_external" => out(s.sync_external()?),
+            "refresh_external" => out(s.refresh_external()?),
             "is_busy" => out(json!({ "busy": s.is_busy(), "label": s.running_label() })),
             "abort_in_progress" => out(s.abort_in_progress()?),
             "continue_in_progress" => out(s.continue_in_progress()?),

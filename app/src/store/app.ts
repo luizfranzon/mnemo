@@ -314,6 +314,16 @@ export const actions = {
     set({ error: null, retry: null })
   },
 
+  /** Janela voltou ao foco: relê todas as abas, que podem ter mudado fora (VS Code, terminal). */
+  async refreshAll() {
+    await Promise.all(get().tabs.map(async ({ path }) => {
+      const r = await core.refreshExternal(path).catch(() => null)
+      if (r?.status === 'completed' && r.opId !== null) pushToast({ text: capitalize(r.label), undoPath: r.undoable ? path : undefined })
+      set((s) => ({ graphRevision: { ...s.graphRevision, [norm(path)]: (s.graphRevision[norm(path)] ?? 0) + 1 } }))
+      await refreshHead(path).catch(() => undefined)
+    }))
+  },
+
   /** Eventos push do core (`listen`): mantêm Desfazer/Refazer e a toolbar em dia. */
   applyCoreEvent(e: import('../bridge/types').CoreEvent) {
     if (e.type === 'historyChanged') {

@@ -11,7 +11,10 @@ export function App() {
 
   useEffect(() => {
     void actions.checkGit().then(() => actions.openInitialPaths())
-    return onCoreEvent(actions.applyCoreEvent)
+    const refresh = () => void actions.refreshAll()
+    window.addEventListener('focus', refresh)
+    const off = onCoreEvent(actions.applyCoreEvent)
+    return () => { window.removeEventListener('focus', refresh); off() }
   }, [])
 
   useUndoShortcuts()

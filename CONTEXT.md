@@ -48,7 +48,7 @@ _Avoid_: conta, usuário
 ### Ações
 
 **Operação**:
-Uma ação git disparada pelo Mnemo (checkout, commit, reset, descartar…). Ela guarda o estado anterior dos refs e sabe como se inverter. Cada repositório roda uma Operação por vez. Preparar e tirar arquivos do stage não são Operações. Um merge ou rebase parado em conflito ainda não é uma Operação: ele só entra no Histórico quando é concluído (e aí se desfaz inteiro) ou abortado.
+Uma ação git disparada pelo Mnemo (checkout, commit, reset, descartar…). Ela guarda o estado anterior dos refs e sabe como se inverter. Cada repositório roda uma Operação por vez. Preparar e tirar arquivos do stage não são Operações. Um merge ou rebase parado em conflito ainda não é uma Operação: ele só entra no Histórico quando é concluído (e aí se desfaz inteiro) ou abortado. Um merge (inclusive o de um pull) concluído fora do Mnemo entra no Histórico do mesmo jeito, desde que o resultado seja exatamente aquele merge; se não for, ou se for rebase, cherry-pick ou revert concluído fora, é Mudança externa.
 _Avoid_: comando, ação git (no código)
 
 **Desfazer**:
