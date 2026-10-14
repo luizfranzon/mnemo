@@ -128,7 +128,7 @@ export function Graph({ path }: { path: string }) {
   const revision = useApp((s) => s.graphRevision[path.replace(/\\/g, '/').toLowerCase()] ?? s.graphRevision[path.replace(/\\/g, '/')] ?? 0)
   const head = useApp((s) => s.tabs.find((t) => t.path === path)?.head)
   const vis = useVisibility(selectVisibility(path))
-  const [find, setFind] = useState<{ text: string; author: string } | null>(null)
+  const [find, setFind] = useState<{ text: string; author: string; byAuthor: boolean } | null>(null)
 
   const geo = geometry(layout.compact)
   const contentWidth = geo.first * 2 + maxLanes * geo.lane
@@ -273,7 +273,7 @@ export function Graph({ path }: { path: string }) {
     const open = (e: KeyboardEvent) => {
       if (!matchesShortcut('Ctrl+F', e)) return
       e.preventDefault()
-      setFind((f) => f ?? { text: '', author: '' })
+      setFind((f) => f ?? { text: '', author: '', byAuthor: false })
       requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>('.graph-filter input')?.focus())
     }
     window.addEventListener('keydown', open)
@@ -295,8 +295,9 @@ export function Graph({ path }: { path: string }) {
     }) })
   }
 
-  const openFind = () => {
-    setFind((f) => f ?? { text: '', author: '' })
+  /** Ctrl+F e a lupa abrem só a busca; o seletor de autor só vem pelo filtro da coluna Autor. */
+  const openFind = (byAuthor: boolean) => {
+    setFind((f) => f ? { ...f, byAuthor: f.byAuthor || byAuthor } : { text: '', author: '', byAuthor })
     requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>('.graph-filter input')?.focus())
   }
   const branchActions = useBranchActions(path)
@@ -364,18 +365,18 @@ export function Graph({ path }: { path: string }) {
     </>}
     {find && <div className="graph-filter" role="search" onKeyDown={(e) => { if (e.key === 'Escape') setFind(null) }}>
       <input value={find.text} onChange={(e) => setFind({ ...find, text: e.target.value })} placeholder="Buscar na mensagem…" aria-label="Buscar na mensagem" />
-      <select value={find.author} onChange={(e) => setFind({ ...find, author: e.target.value })} aria-label="Filtrar por autor">
+      {find.byAuthor && <select value={find.author} onChange={(e) => setFind({ ...find, author: e.target.value })} aria-label="Filtrar por autor">
         <option value="">Todos os autores</option>
         {[...new Set(commits.map((c) => c.author))].sort().map((a) => <option key={a} value={a}>{a}</option>)}
-      </select>
+      </select>}
       <button aria-label="Fechar busca" onClick={() => setFind(null)}>✕</button>
     </div>}
     <div className="graph-header graph-grid">
       <button className="graph-gear" aria-label="Colunas do grafo" title="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)}><RefIcon name="sliders" size={15} /></button>
       {cols.map((id) => <div key={id} className="graph-hcell">
         <span className="graph-title">{COLUMNS[id].label}
-            {id === 'message' && <button className="graph-tool" aria-label="Buscar na mensagem" title="Buscar na mensagem (Ctrl+F)" onClick={() => openFind()}><RefIcon name="search" size={13} /></button>}
-            {id === 'author' && <button className="graph-tool" aria-label="Filtrar por autor" title="Filtrar por autor" onClick={() => openFind()}><RefIcon name="filter" size={13} /></button>}
+            {id === 'message' && <button className="graph-tool" aria-label="Buscar na mensagem" title="Buscar na mensagem (Ctrl+F)" onClick={() => openFind(false)}><RefIcon name="search" size={13} /></button>}
+            {id === 'author' && <button className="graph-tool" aria-label="Filtrar por autor" title="Filtrar por autor" onClick={() => openFind(true)}><RefIcon name="filter" size={13} /></button>}
             {id === 'message' && vis.solo && <button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} ✕</button>}
           </span>
         {id !== 'message' && <div className={`col-handle ${cols.indexOf(id) < cols.indexOf('message') ? 'after' : 'before'}`} role="separator" aria-orientation="vertical"
