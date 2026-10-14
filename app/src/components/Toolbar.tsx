@@ -77,12 +77,12 @@ export function Toolbar() {
     pull: [
       { label: 'Executar agora', heading: true },
       ...PULL_MODES.map((m) => ({ label: m.label, reason: m.value === 'fetch' ? reason.fetch : reason.pull, run: () => doMode(m.value) })),
-      '-', { label: 'Padrão do botão', heading: true },
+      '-', { label: 'Ação do botão Pull', heading: true },
       ...PULL_MODES.map((m) => ({ label: m.label, checked: toolbar.pullMode === m.value, reason: reason.busy,
         run: () => void actions.setPullMode(path, m.value) })),
     ],
     stash: [
-      { label: 'Stash com arquivos novos', reason: reason.mutation,
+      { label: 'Stash incluindo arquivos novos', reason: reason.mutation,
         run: () => execute('stash', 'Executando criar stash…', { type: 'stashCreate', message: null, includeUntracked: true }) },
       { label: 'Aplicar e remover o mais recente', reason: reason.mutation ?? (toolbar.stashCount ? undefined : 'Nenhum stash disponível'),
         run: () => execute('stash', 'Executando pop de stash…', { type: 'stashPop', index: 0 }) },
@@ -119,7 +119,7 @@ export function Toolbar() {
       </div>
       <button className="push-button" disabled={!!reason.push} title={reason.push ?? (head.kind === 'branch' && head.upstream ? `Push ${branchName} para ${head.upstream}` : `Push ${branchName}: definir upstream`)}
         onClick={() => void run('push', 'Fazendo push…', () => actions.requestPush(path))}>
-        {spinLabel('push') ? <Spinner label={spinLabel('push')!} /> : <><span className="ahead">↑</span> Push {branchName}</>}
+        {spinLabel('push') ? <Spinner label={spinLabel('push')!} /> : <><span className="ahead">↑</span> Push <span className="push-branch">{branchName}</span></>}
         {!!toolbar.ahead && <span className="count-badge green">{toolbar.ahead}</span>}
       </button>
       <button disabled={!!reason.mutation} title={reason.mutation ?? 'Nova branch'} onClick={() => actions.setPalette('createBranch')}>
@@ -127,7 +127,7 @@ export function Toolbar() {
       <div className="toolbar-split plain">
         <button disabled={!!reason.mutation} title={reason.mutation ?? 'Guardar mudanças locais'}
           onClick={() => execute('stash', 'Executando criar stash…', { type: 'stashCreate', message: null, includeUntracked: false })}>
-          {spinLabel('stash') ? <Spinner label={spinLabel('stash')!} /> : '▣ Stash'} <span className="stash-count">{toolbar.stashCount}</span>
+          {spinLabel('stash') ? <Spinner label={spinLabel('stash')!} /> : '▣ Stash'}{!!toolbar.stashCount && <span className="stash-count">{toolbar.stashCount}</span>}
         </button>
         {menuButton('stash', 'Opções de stash', reason.mutation)}
       </div>

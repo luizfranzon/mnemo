@@ -71,7 +71,8 @@ input:focus { border-color: var(--accent); }
 .toolbar-split > button { height: 30px; }
 .toolbar-split > button + button { border-left: 1px solid var(--border); border-radius: 0 8px 8px 0; }
 .toolbar-split.plain { border-color: transparent; background: transparent; }
-.toolbar .push-button { border: 1px solid var(--border); background: var(--surface-2); }
+.toolbar > .push-button { height: 32px; max-width: 220px; border: 1px solid var(--border); background: var(--surface-2); }
+.push-branch { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: 'JetBrains Mono', monospace; }
 .count-badge { padding: 1px 6px; border-radius: 9px; font: 11px 'JetBrains Mono', monospace; }
 .count-badge.blue { background: #22325a; color: #8fb2ff; }
 .count-badge.green { background: #173020; color: #7fdc95; }

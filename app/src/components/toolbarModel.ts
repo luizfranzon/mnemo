@@ -1,9 +1,9 @@
 import type { HeadInfo, PullMode, ToolbarInfo } from '../bridge/types'
 
 export const PULL_MODES: { value: PullMode; label: string; button: string }[] = [
-  { value: 'fetch', label: 'Fetch tudo', button: 'Fetch' },
-  { value: 'merge', label: 'Pull ff se possível', button: 'Pull ff' },
-  { value: 'ffOnly', label: 'Pull só ff', button: 'Pull ff' },
+  { value: 'fetch', label: 'Fetch: buscar sem integrar', button: 'Fetch' },
+  { value: 'merge', label: 'Pull: avançar ou fazer merge', button: 'Pull' },
+  { value: 'ffOnly', label: 'Pull só avançando (ff-only)', button: 'Pull ff-only' },
   { value: 'rebase', label: 'Pull com rebase', button: 'Pull rebase' },
 ]
 
