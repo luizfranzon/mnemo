@@ -169,9 +169,9 @@ input:focus { border-color: var(--accent); }
 .graph-row .graph-refs { padding-right: 0; }
 .graph-ref-connector { flex: 1; min-width: 4px; border-top: 1px solid; opacity: .55; }
 .graph-pills { display: flex; align-items: center; gap: 3px; overflow: hidden; }
-.graph-pill { display: inline-flex; align-items: center; gap: 5px; max-width: 150px; min-width: 0; padding: 2px 7px; border: 1px solid var(--pill, var(--border-strong)); border-radius: 7px; background: color-mix(in srgb, var(--pill, var(--surface-2)) 16%, var(--bg)); color: var(--pill, var(--text)); font: 11px var(--font-mono); white-space: nowrap; }
+.graph-pill { display: inline-flex; align-items: center; gap: 5px; max-width: 150px; min-width: 0; padding: 2px 7px; border: 1px solid var(--pill, var(--border-strong)); border-radius: 7px; background: color-mix(in srgb, var(--pill, var(--surface-2)) 16%, var(--bg)); color: var(--text); font: 12px var(--font-mono); white-space: nowrap; }
 .graph-pill-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.graph-pill .ref-icon { flex: none; }
+.graph-pill .ref-icon { flex: none; color: var(--text-secondary); }
 .graph-pill-more { flex: none; color: var(--text-muted); font-size: 10px; }
 .graph-message { color: var(--text); }
 .graph-message.merge { color: var(--text-muted); }
