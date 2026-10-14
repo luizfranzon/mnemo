@@ -19,7 +19,7 @@ import {
   type ColId, type GraphLayout,
 } from './graphColumns'
 
-const PAGE = 2000
+const PAGE = 200
 const date = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
 const fullDate = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeStyle: 'short' })
 type Geo = ReturnType<typeof geometry>
@@ -388,7 +388,7 @@ export function Graph({ path }: { path: string }) {
       if (dx) hbar.current!.scrollLeft += dx
     }} onScroll={(e) => {
       const box = e.currentTarget
-      if (box.scrollTop + box.clientHeight > box.scrollHeight - 500) loadMore()
+      if (box.scrollTop + box.clientHeight > box.scrollHeight - 800) loadMore()
     }}>
       <div key={version} className="graph-rows" style={{ height: virtual.getTotalSize(), position: 'relative' }}>
         {virtual.getVirtualItems().map((item) => {
