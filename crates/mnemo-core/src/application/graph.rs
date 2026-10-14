@@ -150,12 +150,13 @@ impl GraphCursor {
             self.lanes[i] = None;
         }
         for (parent_index, parent) in input.parents.iter().enumerate() {
-            let target = self
-                .lanes
-                .iter()
-                .position(|item| item.as_ref().is_some_and(|item| item.sha == *parent))
+            // O 1º pai segue na lane do filho mesmo que outro filho já espere esse pai:
+            // as lanes só convergem na linha do pai.
+            let reuse = if parent_index == 0 && self.lanes.get(lane).is_none_or(Option::is_none) { None }
+                else { self.lanes.iter().position(|item| item.as_ref().is_some_and(|item| item.sha == *parent)) };
+            let target = reuse
                 .unwrap_or_else(|| {
-                    let slot = if parent_index == 0 && self.lanes.get(lane).is_some_and(Option::is_none) {
+                    let slot = if parent_index == 0 && self.lanes.get(lane).is_none_or(Option::is_none) {
                         lane
                     } else {
                         self.free_lane()

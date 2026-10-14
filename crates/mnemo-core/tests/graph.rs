@@ -172,3 +172,16 @@ fn visibilidade_inteligente_mantem_atual_base_e_mergeadas() {
     repo.git(&["merge", "--no-ff", "-q", "-m", "merge", "feature"]);
     assert!(shas(&repo, &smart).contains(&feature), "depois do merge a feature aparece");
 }
+
+#[test]
+fn branches_irmas_mantem_lanes_proprias_ate_o_pai_comum() {
+    let repo = TestRepo::new();
+    for name in ["a", "b", "c"] {
+        repo.git(&["switch", "-q", "-c", name, "main"]);
+        repo.write(&format!("{name}.txt"), name);
+        repo.commit_all(name);
+    }
+    let all = repo.core.graph_page(&repo.path().to_string_lossy(), None, 20, &GraphVisibility::default()).expect("grafo");
+    let tips: Vec<usize> = all.commits.iter().take(3).map(|c| c.lane).collect();
+    assert_eq!(tips.iter().collect::<std::collections::HashSet<_>>().len(), 3, "cada ponta na sua lane: {tips:?}");
+}
