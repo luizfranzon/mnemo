@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { onCoreEvent } from '../bridge'
 import { actions, useApp } from '../store/app'
 import { GitMissing } from './GitMissing'
+import { Preferences } from './Preferences'
 import { TitleBar } from './TitleBar'
 import { Workspace } from './Workspace'
 import { useUndoShortcuts } from './useUndoShortcuts'
@@ -24,6 +25,7 @@ export function App() {
     <div className="app">
       <TitleBar />
       {phase === 'checking' ? <div className="center muted">Verificando o git…</div> : phase === 'missing' ? <GitMissing /> : <Workspace />}
+      <Preferences />
     </div>
   )
 }

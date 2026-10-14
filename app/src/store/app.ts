@@ -327,6 +327,7 @@ export const actions = {
   setPref<K extends keyof Prefs>(key: K, value: Prefs[K]) {
     const prefs = { ...get().prefs, [key]: value }
     set({ prefs })
+    pushToast({ text: 'Preferências salvas' })
     try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)) } catch { /* sem storage */ }
   },
 

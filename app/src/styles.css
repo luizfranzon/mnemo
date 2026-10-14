@@ -14,7 +14,7 @@ input:focus { border-color: var(--accent); }
 .warning { color: var(--warning-text); }
 .center { height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; }
 .card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-menu); padding: 28px var(--space-8); max-width: 520px; }
-.app { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); height: 100%; }
+.app { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); height: 100%; }
 .workspace { display: flex; flex-direction: column; height: 100%; }
 .main { flex: 1; min-height: 0; }
 
@@ -219,8 +219,8 @@ input:focus { border-color: var(--accent); }
 .modal { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.5); }
 .modal .actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
 
-.push-dialog, .prefs-dialog { max-width: min(480px, calc(100vw - 32px)); background: var(--surface-1); color: var(--text); border: 1px solid var(--border-strong); }
-.push-dialog::backdrop, .prefs-dialog::backdrop { background: rgba(0, 0, 0, .6); }
+.push-dialog { max-width: min(480px, calc(100vw - 32px)); background: var(--surface-1); color: var(--text); border: 1px solid var(--border-strong); }
+.push-dialog::backdrop { background: rgba(0, 0, 0, .6); }
 .push-dialog label { display: block; margin-bottom: var(--space-2); }
 .push-dialog select { width: 100%; margin-bottom: var(--space-3); padding: var(--space-2); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; }
 
@@ -384,5 +384,17 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .commit-msg-cancel { height: 40px; padding: 0 14px; border: 1px solid var(--border) !important; border-radius: 8px; background: transparent; color: var(--text-secondary); font-size: 13px; }
 .commit-msg-cancel:disabled { opacity: .48; cursor: default !important; }
 
-.prefs-dialog label { display: flex; align-items: center; gap: var(--space-2); }
-.prefs-dialog .hint { margin: var(--space-1) 0 0 calc(13px + var(--space-2)); }
+/* Preferências: tela cheia sobre o workspace (que continua montado, com o scroll do grafo) */
+.prefs { position: absolute; inset: var(--h-titlebar) 0 0 0; z-index: 5; display: flex; background: var(--bg); }
+.prefs-nav { display: flex; flex-direction: column; gap: 2px; flex: none; width: 260px; padding: 14px 10px; background: var(--bg-rail); border-right: 1px solid var(--border-subtle); }
+.prefs-nav .back { display: flex; align-items: center; gap: var(--space-2); height: 30px; margin-bottom: 6px; padding: 0 8px; background: transparent; border: 0; color: var(--text-secondary); text-align: left; }
+.prefs-nav .back kbd { margin-left: auto; font-family: var(--font-mono); font-size: var(--fs-overline); color: var(--text-subtle); }
+.prefs-group { padding: 4px 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-subtle); }
+.prefs-nav .item { display: flex; align-items: center; height: 28px; padding: 0 10px; background: transparent; border: 0; color: var(--text-muted); text-align: left; }
+.prefs-nav .item[aria-current="page"] { background: var(--hover); color: var(--text); font-weight: 500; }
+.prefs-main { flex: 1; min-width: 0; overflow: auto; padding: 28px 48px; }
+.prefs-main > div { max-width: 640px; }
+.prefs-main h2 { margin: 20px 0 16px; font-size: 13px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text-subtle); }
+.prefs-main .field { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--text); }
+.prefs-main .field input { margin: 3px 0 0; accent-color: var(--accent); }
+.prefs-main .help { margin: 6px 0 0 26px; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
