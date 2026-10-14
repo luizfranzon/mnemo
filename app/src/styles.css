@@ -150,8 +150,14 @@ input:focus { border-color: var(--accent); }
 .graph-header .graph-gear { position: absolute; right: 14px; top: 5px; z-index: 2; height: 22px; width: 24px; padding: 0; display: grid; place-items: center; border: 0; background: var(--bg); color: var(--text-muted); }
 .graph-hcell { position: relative; min-width: 0; }
 .graph-hcell > span { padding: 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.graph-scrollbar { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; height: 33px; position: relative; }
-.graph-scrollbar > span { position: sticky; left: 10px; display: block; padding-top: 7px; pointer-events: none; }
+.graph-footer { flex: none; padding-right: 10px; border-top: 1px solid var(--border-subtle); }
+.graph-scrollbar { overflow-x: auto; overflow-y: hidden; height: 12px; min-width: 0; }
+.graph-pane { grid-column: span 2; min-width: 0; overflow: hidden; padding: 0 !important; }
+.graph-scroll-span { width: var(--pane-w); height: 1px; }
+.graph-pane-inner { width: var(--pane-w); display: flex; align-items: center; transform: translateX(var(--graph-offset)); }
+.graph-pane .graph-refs { flex: none; width: var(--refs-w); padding: 0 5px; }
+.graph-pane .graph-cell { flex: none; }
+.graph-pane .graph-canvas { transform: none; }
 .graph-body { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .graph-veil { position: absolute; inset: 0; z-index: 4; display: flex; align-items: center; justify-content: center; gap: 8px; background: color-mix(in srgb, var(--bg) 62%, transparent); color: var(--text-secondary); font-size: 12px; animation: graph-fade .15s ease-out; }
 .graph-rows { animation: graph-reveal .2s ease-out; }

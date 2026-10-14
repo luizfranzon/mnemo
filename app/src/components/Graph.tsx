@@ -109,6 +109,25 @@ export function Graph({ path }: { path: string }) {
   })
   // reaplica a cada render: o arrasto escreveu direto no DOM, e o React não sabe disso
   useLayoutEffect(() => { root.current?.style.setProperty('--graph-cols', gridTemplate(layout)) })
+  // Branch/Tag + Grafo vizinhas rolam juntas na horizontal; as demais colunas ficam fixas
+  const refsAt = cols.indexOf('refs'), graphAt = cols.indexOf('graph')
+  const pane = refsAt >= 0 && Math.abs(refsAt - graphAt) === 1 ? { start: Math.min(refsAt, graphAt), refsFirst: refsAt < graphAt } : null
+  // A Branch/Tag encolhe com a janela e some do layout fixo: a largura real vem do cabeçalho, sem passar pelo estado
+  useLayoutEffect(() => {
+    const box = root.current
+    const cell = pane ? box?.querySelectorAll<HTMLElement>('.graph-header > .graph-hcell')[refsAt] : undefined
+    if (!box) return
+    const apply = () => {
+      const refs = cell?.getBoundingClientRect().width ?? 0
+      box.style.setProperty('--refs-w', `${refs}px`)
+      box.style.setProperty('--pane-w', `${refs + contentWidth}px`)
+    }
+    apply()
+    if (!cell) return
+    const observer = new ResizeObserver(apply)
+    observer.observe(cell)
+    return () => observer.disconnect()
+  }, [pane !== null, refsAt, graphAt, contentWidth])
 
   useEffect(() => {
     const current = ++generation.current
@@ -273,6 +292,12 @@ export function Graph({ path }: { path: string }) {
       case 'sha': return <span key={id} className="graph-sha" title={commit?.sha}>{commit?.sha.slice(0, 7)}</span>
     }
   }
+  const cells = (commit: GraphCommit | null | undefined, wip: boolean) => cols.flatMap((id, i) => {
+    if (!pane || i < pane.start || i > pane.start + 1) return [cell(id, commit, wip)]
+    if (i === pane.start + 1) return []
+    const both = [cell('refs', commit, wip), cell('graph', commit, wip)]
+    return [<div key="pane" className="graph-pane"><div className="graph-pane-inner" >{pane.refsFirst ? both : both.reverse()}</div></div>]
+  })
   return <div className="graph-view" ref={root}>
     <span className="sr-only" data-testid="current-branch">{branch}</span>
     {gear && <>
@@ -300,15 +325,11 @@ export function Graph({ path }: { path: string }) {
     <div className="graph-header graph-grid">
       <button className="graph-gear" aria-label="Colunas do grafo" title="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)}><RefIcon name="sliders" size={15} /></button>
       {cols.map((id) => <div key={id} className="graph-hcell">
-        {id === 'graph'
-          ? <div className="graph-scrollbar" onScroll={(e) => root.current?.style.setProperty('--graph-offset', `${-e.currentTarget.scrollLeft}px`)}>
-            <span>Grafo</span><div style={{ width: contentWidth, height: 1 }} />
-          </div>
-          : <span className="graph-title">{COLUMNS[id].label}
+        <span className="graph-title">{COLUMNS[id].label}
             {id === 'message' && <button className="graph-tool" aria-label="Buscar na mensagem" title="Buscar na mensagem (Ctrl+F)" onClick={() => openFind()}><RefIcon name="search" size={13} /></button>}
             {id === 'author' && <button className="graph-tool" aria-label="Filtrar por autor" title="Filtrar por autor" onClick={() => openFind()}><RefIcon name="filter" size={13} /></button>}
             {id === 'message' && vis.solo && <button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} ✕</button>}
-          </span>}
+          </span>
         {id !== 'message' && <div className={`col-handle ${cols.indexOf(id) < cols.indexOf('message') ? 'after' : 'before'}`} role="separator" aria-orientation="vertical"
           aria-label={`Redimensionar ${COLUMNS[id].label}`} onPointerDown={(e) => resize(id, e)} onDoubleClick={() => fit(id)} />}
       </div>)}
@@ -327,7 +348,7 @@ export function Graph({ path }: { path: string }) {
             onClick={() => actions.selectCommit(commit?.sha ?? 'wip')}
             onContextMenu={(e) => { if (commit) void openMenu(commit, e) }}
             onDoubleClick={() => { if (commit) void actions.checkoutRef(path, { type: 'checkout', target: commit.sha }) }}>
-            {cols.map((id) => cell(id, commit, wip))}
+            {cells(commit, wip)}
           </div>
         })}
       </div>
@@ -335,6 +356,12 @@ export function Graph({ path }: { path: string }) {
       {loading && !reloading && <div className="graph-loading" role="status">Carregando commits…</div>}
     </div>
     {reloading && <div className="graph-veil" role="status"><span className="spin" aria-hidden="true">⟳</span> Atualizando grafo</div>}
+    </div>
+    <div className="graph-footer graph-grid">
+      <div className="graph-scrollbar" style={{ gridColumn: `${(pane?.start ?? graphAt) + 1} / span ${pane ? 2 : 1}` }} aria-hidden="true"
+        onScroll={(e) => root.current?.style.setProperty('--graph-offset', `${-e.currentTarget.scrollLeft}px`)}>
+        <div className="graph-scroll-span" />
+      </div>
     </div>
     {menu && <Menu items={menu.items} anchor={menu.anchor} label="Menu do commit" onClose={() => setMenu(null)} />}
     {dialog && <CommitDialogs path={path} dialog={dialog} close={() => setDialog(null)} />}
