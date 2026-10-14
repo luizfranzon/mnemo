@@ -122,6 +122,7 @@ export function Graph({ path }: { path: string }) {
   const generation = useRef(0)
   const pageRef = useRef<GraphPage | null>(null)
   const lastSelection = useRef<string | null>(null)
+  const hbar = useRef<HTMLDivElement>(null)
   const pendingSelection = useRef<string | null>(null)
   const selectedSha = useApp((s) => s.selectedSha)
   const revision = useApp((s) => s.graphRevision[path.replace(/\\/g, '/').toLowerCase()] ?? s.graphRevision[path.replace(/\\/g, '/')] ?? 0)
@@ -382,7 +383,10 @@ export function Graph({ path }: { path: string }) {
       </div>)}
     </div>
     <div className="graph-body">
-    <div className="graph-list" ref={scroller} onScroll={(e) => {
+    <div className="graph-list" ref={scroller} onWheel={(e) => {
+      const dx = e.shiftKey ? e.deltaY : e.deltaX
+      if (dx) hbar.current!.scrollLeft += dx
+    }} onScroll={(e) => {
       const box = e.currentTarget
       if (box.scrollTop + box.clientHeight > box.scrollHeight - 500) loadMore()
     }}>
@@ -405,7 +409,7 @@ export function Graph({ path }: { path: string }) {
     {reloading && <div className="graph-veil" role="status"><span className="spin" aria-hidden="true">⟳</span> Atualizando grafo</div>}
     </div>
     <div className="graph-footer graph-grid">
-      <div className="graph-scrollbar" style={{ gridColumn: `${(pane?.start ?? graphAt) + 1} / span ${pane ? 2 : 1}` }} aria-hidden="true"
+      <div className="graph-scrollbar" ref={hbar} style={{ gridColumn: `${(pane?.start ?? graphAt) + 1} / span ${pane ? 2 : 1}` }} aria-hidden="true"
         onScroll={(e) => root.current?.style.setProperty('--graph-offset', `${-e.currentTarget.scrollLeft}px`)}>
         <div className="graph-scroll-span" />
       </div>
