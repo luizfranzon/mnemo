@@ -280,16 +280,31 @@ export function Graph({ path }: { path: string }) {
     const open = (e: KeyboardEvent) => {
       if (!matchesShortcut('Ctrl+F', e)) return
       e.preventDefault()
-      setFind((f) => f ?? { text: '' })
-      requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>('.graph-filter input')?.focus())
+      openFind()
     }
     window.addEventListener('keydown', open)
     return () => window.removeEventListener('keydown', open)
   }, [])
+  const hasText = (c: GraphCommit, needle: string) => `${c.subject}\n${c.description}\n${c.sha}`.toLocaleLowerCase().includes(needle)
+  const byAuthor = (c: GraphCommit) => !authors?.length || authors.includes(c.email.toLowerCase())
   const needle = find?.text.trim().toLocaleLowerCase() ?? ''
   /** Busca e Autores só esmaecem as linhas: filtrar tiraria commits e quebraria as lanes. */
-  const matches = (c: GraphCommit) => (!needle || `${c.subject}\n${c.description}\n${c.sha}`.toLocaleLowerCase().includes(needle))
-    && (!authors?.length || authors.includes(c.email.toLowerCase()))
+  const matches = (c: GraphCommit) => (!needle || hasText(c, needle)) && byAuthor(c)
+  /** Ocorrências da busca entre os commits carregados; como no navegador, o selecionado é a ocorrência atual. */
+  const hitsFor = (text: string) => {
+    const n = text.trim().toLocaleLowerCase()
+    return n ? commits.filter((c) => hasText(c, n) && byAuthor(c)) : []
+  }
+  const hits = hitsFor(find?.text ?? '')
+  const current = hits.findIndex((c) => c.sha === selectedSha)
+  const step = (by: 1 | -1) => {
+    if (hits.length) actions.selectCommit(hits[current < 0 ? (by > 0 ? 0 : hits.length - 1) : (current + by + hits.length) % hits.length]!.sha)
+  }
+  const search = (text: string) => {
+    setFind({ text })
+    const first = hitsFor(text)[0]
+    if (first) actions.selectCommit(first.sha)
+  }
   const openMenu = async (commit: GraphCommit, e: React.MouseEvent) => {
     e.preventDefault()
     actions.selectCommit(commit.sha)
@@ -303,9 +318,10 @@ export function Graph({ path }: { path: string }) {
     }) })
   }
 
-  const openFind = () => {
+  /** Ctrl+F com a busca aberta só devolve o foco e seleciona o texto, como no navegador. */
+  function openFind() {
     setFind((f) => f ?? { text: '' })
-    requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>('.graph-filter input')?.focus())
+    requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>('.graph-filter input')?.select())
   }
   const branchActions = useBranchActions(path)
   /** Resolve a pill na ref completa (a lista de refs traz upstream e se a local existe) antes de agir. */
@@ -370,8 +386,14 @@ export function Graph({ path }: { path: string }) {
         <button className="graph-pop-reset" onClick={() => update(() => DEFAULT_LAYOUT)}>Restaurar padrão</button>
       </div>
     </>}
-    {find && <div className="graph-filter" role="search" onKeyDown={(e) => { if (e.key === 'Escape') setFind(null) }}>
-      <input value={find.text} onChange={(e) => setFind({ text: e.target.value })} placeholder="Buscar na mensagem…" aria-label="Buscar na mensagem" />
+    {find && <div className="graph-filter" role="search" onKeyDown={(e) => {
+      if (e.key === 'Escape') setFind(null)
+      else if (e.key === 'Enter') { e.preventDefault(); step(e.shiftKey ? -1 : 1) }
+    }}>
+      <input value={find.text} onChange={(e) => search(e.target.value)} placeholder="Buscar na mensagem…" aria-label="Buscar na mensagem" />
+      <span className="graph-filter-count" aria-live="polite">{needle ? `${current + 1}/${hits.length}${page?.next ? '+' : ''}` : ''}</span>
+      <button className="up" aria-label="Ocorrência anterior" title="Anterior (Shift+Enter)" disabled={!hits.length} onClick={() => step(-1)}><RefIcon name="chevron" size={14} /></button>
+      <button className="down" aria-label="Próxima ocorrência" title="Próxima (Enter)" disabled={!hits.length} onClick={() => step(1)}><RefIcon name="chevron" size={14} /></button>
       <button aria-label="Fechar busca" onClick={() => setFind(null)}>✕</button>
     </div>}
     <div className="graph-header graph-grid">
