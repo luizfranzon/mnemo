@@ -185,6 +185,7 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .graph-refs { display: flex; align-items: center; }
 .graph-row .graph-refs { padding-left: 13px; padding-right: 0; }
 .graph-ref-connector { flex: 1; min-width: 4px; border-top: 1px solid; opacity: .55; }
+.graph-ref-connector.current { border-top-width: 3px; opacity: .9; }
 .graph-pills { display: flex; align-items: center; gap: 3px; overflow: hidden; }
 .graph-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border: 1px solid var(--pill, var(--border-strong)); border-radius: 7px; background: color-mix(in srgb, var(--pill, var(--surface-2)) 16%, var(--bg)); color: var(--text); font: 12px var(--font-mono); white-space: nowrap; }
 .graph-pill.current { --dark: color-mix(in srgb, var(--pill, var(--surface-2)) 55%, black); background: var(--dark); border-color: var(--dark); }

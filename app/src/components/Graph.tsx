@@ -382,7 +382,7 @@ export function Graph({ path }: { path: string }) {
   const cell = (id: ColId, commit: GraphCommit | null | undefined, wip: boolean) => {
     switch (id) {
       case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} on={pillHandlers} />}{commit && commit.refs.length > 0 &&
-        <span className="graph-ref-connector" style={{ borderColor: commit.color }} />}
+        <span className={`graph-ref-connector${commit.head ? ' current' : ''}`} style={{ borderColor: commit.color }} />}
         {commit?.ghost && !commit.refs.length && <span className="graph-pill graph-ghost" style={{ '--pill': commit.color } as CSSProperties} aria-hidden="true">
           {commit.ghost.current && <RefIcon name="check" size={11} />}<span className="graph-pill-name">{commit.ghost.name}</span><RefIcon name={commit.ghost.remote ? 'cloud' : 'laptop'} size={11} /></span>}</div>
       case 'graph': return <div key={id} className="graph-cell">
