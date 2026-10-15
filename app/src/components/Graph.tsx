@@ -324,7 +324,7 @@ export function Graph({ path }: { path: string }) {
     window.addEventListener('keydown', open)
     return () => window.removeEventListener('keydown', open)
   }, [])
-  const hasText = (c: GraphCommit, needle: string) => `${c.subject}\n${c.description}\n${c.sha}`.toLocaleLowerCase().includes(needle)
+  const hasText = (c: GraphCommit, needle: string) => `${c.subject}\n${c.description}\n${c.sha}\n${c.refs.map((r) => r.name).join('\n')}`.toLocaleLowerCase().includes(needle)
   const byAuthor = (c: GraphCommit) => !authors?.length || authors.includes(c.email.toLowerCase())
   const needle = find?.text.trim().toLocaleLowerCase() ?? ''
   /** Busca e Autores só esmaecem as linhas: filtrar tiraria commits e quebraria as lanes. */
@@ -436,7 +436,7 @@ export function Graph({ path }: { path: string }) {
       if (e.key === 'Escape') setFind(null)
       else if (e.key === 'Enter') { e.preventDefault(); step(e.shiftKey ? -1 : 1) }
     }}>
-      <input value={find.text} onChange={(e) => search(e.target.value)} placeholder="Buscar na mensagem…" aria-label="Buscar na mensagem" />
+      <input value={find.text} onChange={(e) => search(e.target.value)} placeholder="Buscar branch, mensagem ou SHA…" aria-label="Buscar branch, mensagem ou SHA" />
       <span className="graph-filter-count" aria-live="polite">{needle ? `${current + 1}/${hits.length}${page?.next ? '+' : ''}` : ''}</span>
       <button className="up" aria-label="Ocorrência anterior" title="Anterior (Shift+Enter)" disabled={!hits.length} onClick={() => step(-1)}><Icon name="chevron" size={14} /></button>
       <button className="down" aria-label="Próxima ocorrência" title="Próxima (Enter)" disabled={!hits.length} onClick={() => step(1)}><Icon name="chevron" size={14} /></button>
@@ -446,7 +446,7 @@ export function Graph({ path }: { path: string }) {
       <button className="graph-gear" aria-label="Colunas do grafo" title="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)}><Icon name="sliders" size={15} /></button>
       {cols.map((id) => <div key={id} className="graph-hcell">
         <span className="graph-title">{COLUMNS[id].label}
-            {id === 'message' && <button className="graph-tool" aria-label="Buscar na mensagem" title="Buscar na mensagem (Ctrl+F)" onClick={openFind}><Icon name="search" size={13} /></button>}
+            {id === 'message' && <button className="graph-tool" aria-label="Buscar branch, mensagem ou SHA" title="Buscar branch, mensagem ou SHA (Ctrl+F)" onClick={openFind}><Icon name="search" size={13} /></button>}
             {id === 'author' && <button className={`graph-tool${authors?.length ? ' active' : ''}`} aria-label="Filtrar por autor" title="Filtrar por autor"
               aria-expanded={!!authorAnchor} onClick={(e) => setAuthorAnchor(e.currentTarget.getBoundingClientRect())}><Icon name="filter" size={13} /></button>}
             {id === 'message' && vis.solo && <button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} <Icon name="close" size={12} /></button>}
