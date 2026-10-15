@@ -239,3 +239,10 @@ fn devolve_commit_e_branch_dos_dois_lados_no_merge() {
     assert_eq!(doc["theirsLabel"]["name"], "feature");
     assert_eq!(doc["theirsLabel"]["sha"].as_str().unwrap().len(), 7);
 }
+
+#[test]
+fn merge_em_conflito_grava_mensagem_merge_com_a_branch() {
+    let repo = conflicted(&ten(&[(2, "main")]), &ten(&[(2, "feat")]));
+    let msg = std::fs::read_to_string(repo.path().join(".git/MERGE_MSG")).unwrap();
+    assert!(msg.starts_with("Merge com feature"), "{msg}");
+}

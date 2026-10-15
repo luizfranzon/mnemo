@@ -16,7 +16,7 @@ impl Handler for IntegrateHandler {
     fn run(&self, ctx: &mut ExecCtx, kind: &OperationKind) -> Result<HandlerOutcome> {
         use OperationKind::*;
         let args: Vec<String> = match kind {
-            Merge { target } => vec!["merge".into(), "--no-edit".into(), target.clone()],
+            Merge { target } => vec!["merge".into(), "--no-edit".into(), "-m".into(), format!("Merge com {target}"), target.clone()],
             Rebase { onto } => vec!["rebase".into(), onto.clone()],
             CherryPick { commit } => vec!["cherry-pick".into(), commit.clone()],
             Revert { commit } => vec!["revert".into(), "--no-edit".into(), commit.clone()],
