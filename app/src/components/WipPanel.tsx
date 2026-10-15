@@ -105,6 +105,21 @@ export function WipPanel({ path }: { path: string }) {
       if (opts.pushAfter) await actions.requestPush(path)
     }).finally(() => setBusy(false))
   }
+  // Emendar traz a mensagem do último commit; ao desmarcar, tira de volta se ninguém mexeu nela.
+  const loaded = useRef<{ summary: string; description: string } | null>(null)
+  const toggleAmend = (on: boolean) => {
+    setAmend(on)
+    if (!on) {
+      if (loaded.current && summary === loaded.current.summary && description === loaded.current.description) { setSummary(''); setDescription('') }
+      loaded.current = null
+      return
+    }
+    if (summary.trim() || description.trim()) return // não sobrescreve o que já foi escrito
+    core.commitDetail(path, 'HEAD', false).then((c) => {
+      loaded.current = { summary: c.subject, description: c.body.trim() }
+      setSummary(loaded.current.summary); setDescription(loaded.current.description)
+    }, actions.reportError)
+  }
   const stash = () => {
     if (busy) return
     setBusy(true)
@@ -191,7 +206,7 @@ export function WipPanel({ path }: { path: string }) {
         <button role="tab" aria-selected={tab === 'stash'} onClick={() => setTab('stash')}>
           <Svg><path d="M4 13h4l2 3h4l2-3h4" /><path d="M4 13l2-8h12l2 8v6H4z" /></Svg>Stash</button>
       </div>
-      {tab === 'commit' && <label className="wip-amend"><input type="checkbox" checked={amend} onChange={(e) => setAmend(e.target.checked)} /> Emendar o último commit (amend)</label>}
+      {tab === 'commit' && <label className="wip-amend"><input type="checkbox" checked={amend} onChange={(e) => toggleAmend(e.target.checked)} /> Emendar o último commit (amend)</label>}
       <div className="wip-box">
         <div className="wip-summary">
           <label htmlFor="wip-sum" className="sr-only">Resumo</label>
