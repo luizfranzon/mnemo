@@ -60,7 +60,7 @@ function refsMinWidth(commits: GraphCommit[]): number {
   if (!pillCtx) return 0
   pillCtx.font = `12px ${getComputedStyle(document.documentElement).getPropertyValue('--font-mono') || 'monospace'}`
   const ctx = pillCtx
-  // borda 2 + padding 14 + nome + 16 (ícone 11 + gap 5) por ícone, +4 em laptop/cloud (15)
+  // borda 2 + padding 14 + nome + 16 (ícone 11 + gap 5) por ícone, +4 em check/laptop/cloud (15)
   const width = (name: string, icons: number) => 16 + ctx.measureText(name).width + 16 * icons
   let widest = 0
   for (const c of commits) {
@@ -68,7 +68,7 @@ function refsMinWidth(commits: GraphCommit[]): number {
     const first = pills[0]
     if (first) {
       const chip = pills.length > 1 ? 3 + 14 + ctx.measureText(`+${pills.length - 1}`).width : 0
-      widest = Math.max(widest, width(first.label, (first.current ? 1 : 0) + (first.kind === 'tag' ? 1 : (first.local ? 1 : 0) + (first.remote ? 1 : 0))) + chip + (first.kind === 'branch' ? ((first.local ? 1 : 0) + (first.remote ? 1 : 0)) * 4 : 0))
+      widest = Math.max(widest, width(first.label, (first.current ? 1 : 0) + (first.kind === 'tag' ? 1 : (first.local ? 1 : 0) + (first.remote ? 1 : 0))) + chip + (first.kind === 'branch' ? ((first.current ? 1 : 0) + (first.local ? 1 : 0) + (first.remote ? 1 : 0)) * 4 : 0))
     }
     if (c.ghost) widest = Math.max(widest, width(c.ghost.name, 1 + (c.ghost.current ? 1 : 0)))
   }
@@ -103,7 +103,7 @@ function PillView({ pill, on }: { pill: Pill; on: PillHandlers }) {
   return <span className={`graph-pill ${pill.kind}${pill.current ? ' current' : ''}`} title={pill.title}
     onDoubleClick={(e) => { if (pill.kind === 'branch') { e.stopPropagation(); on.checkout(pill) } }}
     onContextMenu={(e) => { if (pill.kind === 'branch') { e.preventDefault(); e.stopPropagation(); on.menu(pill, e) } }}>
-    {pill.current && <RefIcon name="check" size={11} />}
+    {pill.current && <RefIcon name="check" size={15} />}
     <span className="graph-pill-name">{pill.label}</span>
     {pill.kind === 'tag' ? <RefIcon name="tags" size={11} /> : <>
       {pill.local && <RefIcon name="laptop" size={15} />}{pill.remote && <RefIcon name="cloud" size={15} />}</>}
@@ -384,7 +384,7 @@ export function Graph({ path }: { path: string }) {
       case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} on={pillHandlers} />}{commit && commit.refs.length > 0 &&
         <span className={`graph-ref-connector${commit.head ? ' current' : ''}`} style={{ borderColor: commit.head ? `color-mix(in srgb, ${commit.color} 55%, black)` : commit.color }} />}
         {commit?.ghost && !commit.refs.length && <span className="graph-pill graph-ghost" style={{ '--pill': commit.color } as CSSProperties} aria-hidden="true">
-          {commit.ghost.current && <RefIcon name="check" size={11} />}<span className="graph-pill-name">{commit.ghost.name}</span><RefIcon name={commit.ghost.remote ? 'cloud' : 'laptop'} size={11} /></span>}</div>
+          {commit.ghost.current && <RefIcon name="check" size={15} />}<span className="graph-pill-name">{commit.ghost.name}</span><RefIcon name={commit.ghost.remote ? 'cloud' : 'laptop'} size={11} /></span>}</div>
       case 'graph': return <div key={id} className="graph-cell">
         <div className="graph-canvas" style={{ width: contentWidth }}>
           {commit ? <CommitSvg row={commit} width={contentWidth} geo={geo} compact={layout.compact} /> : <svg width={contentWidth} height={ROW}>
