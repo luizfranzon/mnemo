@@ -10,6 +10,7 @@ import {
 import { highlight } from './diffModel'
 import { selectSide } from './selectSide'
 import { ResultEditor, type ResultHandle } from './ResultEditor'
+import { Icon } from './Icon'
 
 const ROW = 20
 const SIDES = ['ours', 'theirs'] as const
@@ -122,7 +123,7 @@ export function ConflictEditor({ path }: { path: string }) {
       <span className="diff-num">{cell?.n ?? ''}</span>
       <span className="conflict-take">{hot && cell && cell.i !== null && <button className={on ? 'on' : ''} aria-pressed={on} disabled={locked}
         title={on ? 'Tirar esta linha do Resultado' : 'Pegar esta linha'} aria-label={`Pegar linha ${cell.n} de ${NAME[side]}`}
-        onClick={() => change(n, (p) => toggleLine(p, side, cell.i!))}>{on ? '✓' : '+'}</button>}</span>
+        onClick={() => change(n, (p) => toggleLine(p, side, cell.i!))}><Icon name={on ? 'check' : 'plus'} size={12} strokeWidth={2.2} /></button>}</span>
       {cell && <span className="diff-code">{highlight(cell.text).map((p, k) => <span key={k} className={`syn-${p.c}`}>{p.t}</span>)}</span>}
     </div>
   }

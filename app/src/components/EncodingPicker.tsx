@@ -3,6 +3,7 @@ import { core } from '../bridge'
 import type { EncodingInfo } from '../bridge/types'
 import { actions } from '../store/app'
 import { placeMenu, type Rect } from './menuModel'
+import { Icon } from './Icon'
 
 let cache: EncodingInfo[] | null = null
 
@@ -48,7 +49,7 @@ export function EncodingPicker({ path, anchor, value, onPick, onClose }: { path:
           {e.group && e.group !== shown[i - 1]?.group && <div className="enc-group">{e.group}</div>}
           <button className={`enc-row${i === active ? ' active' : ''}`} role="option" aria-selected={e.id === value}
             onMouseEnter={() => setActive(i)} onClick={() => { onPick(e.id); onClose() }}>
-            <span className="enc-check">{e.id === value ? '✓' : ''}</span>{e.label}</button>
+            <span className="enc-check">{e.id === value && <Icon name="check" size={12} />}</span>{e.label}</button>
         </div>)}
       </div>
     </div>

@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { actions, dismissToast, useApp } from '../store/app'
+import { Icon } from './Icon'
 
 export function Toasts() {
   const toasts = useApp((s) => s.toasts)
@@ -16,7 +17,7 @@ export function Toasts() {
             {t.pullPath && <button onClick={() => { dismissToast(t.id); void actions.pullNow(t.pullPath!) }}>Pull agora</button>}
           </span>}
           <button className="toast-close" aria-label="Fechar" onClick={() => dismissToast(t.id)}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            <Icon name="close" size={12} strokeWidth={2.4} />
           </button>
           <span className="toast-rail" aria-hidden="true" />
         </div>

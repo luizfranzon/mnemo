@@ -5,6 +5,7 @@ import { Menu } from './Menu'
 import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
 import { isTextField } from './useUndoShortcuts'
 import { menuContext, windowMenus } from './windowMenus'
+import { Icon } from './Icon'
 
 const MENUS = ['Arquivo', 'Editar', 'Exibir', 'Repositório', 'Ajuda']
 
@@ -71,19 +72,13 @@ export function TitleBar() {
       </nav>
       <div className="titlebar-title">{name ? `${name} — Mnemo` : 'Mnemo'}</div>
       <button type="button" className="window-control" aria-label="Minimizar" onClick={() => void core.window('minimize')}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          <path d="M6 12h12" />
-        </svg>
+        <Icon name="minus" size={14} strokeWidth={2} />
       </button>
       <button type="button" className="window-control" aria-label="Maximizar" onClick={() => void core.window('toggleMaximize')}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <rect x="5" y="5" width="14" height="14" rx="1.5" />
-        </svg>
+        <Icon name="square" size={14} strokeWidth={2} />
       </button>
       <button type="button" className="window-control close" aria-label="Fechar janela" onClick={() => void core.window('close')}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          <path d="M6 6l12 12M18 6L6 18" />
-        </svg>
+        <Icon name="close" size={14} strokeWidth={2} />
       </button>
       {open && <Menu items={open.items} anchor={open.anchor} label={open.label} onClose={() => setOpen(null)} />}
     </header>

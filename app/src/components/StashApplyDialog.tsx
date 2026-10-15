@@ -4,6 +4,7 @@ import { core } from '../bridge'
 import type { FileChange } from '../bridge/types'
 import { actions } from '../store/app'
 import { fileRows, filesUnder } from './fileTree'
+import { Icon } from './Icon'
 
 const ROW = 26
 
@@ -50,7 +51,7 @@ export function StashApplyDialog({ path, index, name, close }: { path: string; i
             const open = !collapsed.has(row.key)
             return <div key={row.key} className="stash-apply-row" style={style}>
               <button className="stash-apply-chevron" aria-expanded={open} aria-label={open ? `Recolher ${row.path}` : `Expandir ${row.path}`}
-                onClick={() => setCollapsed((old) => { const next = new Set(old); if (open) next.add(row.key); else next.delete(row.key); return next })}>{open ? '▾' : '▸'}</button>
+                onClick={() => setCollapsed((old) => { const next = new Set(old); if (open) next.add(row.key); else next.delete(row.key); return next })}><Icon name={open ? 'chevronDown' : 'chevron'} size={14} /></button>
               <label><input type="checkbox" checked={all} ref={(el) => { if (el) el.indeterminate = !all && inside.some((p) => picked.has(p)) }}
                 onChange={(e) => setMany(inside, e.target.checked)} /> <strong>{row.name}/</strong> <span className="muted">{row.count}</span></label>
             </div>
@@ -58,7 +59,7 @@ export function StashApplyDialog({ path, index, name, close }: { path: string; i
           return <div key={row.key} className="stash-apply-row" style={style}>
             <label><input type="checkbox" checked={picked.has(row.file.path)} onChange={(e) => setMany([row.file.path], e.target.checked)} />
               <span className={`commit-status ${row.file.status === 'A' ? 'added' : row.file.status === 'D' ? 'removed' : 'modified'}`}>
-                {row.file.status === 'A' ? '+' : row.file.status === 'D' ? '−' : '✎'}</span> {row.name}</label>
+                <Icon name={row.file.status === 'A' ? 'plus' : row.file.status === 'D' ? 'minus' : 'modified'} size={12} strokeWidth={2.2} /></span> {row.name}</label>
           </div>
         })}
       </div>}

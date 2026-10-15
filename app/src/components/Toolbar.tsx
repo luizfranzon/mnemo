@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { OperationKind, PullMode } from '../bridge/types'
 import { actions, runningLabel, selectActiveTab, useApp } from '../store/app'
-import { RefIcon } from './RefIcon'
+import { Icon } from './Icon'
 import { Menu } from './Menu'
 import type { MenuEntry, Rect } from './menuModel'
 import { PULL_MODES, toolbarAvailability } from './toolbarModel'
@@ -25,12 +25,12 @@ function FetchButton({ epoch, reason, label, run }: { epoch: number | null; reas
   }, [])
   return <button className="fetch-time" disabled={!!reason} onClick={run}
     title={reason ?? `Último fetch ${relativeFetch(epoch, now)}. Buscar todos os remotos agora`}>
-    {label ? <Spinner label={label} /> : <>⟳ {relativeFetch(epoch, now)}</>}
+    {label ? <Spinner label={label} /> : <><Icon name="refresh" size={14} /> {relativeFetch(epoch, now)}</>}
   </button>
 }
 
 function Spinner({ label }: { label: string }) {
-  return <><span className="spin" aria-hidden="true">⟳</span> {label}</>
+  return <><Icon name="refresh" size={14} spin /> {label}</>
 }
 
 type Control = 'fetch' | 'pull' | 'push' | 'stash' | 'checkout' | 'branch' | 'discard' | 'undo' | 'redo' | 'continue' | 'skip' | 'abort'
@@ -94,41 +94,41 @@ export function Toolbar() {
   }
   const menuButton = (which: OpenMenu['name'], label: string, blocked?: string) => <button
     aria-label={label} aria-haspopup="menu" aria-expanded={open?.name === which} disabled={!!blocked} title={blocked ?? label}
-    onClick={(e) => toggle(which, e.currentTarget)}>⌄</button>
+    onClick={(e) => toggle(which, e.currentTarget)}><Icon name="chevronDown" size={14} /></button>
 
   return <>
     <div className="toolbar" role="toolbar" aria-label="Repositório">
-      <span className="repo-name" title={path}>▱ {name}</span><span className="crumb">›</span>
+      <span className="repo-name" title={path}><Icon name="repo" size={14} /> {name}</span><span className="crumb">›</span>
       <button className="branch-button" disabled={!!reason.mutation} title={reason.mutation ?? 'Checkout de branch'} onClick={() => actions.setPalette('checkout')}>
-        {spinLabel('checkout') ? <Spinner label={spinLabel('checkout')!} /> : <>⑂ {branchName} <span className="muted">⌄</span></>}
+        {spinLabel('checkout') ? <Spinner label={spinLabel('checkout')!} /> : <><Icon name="branch" size={14} /> {branchName} <span className="muted"><Icon name="chevronDown" size={13} /></span></>}
       </button>
       <span className="sync-count" title={head.kind === 'branch' && head.upstream ? `Em relação a ${head.upstream}` : 'Sem upstream'}>
-        <span className="behind">↓{toolbar.behind ?? '–'}</span><span className="ahead">↑{toolbar.ahead ?? '–'}</span>
+        <span className="behind"><Icon name="arrowDown" size={12} strokeWidth={2.2} />{toolbar.behind ?? '–'}</span><span className="ahead"><Icon name="arrowUp" size={12} strokeWidth={2.2} />{toolbar.ahead ?? '–'}</span>
       </span>
       <FetchButton epoch={toolbar.lastFetchEpoch} reason={reason.fetch} label={spinLabel('fetch')} run={fetching} />
       <span className="toolbar-divider" />
       <button disabled={!undo.undo.enabled || !!executing} title={reason.busy ?? (undo.undo.enabled ? `Desfazer: ${undo.undo.label} (Ctrl+Z)` : undo.undo.reason ?? '')}
-        onClick={() => void run('undo', 'Desfazendo…', () => actions.undo(path))}>{spinLabel('undo') ? <Spinner label={spinLabel('undo')!} /> : <><RefIcon name="undo" size={16} /> Desfazer</>}</button>
+        onClick={() => void run('undo', 'Desfazendo…', () => actions.undo(path))}>{spinLabel('undo') ? <Spinner label={spinLabel('undo')!} /> : <><Icon name="undo" size={16} /> Desfazer</>}</button>
       <button disabled={!undo.redo.enabled || !!executing} title={reason.busy ?? (undo.redo.enabled ? `Refazer: ${undo.redo.label} (Ctrl+Y)` : undo.redo.reason ?? '')}
-        onClick={() => void run('redo', 'Refazendo…', () => actions.redo(path))}>{spinLabel('redo') ? <Spinner label={spinLabel('redo')!} /> : <><RefIcon name="redo" size={16} /> Refazer</>}</button>
+        onClick={() => void run('redo', 'Refazendo…', () => actions.redo(path))}>{spinLabel('redo') ? <Spinner label={spinLabel('redo')!} /> : <><Icon name="redo" size={16} /> Refazer</>}</button>
       <div className="toolbar-split">
         <button disabled={!!(mode.value === 'fetch' ? reason.fetch : reason.pull)} title={(mode.value === 'fetch' ? reason.fetch : reason.pull) ?? mode.label} onClick={() => doMode(mode.value)}>
-          {spinLabel('pull') ? <Spinner label={spinLabel('pull')!} /> : <><span className="behind"><RefIcon name="pull" size={16} /></span> {mode.button}</>}
+          {spinLabel('pull') ? <Spinner label={spinLabel('pull')!} /> : <><span className="behind"><Icon name="pull" size={16} /></span> {mode.button}</>}
           {!!toolbar.behind && <span className="count-badge blue">{toolbar.behind}</span>}
         </button>
         {menuButton('pull', 'Opções de pull', reason.busy)}
       </div>
       <button className="push-button" disabled={!!reason.push} title={reason.push ?? (head.kind === 'branch' && head.upstream ? `Push ${branchName} para ${head.upstream}` : `Push ${branchName}: definir upstream`)}
         onClick={() => void run('push', 'Fazendo push…', () => actions.requestPush(path))}>
-        {spinLabel('push') ? <Spinner label={spinLabel('push')!} /> : <><span className="ahead"><RefIcon name="push" size={16} /></span> Push <span className="push-branch">{branchName}</span></>}
+        {spinLabel('push') ? <Spinner label={spinLabel('push')!} /> : <><span className="ahead"><Icon name="push" size={16} /></span> Push <span className="push-branch">{branchName}</span></>}
         {!!toolbar.ahead && <span className="count-badge green">{toolbar.ahead}</span>}
       </button>
       <button disabled={!!reason.mutation} title={reason.mutation ?? 'Nova branch'} onClick={() => actions.setPalette('createBranch')}>
-        {spinLabel('branch') ? <Spinner label={spinLabel('branch')!} /> : <><RefIcon name="branch" size={16} /> Branch</>}</button>
+        {spinLabel('branch') ? <Spinner label={spinLabel('branch')!} /> : <><Icon name="branch" size={16} /> Branch</>}</button>
       <div className="toolbar-split plain">
         <button disabled={!!reason.mutation} title={reason.mutation ?? 'Guardar mudanças locais'}
           onClick={() => execute('stash', 'Executando criar stash…', { type: 'stashCreate', message: null, includeUntracked: false })}>
-          {spinLabel('stash') ? <Spinner label={spinLabel('stash')!} /> : <><RefIcon name="stash" size={16} /> Stash</>}{!!toolbar.stashCount && <span className="stash-count">{toolbar.stashCount}</span>}
+          {spinLabel('stash') ? <Spinner label={spinLabel('stash')!} /> : <><Icon name="stash" size={16} /> Stash</>}{!!toolbar.stashCount && <span className="stash-count">{toolbar.stashCount}</span>}
         </button>
         {menuButton('stash', 'Opções de stash', reason.mutation)}
       </div>
@@ -137,7 +137,7 @@ export function Toolbar() {
       <div className="toolbar-more">{menuButton('more', 'Mais ações do repositório', reason.mutation)}</div>
       {executing && <span className="operation-indicator" role="status">{executing}</span>}
       <button className="toolbar-search" aria-label="Buscar branch" disabled={!!reason.busy} title={reason.busy ?? 'Buscar branch (Ctrl+P)'} onClick={() => actions.setPalette('checkout')}>
-        ⌕ <span>Buscar branch</span> <kbd>Ctrl P</kbd>
+        <Icon name="search" size={14} /> <span>Buscar branch</span> <kbd>Ctrl P</kbd>
       </button>
     </div>
     {head.kind === 'detached' && <div className="progress-banner" role="status">

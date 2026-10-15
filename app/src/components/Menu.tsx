@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { placeMenu, type MenuEntry, type Rect } from './menuModel'
+import { Icon } from './Icon'
 
 interface ListProps {
   items: MenuEntry[]
@@ -128,13 +129,11 @@ function MenuList({ items, anchor, side, label, close, back, keyboard }: ListPro
               }}
               onClick={() => activate(i)}
             >
-              {it.checked !== undefined && <span className="radio-mark" aria-hidden="true">{it.checked ? '●' : '○'}</span>}
+              {it.checked !== undefined && <span className="radio-mark" aria-hidden="true"><Icon name={it.checked ? 'radioOn' : 'radioOff'} size={12} strokeWidth={2} /></span>}
               <span className="menu-label">{it.label}</span>
               {it.shortcut && <span className="menu-hint">{it.shortcut}</span>}
               {it.submenu && (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                  <path d="M9 6l6 6-6 6" />
-                </svg>
+                <Icon name="chevron" size={14} strokeWidth={2} />
               )}
             </button>
           ),

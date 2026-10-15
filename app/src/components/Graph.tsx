@@ -12,7 +12,7 @@ import { commitMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
 import { Menu } from './Menu'
 import { useBranchActions } from './useBranchActions'
-import { RefIcon } from './RefIcon'
+import { Icon } from './Icon'
 import { copyText, menuBase } from './menuBase'
 import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
 import {
@@ -102,10 +102,10 @@ function PillView({ pill, on }: { pill: Pill; on: PillHandlers }) {
   return <span className={`graph-pill ${pill.kind}${pill.current ? ' current' : ''}`} title={pill.title}
     onDoubleClick={(e) => { if (pill.kind === 'branch') { e.stopPropagation(); on.checkout(pill) } }}
     onContextMenu={(e) => { if (pill.kind === 'branch') { e.preventDefault(); e.stopPropagation(); on.menu(pill, e) } }}>
-    {pill.current && <RefIcon name="check" size={15} />}
+    {pill.current && <Icon name="check" size={15} />}
     <span className="graph-pill-name">{pill.label}</span>
-    {pill.kind === 'tag' ? <RefIcon name="tags" size={11} /> : <>
-      {pill.local && <RefIcon name="laptop" size={15} />}{pill.remote && <RefIcon name="cloud" size={15} />}</>}
+    {pill.kind === 'tag' ? <Icon name="tags" size={11} /> : <>
+      {pill.local && <Icon name="laptop" size={15} />}{pill.remote && <Icon name="cloud" size={15} />}</>}
   </span>
 }
 
@@ -386,7 +386,7 @@ export function Graph({ path }: { path: string }) {
       case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} on={pillHandlers} />}{commit && commit.refs.length > 0 &&
         <span className={`graph-ref-connector${commit.head ? ' current' : ''}`} style={{ borderColor: commit.head ? `color-mix(in srgb, ${commit.color} 55%, black)` : commit.color }} />}
         {ghostRefs && commit?.ghost && !commit.refs.length && <span className="graph-pill graph-ghost" style={{ '--pill': commit.color } as CSSProperties} aria-hidden="true">
-          {commit.ghost.current && <RefIcon name="check" size={15} />}<span className="graph-pill-name">{commit.ghost.name}</span><RefIcon name={commit.ghost.remote ? 'cloud' : 'laptop'} size={11} /></span>}</div>
+          {commit.ghost.current && <Icon name="check" size={15} />}<span className="graph-pill-name">{commit.ghost.name}</span><Icon name={commit.ghost.remote ? 'cloud' : 'laptop'} size={11} /></span>}</div>
       case 'graph': return <div key={id} className="graph-cell">
         <div className="graph-canvas" style={{ width: contentWidth }}>
           {commit ? <CommitSvg row={commit} width={contentWidth} geo={geo} compact={layout.compact} /> : <svg width={contentWidth} height={ROW}>
@@ -396,11 +396,11 @@ export function Graph({ path }: { path: string }) {
         </div>
       </div>
       case 'message': return wip && conflicts > 0
-        ? <span key={id} className="graph-message graph-wip graph-conflict"><RefIcon name="warning" size={13} />
+        ? <span key={id} className="graph-message graph-wip graph-conflict"><Icon name="warning" size={13} />
           {conflicts} {conflicts === 1 ? 'conflito de arquivo' : 'conflitos de arquivo'} pendente{conflicts === 1 ? '' : 's'} em {branch}</span>
         : wip
         ? <span key={id} className="graph-message graph-wip"><em>// WIP</em>
-          <span className="wip-chip changed"><RefIcon name="edit" size={11} />{page?.wip.changed ?? 0}</span>
+          <span className="wip-chip changed"><Icon name="edit" size={11} />{page?.wip.changed ?? 0}</span>
           <span className="wip-chip added">+ {page?.wip.untracked ?? 0}</span></span>
         : <span key={id} className={`graph-message${commit && commit.parents.length > 1 ? ' merge' : ''}`} title={commit?.subject}>{commit?.subject}</span>
       case 'description': return <span key={id} className="graph-description" title={commit?.description}>{commit?.description}</span>
@@ -424,8 +424,8 @@ export function Graph({ path }: { path: string }) {
         {layout.order.map((id, i) => <div key={id} className="graph-pop-row">
           <label><input type="checkbox" checked={!layout.hidden.includes(id)} disabled={!COLUMNS[id].hideable}
             onChange={(e) => update((l) => ({ ...l, hidden: e.target.checked ? l.hidden.filter((h) => h !== id) : [...l.hidden, id] }))} /> {COLUMNS[id].label}</label>
-          <button aria-label={`Subir ${COLUMNS[id].label}`} disabled={i === 0} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, -1) }))}>▲</button>
-          <button aria-label={`Descer ${COLUMNS[id].label}`} disabled={i === layout.order.length - 1} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, 1) }))}>▼</button>
+          <button aria-label={`Subir ${COLUMNS[id].label}`} disabled={i === 0} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, -1) }))}><Icon name="chevronUp" size={13} strokeWidth={2} /></button>
+          <button aria-label={`Descer ${COLUMNS[id].label}`} disabled={i === layout.order.length - 1} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, 1) }))}><Icon name="chevronDown" size={13} strokeWidth={2} /></button>
         </div>)}
         <label className="graph-pop-row"><input type="checkbox" checked={vis.smart} onChange={(e) => updateVisibility(path, (v) => ({ ...v, smart: e.target.checked }))} /> Visibilidade inteligente</label>
         <label className="graph-pop-row"><input type="checkbox" checked={layout.compact} onChange={(e) => update((l) => ({ ...l, compact: e.target.checked }))} /> Layout compacto</label>
@@ -438,18 +438,18 @@ export function Graph({ path }: { path: string }) {
     }}>
       <input value={find.text} onChange={(e) => search(e.target.value)} placeholder="Buscar na mensagem…" aria-label="Buscar na mensagem" />
       <span className="graph-filter-count" aria-live="polite">{needle ? `${current + 1}/${hits.length}${page?.next ? '+' : ''}` : ''}</span>
-      <button className="up" aria-label="Ocorrência anterior" title="Anterior (Shift+Enter)" disabled={!hits.length} onClick={() => step(-1)}><RefIcon name="chevron" size={14} /></button>
-      <button className="down" aria-label="Próxima ocorrência" title="Próxima (Enter)" disabled={!hits.length} onClick={() => step(1)}><RefIcon name="chevron" size={14} /></button>
-      <button aria-label="Fechar busca" onClick={() => setFind(null)}>✕</button>
+      <button className="up" aria-label="Ocorrência anterior" title="Anterior (Shift+Enter)" disabled={!hits.length} onClick={() => step(-1)}><Icon name="chevron" size={14} /></button>
+      <button className="down" aria-label="Próxima ocorrência" title="Próxima (Enter)" disabled={!hits.length} onClick={() => step(1)}><Icon name="chevron" size={14} /></button>
+      <button aria-label="Fechar busca" onClick={() => setFind(null)}><Icon name="close" size={14} /></button>
     </div>}
     <div className="graph-header graph-grid">
-      <button className="graph-gear" aria-label="Colunas do grafo" title="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)}><RefIcon name="sliders" size={15} /></button>
+      <button className="graph-gear" aria-label="Colunas do grafo" title="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)}><Icon name="sliders" size={15} /></button>
       {cols.map((id) => <div key={id} className="graph-hcell">
         <span className="graph-title">{COLUMNS[id].label}
-            {id === 'message' && <button className="graph-tool" aria-label="Buscar na mensagem" title="Buscar na mensagem (Ctrl+F)" onClick={openFind}><RefIcon name="search" size={13} /></button>}
+            {id === 'message' && <button className="graph-tool" aria-label="Buscar na mensagem" title="Buscar na mensagem (Ctrl+F)" onClick={openFind}><Icon name="search" size={13} /></button>}
             {id === 'author' && <button className={`graph-tool${authors?.length ? ' active' : ''}`} aria-label="Filtrar por autor" title="Filtrar por autor"
-              aria-expanded={!!authorAnchor} onClick={(e) => setAuthorAnchor(e.currentTarget.getBoundingClientRect())}><RefIcon name="filter" size={13} /></button>}
-            {id === 'message' && vis.solo && <button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} ✕</button>}
+              aria-expanded={!!authorAnchor} onClick={(e) => setAuthorAnchor(e.currentTarget.getBoundingClientRect())}><Icon name="filter" size={13} /></button>}
+            {id === 'message' && vis.solo && <button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} <Icon name="close" size={12} /></button>}
           </span>
         {id !== 'message' && <div className={`col-handle ${cols.indexOf(id) < cols.indexOf('message') ? 'after' : 'before'}`} role="separator" aria-orientation="vertical"
           aria-label={`Redimensionar ${COLUMNS[id].label}`} onPointerDown={(e) => resize(id, e)} onDoubleClick={() => fit(id)} />}
@@ -479,7 +479,7 @@ export function Graph({ path }: { path: string }) {
       {!commits.length && !loading && <div className="graph-empty">Este repositório ainda não tem commits.</div>}
       {loading && !reloading && <div className="graph-loading" role="status">Carregando commits…</div>}
     </div>
-    {reloading && <div className="graph-veil" role="status"><span className="spin" aria-hidden="true">⟳</span> Atualizando grafo</div>}
+    {reloading && <div className="graph-veil" role="status"><Icon name="refresh" size={13} spin /> Atualizando grafo</div>}
     </div>
     <div className="graph-footer graph-grid">
       <div className="graph-scrollbar" ref={hbar} style={{ gridColumn: `${(pane?.start ?? graphAt) + 1} / span ${pane ? 2 : 1}` }} aria-hidden="true"

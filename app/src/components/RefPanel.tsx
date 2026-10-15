@@ -7,7 +7,7 @@ import { localRef, remoteRef, selectVisibility, toggleHidden, updateVisibility, 
 import type { BranchTarget } from './branchMenu'
 import { Menu } from './Menu'
 import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
-import { RefIcon, type RefIconName } from './RefIcon'
+import { Icon, type IconName } from './Icon'
 import { StashApplyDialog } from './StashApplyDialog'
 import { useBranchActions } from './useBranchActions'
 
@@ -22,7 +22,7 @@ type Row =
 const LABEL: Record<Section, string> = {
   pinned: 'Fixadas', local: 'Local', remotes: 'Remotos', worktrees: 'Worktrees', stashes: 'Stashes', tags: 'Tags', submodules: 'Submódulos',
 }
-const ICON: Record<Section, RefIconName> = {
+const ICON: Record<Section, IconName> = {
   pinned: 'pin', local: 'laptop', remotes: 'cloud', worktrees: 'worktrees', stashes: 'stashes', tags: 'tags', submodules: 'submodules',
 }
 const SECTION_HEIGHT = 36
@@ -181,17 +181,17 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
   if (rail) return <div className="refs-rail" aria-label="Seções de refs">
     {sectionCounts && (Object.keys(LABEL) as Section[]).filter((s) => sectionCounts[s]).map((s) =>
       <button key={s} title={`${LABEL[s]} (${sectionCounts[s]})`} aria-label={`${LABEL[s]}: ${sectionCounts[s]}`} onClick={expand}>
-        <RefIcon name={ICON[s]} size={16} /><small>{sectionCounts[s]}</small>
+        <Icon name={ICON[s]} size={16} /><small>{sectionCounts[s]}</small>
       </button>)}
   </div>
   return <div className="refs-panel" onKeyDown={shortcut}>
     <div className="refs-heading">
       <label className="refs-search">
-        <RefIcon name="search" size={16} />
+        <Icon name="search" size={16} />
         <input ref={input} className="refs-filter" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filtrar refs" aria-label="Filtrar refs" />
         <kbd>Ctrl Alt F</kbd>
       </label>
-      <button className="refs-collapse" aria-label="Recolher painel de refs" title="Recolher painel de refs" onClick={collapse}><RefIcon name="collapse" size={18} /></button>
+      <button className="refs-collapse" aria-label="Recolher painel de refs" title="Recolher painel de refs" onClick={collapse}><Icon name="collapse" size={18} /></button>
     </div>
     <div className="refs-scroll" ref={scroller}>
       <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
@@ -208,8 +208,8 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
             {row.type === 'section' || row.type === 'folder'
               ? <button className={`refs-row refs-group ${row.type === 'section' ? 'refs-section depth-0' : `refs-folder depth-${row.depth}`}`} onClick={() => toggle(row.type === 'section' ? row.section : row.key)}
                   aria-expanded={open} title={row.type === 'section' ? row.label : row.name}>
-                  <span className={`refs-chevron${open ? ' open' : ''}`}><RefIcon name="chevron" size={14} /></span>
-                  {row.type === 'section' ? <RefIcon name={ICON[row.section]} size={16} /> : row.depth > 1 && <RefIcon name="folder" size={16} />}
+                  <span className={`refs-chevron${open ? ' open' : ''}`}><Icon name="chevron" size={14} /></span>
+                  {row.type === 'section' ? <Icon name={ICON[row.section]} size={16} /> : row.depth > 1 && <Icon name="folder" size={16} />}
                   <span className="refs-label">{row.type === 'section' ? row.label : row.name}</span>
                   {(row.type === 'section' || row.depth > 1) && <span className="refs-count">{row.count.toLocaleString('pt-BR')}</span>}
                 </button>
@@ -220,20 +220,20 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
                     if (row.type === 'local' || (row.type === 'remote' && row.ref.localExists)) actions.selectCommit(row.ref.sha)
                     else if (row.type === 'plain' && row.section === 'tags' && row.sha) actions.selectCommit(row.sha)
                   }} onDoubleClick={() => { if (doubleClickCheckout) checkout(row) }}>
-                  <span className="refs-symbol"><RefIcon name={row.type === 'local' && row.ref.current ? 'check' : row.type === 'plain' ? ICON[row.section] : 'branch'} /></span>
+                  <span className="refs-symbol"><Icon name={row.type === 'local' && row.ref.current ? 'check' : row.type === 'plain' ? ICON[row.section] : 'branch'} /></span>
                   <span className="refs-label">{row.type === 'remote' ? row.ref.name.split('/').at(-1) : row.type === 'local' ? row.ref.name : row.name}</span>
                   {row.type === 'local' && row.ref.upstream && <span className="refs-tracking" title={`Upstream: ${row.ref.upstream}`}>
-                    {!!row.ref.behind && <span>↓{row.ref.behind}</span>}{!!row.ref.ahead && <span>↑{row.ref.ahead}</span>}</span>}
+                    {!!row.ref.behind && <span><Icon name="arrowDown" size={11} strokeWidth={2.2} />{row.ref.behind}</span>}{!!row.ref.ahead && <span><Icon name="arrowUp" size={11} strokeWidth={2.2} />{row.ref.ahead}</span>}</span>}
                 </button>}
             {row.type === 'plain' && row.section === 'stashes' && <button className="refs-more" aria-label="Menu do stash" title="Menu do stash"
-              onClick={(e) => openStashMenu(row.name, e.currentTarget.getBoundingClientRect())}>⋮</button>}
+              onClick={(e) => openStashMenu(row.name, e.currentTarget.getBoundingClientRect())}><Icon name="more" size={14} /></button>}
             {(row.type === 'local' || row.type === 'remote') && <>
               <button className={`refs-eye${vis.hidden.includes(refName(row)) ? ' off' : ''}${vis.solo === refName(row) ? ' solo' : ''}`}
                 aria-pressed={!vis.hidden.includes(refName(row))} aria-label={vis.hidden.includes(refName(row)) ? 'Mostrar no grafo' : 'Ocultar no grafo'}
                 title={vis.hidden.includes(refName(row)) ? 'Mostrar no grafo' : 'Ocultar no grafo'}
-                onClick={() => updateVisibility(path, (v) => toggleHidden(v, refName(row)))}>{vis.hidden.includes(refName(row)) ? '◌' : '◉'}</button>
+                onClick={() => updateVisibility(path, (v) => toggleHidden(v, refName(row)))}><Icon name={vis.hidden.includes(refName(row)) ? 'hidden' : 'shown'} size={14} /></button>
               <button className="refs-more" aria-label="Menu da branch" title="Menu da branch"
-                onClick={(e) => openMenu(row, e.currentTarget.getBoundingClientRect())}>⋮</button>
+                onClick={(e) => openMenu(row, e.currentTarget.getBoundingClientRect())}><Icon name="more" size={14} /></button>
             </>}
           </div>
         })}

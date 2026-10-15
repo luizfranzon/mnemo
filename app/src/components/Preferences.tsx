@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { RepoPrefs } from '../bridge/types'
 import { actions, selectActiveTab, selectRepoPrefs, useApp, type Prefs } from '../store/app'
 import { RadioGroup } from './RadioGroup'
+import { Icon } from './Icon'
 
 /** Só entram seções com ajuste real; as demais do mockup chegam com as features (docs/01-features.md § 12). */
 export function Preferences() {
@@ -27,7 +28,7 @@ function Screen() {
   return (
     <div className="prefs">
       <nav className="prefs-nav" aria-label="Seções das preferências">
-        <button className="back" onClick={() => actions.setPrefsOpen(false)}>← Voltar ao repositório <kbd>Esc</kbd></button>
+        <button className="back" onClick={() => actions.setPrefsOpen(false)}><Icon name="back" size={14} /> Voltar ao repositório <kbd>Esc</kbd></button>
         <div className="prefs-group">Global</div>
         {item('general', 'Geral')}
         {item('appearance', 'Aparência')}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../store/app'
+import { Icon } from './Icon'
 
 export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toLocaleUpperCase()).join('') || '?'
 const hue = (text: string) => [...text].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7)
@@ -32,10 +33,10 @@ export function useGravatar(email: string) {
   }
 }
 
-/** Foto do Gravatar sobre o círculo de iniciais; `checked` troca tudo por um ✓ em fundo azul. */
+/** Foto do Gravatar sobre o círculo de iniciais; `checked` troca tudo por um check em fundo azul. */
 export function Avatar({ name, email, small, checked }: { name: string; email: string; small?: boolean; checked?: boolean }) {
   const photo = useGravatar(email)
-  if (checked) return <span className={`avatar checked${small ? ' small' : ''}`} aria-hidden="true">✓</span>
+  if (checked) return <span className={`avatar checked${small ? ' small' : ''}`} aria-hidden="true"><Icon name="check" size={small ? 11 : 13} strokeWidth={2.4} /></span>
   return <span className={`avatar${small ? ' small' : ''}`} style={avatarStyle(email)} aria-hidden="true">
     {initials(name)}{photo.url && <img src={photo.url} alt="" onError={photo.fail} />}
   </span>

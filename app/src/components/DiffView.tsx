@@ -1,5 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { EncodingPicker } from './EncodingPicker'
+import { Icon, type IconName } from './Icon'
 import { selectSide } from './selectSide'
 import { Segmented } from './Segmented'
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
@@ -12,9 +13,9 @@ import { diffRows, display, highlight, hunkLines, hunkRows, LAYOUTS, markers, se
 const LINE = 20
 const HUNK = 28
 const LAYOUT_KEY = 'mnemo.diff.layout'
-const GLYPH: Record<string, { icon: string; cls: string }> = {
-  A: { icon: '+', cls: 'added' }, M: { icon: '✎', cls: 'modified' }, T: { icon: '✎', cls: 'modified' }, U: { icon: '·', cls: 'plain' },
-  D: { icon: '−', cls: 'removed' }, R: { icon: '→', cls: 'renamed' }, C: { icon: '⧉', cls: 'renamed' },
+const GLYPH: Record<string, { icon: IconName; cls: string }> = {
+  A: { icon: 'plus', cls: 'added' }, M: { icon: 'modified', cls: 'modified' }, T: { icon: 'modified', cls: 'modified' }, U: { icon: 'unchanged', cls: 'plain' },
+  D: { icon: 'minus', cls: 'removed' }, R: { icon: 'renamed', cls: 'renamed' }, C: { icon: 'copy', cls: 'renamed' },
 }
 const loadLayout = (): DiffLayout => {
   try { const l = localStorage.getItem(LAYOUT_KEY); return l === 'inline' || l === 'split' ? l : 'hunks' } catch { return 'hunks' }
@@ -104,7 +105,7 @@ export function DiffView({ path }: { path: string }) {
   const slash = file.lastIndexOf('/')
 
   const code = (l: DiffLine) => <span className="diff-code">{highlight(display(l)).map((p, k) => <span key={k} className={`syn-${p.c}`}>{p.t}</span>)}
-    {l.noNewline && <span className="diff-eol" title="Sem quebra de linha no fim do arquivo">⏎̸</span>}</span>
+    {l.noNewline && <span className="diff-eol" title="Sem quebra de linha no fim do arquivo"><Icon name="noEol" size={12} /></span>}</span>
   const mark = (l: DiffLine) => (l.kind === 'add' ? '+' : l.kind === 'del' ? '−' : '')
   const gutter = (i: number, nums: (number | null)[]) => {
     const l = diff!.lines[i]!
@@ -131,13 +132,13 @@ export function DiffView({ path }: { path: string }) {
 
   return <div className="diff-view" aria-label={`Diff de ${file}`}>
     <div className="diff-head">
-      <span className={`commit-status ${g.cls}`}>{g.icon}</span>
+      <span className={`commit-status ${g.cls}`}><Icon name={g.icon} size={12} strokeWidth={2.2} /></span>
       <span className="diff-crumb" title={target.file.oldPath ? `${target.file.oldPath} → ${file}` : file}>
         <span className="muted">{file.slice(0, slash + 1)}</span><span>{file.slice(slash + 1)}</span></span>
       {wip && <span className="diff-side">{unstage ? 'Preparado' : 'Não preparado'}</span>}
       {diff && !diff.binary && <span className="mono"><span className="added">+{diff.added}</span> <span className="removed">−{diff.removed}</span></span>}
       <button className="diff-close" aria-label="Fechar diff e voltar ao grafo (Esc)" title="Fechar diff (Esc)" onClick={actions.closeDiff}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
+        <Icon name="close" size={14} strokeWidth={2} /></button>
     </div>
     <div className="diff-tools">
       {canStage && selected.size > 0 && <>
@@ -147,9 +148,9 @@ export function DiffView({ path }: { path: string }) {
       <span className="spacer" />
       {heads.length > 0 && <span className="muted">Trecho {Math.min(current + 1, heads.length)} de {heads.length}</span>}
       <button className="diff-nav" aria-label="Trecho anterior" title="Trecho anterior" disabled={current <= 0} onClick={() => goTo(current - 1)}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 15l6-6 6 6" /></svg></button>
+        <Icon name="chevronUp" size={13} strokeWidth={2} /></button>
       <button className="diff-nav" aria-label="Próximo trecho" title="Próximo trecho" disabled={current >= heads.length - 1} onClick={() => goTo(current + 1)}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg></button>
+        <Icon name="chevronDown" size={13} strokeWidth={2} /></button>
       <Segmented label="Layout do diff" options={LAYOUTS} value={layout} onChange={pickLayout} />
       {wip && diff && !diff.stageable && <span className="muted" title="O texto foi convertido para UTF-8; os índices de linha não batem com o arquivo">Sem stage por trecho</span>}
       {diff && <button className="diff-encoding mono muted" title="Codificação do arquivo (clique para trocar)" aria-haspopup="dialog" aria-expanded={!!encAnchor}

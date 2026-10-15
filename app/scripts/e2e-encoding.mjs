@@ -37,7 +37,8 @@ try {
 
   await ev(`document.querySelector('.diff-encoding').click()`)
   await until(() => ev(`!!document.querySelector('.author-filter input')`), true)
-  assert.equal(await ev(`document.querySelector('.enc-row').textContent`), '✓Adivinhar codificação')
+  assert.equal(await ev(`document.querySelector('.enc-row').textContent`), 'Adivinhar codificação')
+  assert.equal(await ev(`!!document.querySelector('.enc-row .enc-check svg')`), true, 'a opção atual leva o ícone de check')
   assert.equal(await ev(`document.querySelectorAll('.enc-row').length > 50`), true)
   await send('Page.captureScreenshot', { format: 'png' }).then((s) => writeFileSync(path.join(os.tmpdir(), 'mnemo-encoding-shot.png'), Buffer.from(s.result.data, 'base64')))
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })

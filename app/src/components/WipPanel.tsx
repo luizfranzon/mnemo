@@ -1,6 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Segmented, FILE_VIEWS } from './Segmented'
-import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { core } from '../bridge'
 import type { ConflictFile, FileChange, WipStatus } from '../bridge/types'
 import { actions, commitOptions, selectActiveTab, selectRepoPrefs, selectWipRevision, useApp } from '../store/app'
@@ -9,18 +9,17 @@ import { Menu } from './Menu'
 import { copyText } from './menuBase'
 import type { MenuEntry, Rect } from './menuModel'
 import { pickFiles, wipFilesMenu, wipFolderMenu, type WipMenuContext } from './wipMenu'
+import { Icon, type IconName } from './Icon'
 
-const GLYPH: Record<string, { icon: string; color: string }> = {
-  A: { icon: '+', color: '#7FDC95' }, M: { icon: '✎', color: '#F0C06A' }, T: { icon: '✎', color: '#F0C06A' },
-  D: { icon: '−', color: '#F0877F' }, R: { icon: '→', color: '#7FB0F0' }, C: { icon: '⧉', color: '#7FB0F0' },
+const GLYPH: Record<string, { icon: IconName; color: string }> = {
+  A: { icon: 'plus', color: '#7FDC95' }, M: { icon: 'modified', color: '#F0C06A' }, T: { icon: 'modified', color: '#F0C06A' },
+  D: { icon: 'minus', color: '#F0877F' }, R: { icon: 'renamed', color: '#7FB0F0' }, C: { icon: 'copy', color: '#7FB0F0' },
 }
 type Row = { type: 'head'; key: string; staged: boolean; count: number } | (TreeRow<FileChange> & { staged: boolean })
 const SUMMARY_LIMIT = 72
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 const point = (e: MouseEvent): Rect => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY })
 
-const Svg = ({ size = 14, children }: { size?: number; children: ReactNode }) =>
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
 
 /** Painel direito com o nó WIP selecionado (WIP.dc.html): preparar, tirar, commitar; seleção múltipla e ações por pasta. */
 export function WipPanel({ path }: { path: string }) {
@@ -138,11 +137,11 @@ export function WipPanel({ path }: { path: string }) {
       <span className="wip-branch">{branch}</span>
       <div style={{ flex: 1 }} />
       <button className="wip-danger" disabled={!changed} title="Descartar todas as mudanças (pede confirmação)" aria-label="Descartar todas as mudanças"
-        onClick={() => void actions.requestDiscard(path, [])}><Svg><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></Svg></button>
+        onClick={() => void actions.requestDiscard(path, [])}><Icon name="trash" size={14} strokeWidth={2} /></button>
     </div>
     <div className="wip-tools">
       <Segmented label="Exibição dos arquivos" options={FILE_VIEWS} value={view} onChange={setView} />
-      <button className="wip-icon" aria-label="Ordenar arquivos"><Svg><path d="M7 4v16M3 16l4 4 4-4M14 6h7M14 12h5M14 18h3" /></Svg></button>
+      <button className="wip-icon" aria-label="Ordenar arquivos"><Icon name="sortDown" size={14} strokeWidth={2} /></button>
       {selected.size > 1 && <span className="wip-picked">{plural(selected.size, 'selecionado', 'selecionados')} · botão direito para agir</span>}
     </div>
     {conflicts.length > 0 && <div className="wip-conflicts">
@@ -160,7 +159,7 @@ export function WipPanel({ path }: { path: string }) {
           const style = { transform: `translateY(${item.start}px)`, height: item.size }
           if (row.type === 'head') {
             return <div key={row.key} className={row.staged ? 'wip-section staged' : 'wip-section'} style={style}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8A877F" strokeWidth="2" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg>
+              <span className="wip-section-chevron"><Icon name="chevronDown" size={12} strokeWidth={2} /></span>
               <span className="wip-section-name">{row.staged ? 'Preparados' : 'Não preparados'} <span>{row.count}</span></span>
               <button className={row.staged ? 'wip-ghost' : 'wip-neutral'} disabled={!row.count} onClick={() => stage([], !row.staged)}>{row.staged ? 'Tirar todos' : 'Preparar todos'}</button>
             </div>
@@ -170,10 +169,10 @@ export function WipPanel({ path }: { path: string }) {
             return <div key={row.key} className="wip-file wip-dir" style={{ ...style, paddingLeft: 10 + row.depth * 14 }}
               onContextMenu={(e) => { e.preventDefault(); setMenu({ anchor: point(e), items: wipFolderMenu(row.path, row.staged, ctx(row.staged)) }) }}>
               <button className="wip-dir-toggle" aria-expanded={open} onClick={() => toggleDir(row.key)}>
-                <span className="wip-glyph">{open ? '▾' : '▸'}</span><span className="wip-name">{row.name}</span><span className="wip-count-dir">{row.count}</span></button>
+                <span className="wip-glyph"><Icon name={open ? 'chevronDown' : 'chevron'} size={13} /></span><span className="wip-name">{row.name}</span><span className="wip-count-dir">{row.count}</span></button>
               <span className="wip-actions">
                 <button className="wip-icon" aria-label={`Ações da pasta ${row.path}`} title="Ações da pasta"
-                  onClick={(e) => setMenu({ anchor: e.currentTarget.getBoundingClientRect(), items: wipFolderMenu(row.path, row.staged, ctx(row.staged)) })}>⋮</button>
+                  onClick={(e) => setMenu({ anchor: e.currentTarget.getBoundingClientRect(), items: wipFolderMenu(row.path, row.staged, ctx(row.staged)) })}><Icon name="more" size={14} /></button>
                 <button className={row.staged ? 'wip-ghost small' : 'wip-stage'} onClick={() => stage([row.path], !row.staged)}>{row.staged ? 'Tirar pasta' : 'Preparar pasta'}</button>
               </span>
             </div>
@@ -187,14 +186,14 @@ export function WipPanel({ path }: { path: string }) {
             role="button" tabIndex={0} aria-pressed={selected.has(row.key)} onClick={(e) => clickFile(row, e)}
             onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.currentTarget.click() } }}
             onContextMenu={(e) => { e.preventDefault(); fileMenu(row, point(e)) }}>
-            <span className="wip-glyph" style={{ color: g.color }}>{g.icon}</span>
+            <span className="wip-glyph" style={{ color: g.color }}><Icon name={g.icon} size={12} strokeWidth={2.2} /></span>
             <span className="wip-path"><span className="wip-dir">{row.dir}</span><span className="wip-name">{row.name}</span></span>
             {file.added !== null && <span className="wip-lines"><span style={{ color: '#7FDC95' }}>+{file.added}</span> <span style={{ color: '#F0877F' }}>−{file.removed}</span></span>}
             <span className="wip-actions" onClick={(e) => e.stopPropagation()}>
-              <button className="wip-icon" aria-label={`Ações de ${file.path}`} title="Mais ações" onClick={(e) => fileMenu(row, e.currentTarget.getBoundingClientRect())}>⋮</button>
+              <button className="wip-icon" aria-label={`Ações de ${file.path}`} title="Mais ações" onClick={(e) => fileMenu(row, e.currentTarget.getBoundingClientRect())}><Icon name="more" size={14} /></button>
               {!row.staged && <button className="wip-danger" title={paths.length > 1 ? `Descartar mudanças dos ${paths.length} selecionados` : 'Descartar mudanças deste arquivo'}
                 aria-label={`Descartar ${paths.length > 1 ? `${paths.length} arquivos` : file.path}`}
-                onClick={() => void actions.requestDiscard(path, paths)}><Svg size={13}><path d="M9 14L4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></Svg></button>}
+                onClick={() => void actions.requestDiscard(path, paths)}><Icon name="undo" size={13} strokeWidth={2} /></button>}
               <button className={row.staged ? 'wip-ghost small' : 'wip-stage'} onClick={() => stage(paths, !row.staged)}>
                 {row.staged ? 'Tirar' : 'Preparar'}{paths.length > 1 ? ` ${paths.length}` : ''}</button>
             </span>
@@ -205,9 +204,9 @@ export function WipPanel({ path }: { path: string }) {
     <div className="wip-compose">
       <div role="tablist" aria-label="Ação" className="wip-tabs">
         <button role="tab" aria-selected={tab === 'commit'} onClick={() => setTab('commit')}>
-          <Svg><circle cx="12" cy="12" r="3.5" /><path d="M3 12h5.5M15.5 12H21" /></Svg>Commit</button>
+          <Icon name="commit" size={14} strokeWidth={2} />Commit</button>
         <button role="tab" aria-selected={tab === 'stash'} onClick={() => setTab('stash')}>
-          <Svg><path d="M4 13h4l2 3h4l2-3h4" /><path d="M4 13l2-8h12l2 8v6H4z" /></Svg>Stash</button>
+          <Icon name="stash" size={14} strokeWidth={2} />Stash</button>
       </div>
       {tab === 'commit' && <label className="wip-amend"><input type="checkbox" checked={amend} onChange={(e) => toggleAmend(e.target.checked)} /> Emendar o último commit (amend)</label>}
       <div className="wip-box">
@@ -222,7 +221,7 @@ export function WipPanel({ path }: { path: string }) {
         </>}
       </div>
       {tab === 'commit' && <button className="wip-options" type="button" aria-expanded={optsOpen} onClick={() => setOptsOpen((v) => !v)}>
-        <Svg size={12}><path d={optsOpen ? 'M6 9l6 6 6-6' : 'M9 6l6 6-6 6'} /></Svg>Opções<span>· assinar: {opts.sign ? 'sim' : 'não'} · hooks: {opts.hooks ? 'sim' : 'não'} · push depois: {opts.pushAfter ? 'sim' : 'não'}</span></button>}
+        <Icon name={optsOpen ? 'chevronDown' : 'chevron'} size={12} strokeWidth={2} />Opções<span>· assinar: {opts.sign ? 'sim' : 'não'} · hooks: {opts.hooks ? 'sim' : 'não'} · push depois: {opts.pushAfter ? 'sim' : 'não'}</span></button>}
       {tab === 'commit' && optsOpen && <div className="wip-opts">
         <label><input type="checkbox" checked={opts.sign} onChange={(e) => setOpts({ ...opts, sign: e.target.checked })} />Assinar o commit</label>
         <label><input type="checkbox" checked={opts.hooks} onChange={(e) => setOpts({ ...opts, hooks: e.target.checked })} />Rodar hooks</label>
@@ -231,10 +230,10 @@ export function WipPanel({ path }: { path: string }) {
       <div className="wip-buttons">
         {tab === 'commit'
           ? <button className="wip-commit" disabled={!!why || busy} aria-busy={busy} title={why ?? undefined} onClick={commit}>
-              {busy ? <><span className="spin" aria-hidden="true">⟳</span>{merging ? 'Concluindo…' : 'Commitando…'}</> : why ?? (merging ? `Concluir ${merging.toLowerCase()}` : staged.length ? `Commitar ${plural(staged.length, 'arquivo', 'arquivos')} em ${branch}` : `Emendar o último commit em ${branch}`)}
+              {busy ? <><Icon name="refresh" size={14} spin />{merging ? 'Concluindo…' : 'Commitando…'}</> : why ?? (merging ? `Concluir ${merging.toLowerCase()}` : staged.length ? `Commitar ${plural(staged.length, 'arquivo', 'arquivos')} em ${branch}` : `Emendar o último commit em ${branch}`)}
               {!why && !busy && <kbd>Ctrl Enter</kbd>}</button>
           : <button className="wip-commit" disabled={!changed || busy} aria-busy={busy} title={changed ? undefined : 'Não há mudanças para guardar'} onClick={stash}>
-              {busy ? <><span className="spin" aria-hidden="true">⟳</span>Guardando…</> : <>Guardar {plural(changed, 'arquivo', 'arquivos')} no stash<kbd>Ctrl Enter</kbd></>}</button>}
+              {busy ? <><Icon name="refresh" size={14} spin />Guardando…</> : <>Guardar {plural(changed, 'arquivo', 'arquivos')} no stash<kbd>Ctrl Enter</kbd></>}</button>}
       </div>
       {tab === 'commit' && unstaged.length > 0 && staged.length > 0 &&
         <p>{unstaged.length === 1 ? '1 arquivo não preparado fica' : `${unstaged.length} arquivos não preparados ficam`} de fora deste commit.</p>}
