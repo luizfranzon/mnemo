@@ -64,6 +64,19 @@ pub struct ToolbarInfo {
     pub progress: Option<ProgressInfo>,
 }
 
+/// O que um Force Push sobrescreveria: o fetch da branch remota já foi feito.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForcePushPreview {
+    pub remote: String,
+    pub branch: String,
+    pub remote_branch: String,
+    /// Ponta da branch remota agora; o push só vale se ela ainda for esta.
+    pub sha: String,
+    /// Commits da remota que não estão na branch local e se perderiam.
+    pub lost: usize,
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProgressInfo {
@@ -372,6 +385,22 @@ impl Mnemo {
         Ok(RefListing { local, remotes, worktrees, stashes, tags, submodules })
     }
 
+    /// Busca a branch que a atual rastreia e conta o que um Force Push sobrescreveria.
+    pub fn push_force_preview(&self, path: &str) -> Result<ForcePushPreview> {
+        let session = self.session_for(Path::new(path))?;
+        let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+        let branch = git.text(["symbolic-ref", "--short", "HEAD"]).map_err(|_| CoreError::invalid("HEAD destacado: não há branch para o push"))?;
+        let config = |key: &str| git.text(["config", "--get", &format!("branch.{branch}.{key}")]).ok().filter(|v| !v.is_empty());
+        let (Some(remote), Some(merge)) = (config("remote"), config("merge")) else {
+            return Err(CoreError::invalid("A branch não rastreia nenhuma remota"));
+        };
+        let remote_branch = merge.strip_prefix("refs/heads/").unwrap_or(&merge).to_string();
+        git.exec(&GitCmd::new(["fetch", &remote, &format!("refs/heads/{remote_branch}")]).timeout(crate::application::NETWORK_TIMEOUT))?;
+        let sha = git.rev_parse("FETCH_HEAD")?;
+        let lost = git.text(["rev-list", "--count", &format!("HEAD..{sha}")])?.parse().unwrap_or(0);
+        Ok(ForcePushPreview { remote, branch, remote_branch, sha, lost })
+    }
+
     /// Quantas mudanças locais tocam arquivos que diferem no alvo do checkout.
     /// O preview nunca altera o repositório; o git ainda valida o checkout ao executar.
     pub fn checkout_conflict_count(&self, path: &str, target: &str) -> Result<usize> {
@@ -612,6 +641,9 @@ impl Mnemo {
             let target =
                 args.get("target").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("target ausente"))?;
             return out(self.checkout_conflict_count(&path, target)?);
+        }
+        if cmd == "push_force_preview" {
+            return out(self.push_force_preview(&path)?);
         }
         if cmd == "graph_page" {
             let cursor: Option<GraphCursor> = parse(&json!(args.get("cursor").cloned().unwrap_or(Value::Null)))?;

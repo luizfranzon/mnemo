@@ -130,6 +130,9 @@ pub enum OperationKind {
         remote: Option<String>,
         branch: Option<String>,
         set_upstream: bool,
+        /// `--force-with-lease` preso a este sha da branch remota (o que o usuário viu ao confirmar).
+        #[serde(default)]
+        lease: Option<String>,
     },
     Fetch {
         remote: Option<String>,

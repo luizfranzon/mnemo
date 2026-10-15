@@ -339,6 +339,7 @@ fn push_fetch_e_excluir_remota_nao_sao_desfazíveis() {
         remote: Some("origin".into()),
         branch: Some("main".into()),
         set_upstream: false,
+        lease: None,
     });
     assert!(matches!(r, ExecuteResult::Completed { undoable: false, .. }));
     let state = repo.session().undo_state();
@@ -369,7 +370,7 @@ fn push_com_set_upstream_sem_alvo_publica_a_branch_atual_no_origin() {
     repo.git(&["checkout", "-q", "-b", "nova"]);
     assert_eq!(upstream(&repo), None);
 
-    repo.exec(OperationKind::Push { remote: None, branch: None, set_upstream: true });
+    repo.exec(OperationKind::Push { remote: None, branch: None, set_upstream: true, lease: None });
     assert_eq!(upstream(&repo).as_deref(), Some("origin/nova"));
     assert_eq!(repo.rev("origin/nova"), repo.head());
 
@@ -460,4 +461,42 @@ fn merge_abortado_fora_some_sem_entrar_no_historico() {
     repo.git(&["merge", "--abort"]);
     assert!(repo.session().refresh_external().expect("atualiza").is_none());
     assert!(matches!(repo.session().continue_in_progress(None, false, false), Err(CoreError::NothingInProgress { .. })));
+}
+
+/// Um segundo clone publica um commit que o repositório de teste ainda não viu.
+fn remote_ahead(repo: &TestRepo, remote: &std::path::Path) -> String {
+    let other = std::env::temp_dir().join(format!("mnemo-outro-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&other);
+    run_git(std::env::temp_dir().as_path(), &["clone", "-q", &remote.to_string_lossy(), &other.to_string_lossy()]);
+    run_git(&other, &["-c", "user.email=o@o", "-c", "user.name=o", "commit", "-q", "--allow-empty", "-m", "do outro"]);
+    run_git(&other, &["push", "-q", "origin", "main"]);
+    let sha = run_git(&other, &["rev-parse", "HEAD"]);
+    let _ = std::fs::remove_dir_all(&other);
+    repo.write("novo.txt", "1\n");
+    repo.commit_all("local");
+    sha
+}
+
+#[test]
+fn push_atras_da_remota_devolve_push_rejeitado() {
+    let repo = TestRepo::new();
+    let remote = repo.with_remote();
+    remote_ahead(&repo, remote.path());
+    let err = repo.session().execute(OperationKind::Push { remote: None, branch: None, set_upstream: false, lease: None }).unwrap_err();
+    assert!(matches!(err, CoreError::PushRejected { ref branch, ref upstream } if branch == "main" && upstream == "origin/main"), "{err:?}");
+}
+
+#[test]
+fn force_push_com_lease_sobrescreve_so_o_que_foi_visto() {
+    let repo = TestRepo::new();
+    let remote = repo.with_remote();
+    let seen = remote_ahead(&repo, remote.path());
+    let preview = repo.core.push_force_preview(&repo.path().to_string_lossy()).expect("preview");
+    assert_eq!((preview.sha.as_str(), preview.lost), (seen.as_str(), 1));
+    // lease velho: alguém publicou depois do que foi mostrado
+    let stale = repo.rev("main~1");
+    let err = repo.session().execute(OperationKind::Push { remote: Some("origin".into()), branch: Some("main".into()), set_upstream: false, lease: Some(stale) });
+    assert!(err.is_err());
+    repo.exec(OperationKind::Push { remote: Some("origin".into()), branch: Some("main".into()), set_upstream: false, lease: Some(preview.sha) });
+    assert_eq!(run_git(remote.path(), &["rev-parse", "main"]), repo.head());
 }

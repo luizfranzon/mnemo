@@ -1,6 +1,6 @@
 // Único módulo da UI que conhece como falar com o backend. Mesmo formato do `@tauri-apps/api`:
 // na migração para o Tauri, só este arquivo troca. Nenhum componente importa `electron`.
-import type { AuthorInfo, ConflictChoice, ConflictDoc, ConflictFile, BranchInfo, CoreError, CoreEvent, DiffSource, DiscardPreview, ExecuteResult, EncodingInfo, FileChange, FileDiff, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepositoryInfo, ToolbarInfo, UndoRedoState, WindowAction, WipStatus } from './types'
+import type { AuthorInfo, ConflictChoice, ConflictDoc, ConflictFile, BranchInfo, CoreError, CoreEvent, DiffSource, DiscardPreview, ExecuteResult, EncodingInfo, FileChange, FileDiff, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepositoryInfo, ForcePushPreview, ToolbarInfo, UndoRedoState, WindowAction, WipStatus } from './types'
 
 interface Transport {
   invoke(cmd: string, args: Record<string, unknown>): Promise<unknown>
@@ -66,6 +66,7 @@ export const core = {
   /** Acrescenta um padrão ao `.gitignore` da raiz. */
   ignore: (path: string, pattern: string) => invoke<null>('ignore', { path, pattern }),
   commitDetail: (path: string, sha: string, all: boolean) => invoke<CommitDetail>('commit_detail', { path, sha, all }),
+  pushForcePreview: (path: string) => invoke<ForcePushPreview>('push_force_preview', { path }),
   remoteUrl: (path: string, remote: string) => invoke<string | null>('remote_url', { path, remote }),
   execute: (path: string, kind: OperationKind) => invoke<ExecuteResult>('execute_operation', { path, kind }),
   resetPreview: (path: string, target: string) => invoke<ResetPreview>('reset_preview', { path, target }),

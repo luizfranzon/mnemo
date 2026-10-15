@@ -77,7 +77,7 @@ export type OperationKind =
   | { type: 'branchCreate'; name: string; start: string | null; checkout: boolean }
   | { type: 'discard'; paths: string[] }
   | { type: 'merge'; target: string }
-  | { type: 'push'; remote: string | null; branch: string | null; setUpstream: boolean }
+  | { type: 'push'; remote: string | null; branch: string | null; setUpstream: boolean; lease?: string }
   | { type: 'fetch'; remote: string | null }
   | { type: 'pull'; strategy: 'merge' | 'ffOnly' | 'rebase' }
   | { type: 'stashCreate'; message: string | null; includeUntracked: boolean; paths?: string[] }
@@ -167,3 +167,6 @@ export type ConflictSegment =
 export interface SideLabel { sha: string; name: string | null }
 export interface ConflictDoc { path: string; segments: ConflictSegment[]; finalNewline: boolean; oursLabel: SideLabel | null; theirsLabel: SideLabel | null }
 export type ConflictChoice = 'base' | 'ours' | 'theirs' | 'delete'
+
+/** O que um Force Push sobrescreveria (a branch remota já foi buscada). */
+export interface ForcePushPreview { remote: string; branch: string; remoteBranch: string; sha: string; lost: number }

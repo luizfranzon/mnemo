@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { core, errorCode, errorMessage } from '../bridge'
-import type { DiffSource, DiscardPreview, FileChange, ResetPreview, HeadInfo, OperationKind, PullMode, RepositoryInfo, ToolbarInfo, UndoRedoState } from '../bridge/types'
+import type { DiffSource, DiscardPreview, FileChange, ForcePushPreview, ResetPreview, HeadInfo, OperationKind, PullMode, RepositoryInfo, ToolbarInfo, UndoRedoState } from '../bridge/types'
 import { toolbarAvailability } from '../components/toolbarModel'
 
 export interface Tab {
@@ -50,6 +50,10 @@ interface AppState {
   paletteStart: string | null
   checkoutPrompt: { path: string; target: string; remote: string | null; conflicts: number; behind: number } | null
   pushPrompt: { path: string; branch: string; remotes: string[] } | null
+  /** Push que o remoto rejeitou (branch atrás): a barra sobre o grafo oferece Pull, Force Push e Cancelar. */
+  pushRejected: { path: string; branch: string; upstream: string } | null
+  /** Force Push aguardando confirmação (o preview já buscou a remota). */
+  forcePrompt: { path: string; preview: ForcePushPreview } | null
   /** Descarte aguardando confirmação. */
   resetPrompt: { path: string; target: string; preview: ResetPreview } | null
   discardPrompt: { path: string; paths: string[]; preview: DiscardPreview } | null
@@ -83,6 +87,8 @@ export const useApp = create<AppState>(() => ({
   paletteStart: null,
   checkoutPrompt: null,
   pushPrompt: null,
+  pushRejected: null,
+  forcePrompt: null,
   resetPrompt: null,
   discardPrompt: null,
   restoreConflict: null,
@@ -114,6 +120,10 @@ const stripUndo = (t: Toast): Toast => ({ ...t, undoPath: undefined })
 
 export function dismissToast(id: number) {
   set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
+}
+
+function clearPushRejected(path: string) {
+  if (get().pushRejected && same(get().pushRejected!.path, path)) set({ pushRejected: null })
 }
 
 function fail(err: unknown, retry?: () => Promise<void>) {
@@ -222,8 +232,14 @@ export const actions = {
           undoPath: r.undoable ? path : undefined })
       }
       r.status === 'completed' && r.warnings.forEach((w) => pushToast({ text: w }))
+      if (kind.type === 'push' || kind.type === 'pull') clearPushRejected(path)
       return true
     } catch (err) {
+      if (errorCode(err) === 'pushRejected') {
+        const { branch, upstream } = err as { branch: string; upstream: string }
+        set({ pushRejected: { path, branch, upstream } })
+        return false
+      }
       fail(err, async () => void (await actions.execute(path, kind)))
       return false
     }
@@ -263,6 +279,31 @@ export const actions = {
   cancelPush() {
     set({ pushPrompt: null })
   },
+
+  cancelPushRejected() { set({ pushRejected: null }) },
+
+  /** Pull da barra: avança se der, senão faz merge. O push fica por conta do usuário (pode haver merge para revisar). */
+  async pullAfterRejection(path: string) {
+    if (!(await actions.execute(path, { type: 'pull', strategy: 'merge' }))) return
+    const progress = get().tabs.find((t) => same(t.path, path))?.toolbar.progress
+    if (!progress) pushToast({ text: 'Pull concluído. Faça o push de novo.' })
+  },
+
+  async requestForcePush(path: string) {
+    try {
+      set({ forcePrompt: { path, preview: await core.pushForcePreview(path) } })
+    } catch (err) { fail(err) }
+  },
+
+  async confirmForcePush() {
+    const prompt = get().forcePrompt
+    set({ forcePrompt: null })
+    if (!prompt) return
+    const { remote, branch, sha } = prompt.preview
+    await actions.execute(prompt.path, { type: 'push', remote, branch, setUpstream: false, lease: sha })
+  },
+
+  cancelForcePush() { set({ forcePrompt: null }) },
 
   async progressAction(path: string, action: 'continue' | 'skip' | 'abort', message?: string, sign = false, noVerify = false): Promise<boolean> {
     try {

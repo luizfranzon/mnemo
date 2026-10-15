@@ -8,6 +8,8 @@ import { TabBar } from './TabBar'
 import { Toasts } from './Toasts'
 import { Toolbar } from './Toolbar'
 import { PushDialog } from './PushDialog'
+import { ForcePushDialog } from './ForcePushDialog'
+import { PushRejectedBar } from './PushRejectedBar'
 
 export function Workspace() {
   const path = useApp((s) => selectActiveTab(s)?.path)
@@ -16,6 +18,7 @@ export function Workspace() {
     <div className="workspace">
       <TabBar />
       {path && <Toolbar />}
+      <PushRejectedBar />
       {path ? (
         <Panels key={path} path={path}>
           <Graph key={path} path={path} />
@@ -28,6 +31,7 @@ export function Workspace() {
       <StatusBar />
       <DiscardDialogs />
       <PushDialog />
+      <ForcePushDialog />
 
       <Toasts />
       {palette && <Palette key={palette} mode={palette} />}

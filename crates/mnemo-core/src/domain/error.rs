@@ -26,6 +26,8 @@ pub enum CoreError {
     ExternalChange,
     #[error("{kind} em andamento: use Abortar")]
     InProgress { kind: String },
+    #[error("Push rejeitado: '{branch}' está atrás de '{upstream}'. Atualize a branch com um Pull.")]
+    PushRejected { branch: String, upstream: String },
     #[error("Não há {kind} em andamento")]
     NothingInProgress { kind: String },
     #[error("O restante do trabalho mudou depois da Operação; nada foi alterado")]

@@ -103,3 +103,7 @@ _Avoid_: Output, saída
 **Pegar linha**:
 Escolher uma linha de Atual ou Entrando para entrar no Resultado. Vale por linha, por Trecho ou pelo lado inteiro do arquivo.
 _Avoid_: aceitar, aplicar
+
+**Push rejeitado**:
+Push que o remoto recusou porque a branch local está atrás da remota (non-fast-forward). Só o git diz isso: o contador de commits atrás não decide. Quando acontece, uma barra sobre o grafo avisa e oferece Pull, Force Push e Cancelar. Fica visível até o usuário escolher uma ação ou cancelar.
+_Avoid_: erro de push, push falhou (falha é qualquer outro motivo, como rede ou permissão)

@@ -562,3 +562,11 @@ button.diff-gutter[aria-pressed="true"] { background: var(--accent-primary); col
 .wip-conflicts .conflict-file button:hover, .wip-conflicts h3 button:hover { background: var(--hover); border-color: var(--text-muted); }
 .wip-conflicts h3 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 12px; font-size: 12px; color: var(--warning-text, #eac17a); }
 .wip-conflicts h3 button { margin-left: auto; }
+
+.push-bar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px 12px; padding: 10px var(--space-3); background: var(--accent-tint); border-bottom: 1px solid var(--border-strong); color: var(--accent-text); font-size: var(--fs-body-sm); }
+.push-bar button { height: 26px; padding: 0 10px; border: 1px solid var(--accent-text); border-radius: var(--radius-sm); background: transparent; color: var(--accent-text); font-size: var(--fs-caption); font-weight: 600; cursor: pointer; }
+.push-bar button:hover:not(:disabled) { background: rgba(255, 255, 255, .1); }
+.push-bar button:disabled { opacity: .5; cursor: default; }
+.push-bar button.danger { border-color: var(--danger); color: var(--danger-text); }
+.push-dialog .danger { border-color: var(--danger); }
+.push-dialog .primary.danger { background: var(--danger); color: #fff; }
