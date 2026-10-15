@@ -114,7 +114,7 @@ export function WipPanel({ path }: { path: string }) {
         <button title="Marca todos como resolvidos com o conteúdo atual do disco" onClick={() => stage(conflicts.map((c) => c.path), true)}>Marcar todos resolvidos</button></h3>
       {conflicts.map((c) => <div key={c.path} className="conflict-file" title={c.path} onClick={() => actions.openConflict(path, c.path)}>
         <span>{c.path}</span>
-        <button title="Marcar como resolvido" onClick={(e) => { e.stopPropagation(); stage([c.path], true) }}>Resolvido</button>
+        <button onClick={(e) => { e.stopPropagation(); stage([c.path], true) }}>Marcar como resolvido</button>
       </div>)}
     </div>}
     <div className="wip-files" ref={scroller}>
