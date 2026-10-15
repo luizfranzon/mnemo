@@ -113,6 +113,26 @@ fn desfazer_pull_volta_so_a_branch_local() {
 }
 
 #[test]
+fn pull_ff_only_guarda_e_devolve_o_wip_que_o_pull_tocaria() {
+    let repo = TestRepo::new();
+    let remote = repo.with_remote();
+    let other = tempfile::tempdir().expect("tempdir");
+    run_git(other.path(), &["clone", "-q", &remote.path().to_string_lossy(), "."]);
+    run_git(other.path(), &["config", "user.name", "o"]);
+    run_git(other.path(), &["config", "user.email", "o@e"]);
+    std::fs::write(other.path().join("a.txt"), "UM\ndois\ntres\n").expect("write");
+    run_git(other.path(), &["commit", "-q", "-am", "o"]);
+    run_git(other.path(), &["push", "-q"]);
+    let remote_head = run_git(other.path(), &["rev-parse", "HEAD"]);
+    repo.write("a.txt", "um\ndois\nTRES\n");
+
+    repo.exec(OperationKind::Pull { strategy: Some(PullStrategy::FfOnly) });
+    assert_eq!(repo.head(), remote_head);
+    assert_eq!(repo.read("a.txt"), "UM\ndois\nTRES\n");
+    assert_eq!(repo.git(&["stash", "list"]), "");
+}
+
+#[test]
 fn merge_ja_atualizado_nao_entra_no_historico() {
     let repo = TestRepo::new();
     repo.git(&["branch", "x"]);
