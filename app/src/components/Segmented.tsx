@@ -6,7 +6,7 @@ export function Segmented<T extends string>({ label, options, value, onChange }:
   onChange: (id: T) => void
 }) {
   return <div role="group" aria-label={label} className="segmented">
-    {options.map((o) => <button key={o.id} aria-pressed={value === o.id} onClick={() => onChange(o.id)}>{o.label}</button>)}
+    {options.map((o) => <button key={o.id} className="seg-btn" aria-pressed={value === o.id} onClick={() => onChange(o.id)}>{o.label}</button>)}
   </div>
 }
 

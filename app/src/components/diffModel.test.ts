@@ -11,7 +11,7 @@ function diff(lines: DiffLine[]): FileDiff {
     const start = lines.findIndex((l) => l.hunk === h)
     return { header: `@@ ${h} @@`, oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, start, len: lines.filter((l) => l.hunk === h).length }
   })
-  return { path: 'a.ts', oldPath: null, binary: false, tooLarge: false, encoding: 'UTF-8', added: 0, removed: 0, hunks, lines }
+  return { path: 'a.ts', oldPath: null, binary: false, tooLarge: false, encoding: 'UTF-8', encodingId: 'utf-8', guessed: false, stageable: true, added: 0, removed: 0, hunks, lines }
 }
 
 test('trechos: cabeçalho do trecho e depois as linhas', () => {

@@ -150,7 +150,10 @@ export interface WipStatus { unstaged: FileChange[]; staged: FileChange[] }
 export type DiffSource = { kind: 'commit'; sha: string; oldPath?: string | null } | { kind: 'unstaged' } | { kind: 'staged' }
 export interface DiffLine { kind: 'context' | 'add' | 'del'; old: number | null; new: number | null; text: string; noNewline: boolean; hunk: number | null }
 export interface DiffHunk { header: string; oldStart: number; oldLines: number; newStart: number; newLines: number; start: number; len: number }
+export interface EncodingInfo { id: string; label: string; group: string }
 export interface FileDiff {
   path: string; oldPath: string | null; binary: boolean; tooLarge: boolean; encoding: string
+  /** `encodingId` volta para `fileDiff`; `guessed`: o detector escolheu; `stageable` falso quando o texto foi convertido (UTF-16/32). */
+  encodingId: string; guessed: boolean; stageable: boolean
   added: number; removed: number; hunks: DiffHunk[]; lines: DiffLine[]
 }

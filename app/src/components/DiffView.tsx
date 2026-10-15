@@ -1,9 +1,11 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { EncodingPicker } from './EncodingPicker'
 import { Segmented } from './Segmented'
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { core } from '../bridge'
 import type { DiffLine, DiffSource, FileDiff } from '../bridge/types'
 import { actions, selectDiff, selectWipRevision, useApp } from '../store/app'
+import type { Rect } from './menuModel'
 import { diffRows, display, highlight, hunkLines, hunkRows, LAYOUTS, markers, selectionArgs, type DiffLayout, type DiffRow } from './diffModel'
 
 const LINE = 20
@@ -24,6 +26,9 @@ export function DiffView({ path }: { path: string }) {
   const revision = useApp(selectWipRevision(path))
   const [layout, setLayout] = useState(loadLayout)
   const [diff, setDiff] = useState<FileDiff | null>(null)
+  // a escolha vale só para este arquivo/fonte; ao trocar de diff volta para Adivinhar
+  const [pick, setPick] = useState<{ source: DiffSource | undefined; file: string; id: string } | null>(null)
+  const [encAnchor, setEncAnchor] = useState<Rect | null>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [current, setCurrent] = useState(0)
   const anchor = useRef<number | null>(null)
@@ -31,13 +36,15 @@ export function DiffView({ path }: { path: string }) {
   const scroller = useRef<HTMLDivElement>(null)
   const source = target?.source
   const file = target?.file.path ?? ''
+  const encoding = pick && pick.source === source && pick.file === file ? pick.id : 'guess'
   const wip = source !== undefined && source.kind !== 'commit'
+  const canStage = wip && (diff?.stageable ?? true)
   const unstage = source?.kind === 'staged'
 
   useEffect(() => {
     if (!source) return
     let active = true
-    void core.fileDiff(path, file, source, layout !== 'hunks').then((next) => {
+    void core.fileDiff(path, file, source, layout !== 'hunks', encoding).then((next) => {
       if (!active) return
       // reler o mesmo diff (foco da janela, preparar) mantém as linhas escolhidas que continuam iguais
       const old = loaded.current
@@ -48,7 +55,7 @@ export function DiffView({ path }: { path: string }) {
       setSelected((sel) => new Set([...sel].filter(same)))
     }, (err) => { if (active) actions.reportError(err) })
     return () => { active = false }
-  }, [path, file, source, layout, wip ? revision : 0])
+  }, [path, file, source, layout, encoding, wip ? revision : 0])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -101,7 +108,7 @@ export function DiffView({ path }: { path: string }) {
   const gutter = (i: number, nums: (number | null)[]) => {
     const l = diff!.lines[i]!
     const cells = <>{nums.map((n, k) => <span key={k} className="diff-num">{n ?? ''}</span>)}<span className="diff-mark">{mark(l)}</span></>
-    if (!wip || l.kind === 'context' || l.hunk === null) return <span className="diff-gutter">{cells}</span>
+    if (!canStage || l.kind === 'context' || l.hunk === null) return <span className="diff-gutter">{cells}</span>
     return <button className="diff-gutter" aria-pressed={selected.has(i)} title={`Selecionar linha (Shift seleciona um intervalo) para ${verb.toLowerCase()}`}
       aria-label={`Selecionar linha ${l.new ?? l.old}`} onClick={(e) => toggle(i, e)}>{cells}</button>
   }
@@ -114,7 +121,7 @@ export function DiffView({ path }: { path: string }) {
     if (r.type === 'hunk') {
       const h = diff!.hunks[r.hunk]!
       return <div className="diff-hunk"><span>{h.header}</span>
-        {wip && <button onClick={() => stage(hunkLines(diff!, r.hunk))}>{verb} trecho</button>}</div>
+        {canStage && <button onClick={() => stage(hunkLines(diff!, r.hunk))}>{verb} trecho</button>}</div>
     }
     if (r.type === 'split') return <div className="diff-split">{half(r.left, 'left')}{half(r.right, 'right')}</div>
     const l = diff!.lines[r.line]!
@@ -132,7 +139,7 @@ export function DiffView({ path }: { path: string }) {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
     </div>
     <div className="diff-tools">
-      {wip && selected.size > 0 && <>
+      {canStage && selected.size > 0 && <>
         <button className="primary" onClick={() => stage([...selected])}>{verb} {plural(selected.size, 'linha', 'linhas')}</button>
         <button onClick={() => setSelected(new Set())}>Limpar seleção</button>
       </>}
@@ -143,8 +150,12 @@ export function DiffView({ path }: { path: string }) {
       <button className="diff-nav" aria-label="Próximo trecho" title="Próximo trecho" disabled={current >= heads.length - 1} onClick={() => goTo(current + 1)}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg></button>
       <Segmented label="Layout do diff" options={LAYOUTS} value={layout} onChange={pickLayout} />
-      {diff && <span className="mono muted" title="Codificação do arquivo">{diff.encoding}</span>}
+      {wip && diff && !diff.stageable && <span className="muted" title="O texto foi convertido para UTF-8; os índices de linha não batem com o arquivo">Sem stage por trecho</span>}
+      {diff && <button className="diff-encoding mono muted" title="Codificação do arquivo (clique para trocar)" aria-haspopup="dialog" aria-expanded={!!encAnchor}
+        onClick={(e) => setEncAnchor(e.currentTarget.getBoundingClientRect())}>{diff.encoding}{diff.guessed ? ' (adivinhada)' : ''}</button>}
     </div>
+    {encAnchor && <EncodingPicker path={path} anchor={encAnchor} value={encoding} onClose={() => setEncAnchor(null)}
+      onPick={(id) => setPick({ source, file, id })} />}
     {layout === 'split' && rows.length > 0 && <div className="diff-split diff-sides">
       <div>Antes <span className="mono">{source.kind === 'commit' ? 'pai' : source.kind === 'staged' ? 'HEAD' : 'index'}</span></div>
       <div>Depois <span className="mono">{source.kind === 'commit' ? source.sha.slice(0, 7) : source.kind === 'staged' ? 'index' : 'diretório'}</span></div>

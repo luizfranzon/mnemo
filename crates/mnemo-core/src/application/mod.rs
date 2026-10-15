@@ -1,5 +1,6 @@
 pub mod detail;
 pub mod diff;
+pub mod encoding;
 pub mod git;
 pub mod graph;
 pub mod handlers;

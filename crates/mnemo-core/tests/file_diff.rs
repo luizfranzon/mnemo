@@ -121,3 +121,69 @@ fn arquivo_inteiro_preenche_o_que_fica_entre_os_trechos() {
     assert!(full["lines"][10]["hunk"].is_null(), "linha entre trechos não pertence a trecho");
     assert_eq!(full["hunks"][1]["start"], full["lines"].as_array().unwrap().iter().position(|x| x["hunk"] == 1).unwrap());
 }
+
+fn diff_enc(repo: &TestRepo, file: &str, encoding: &str) -> Value {
+    repo.core
+        .invoke("file_diff", json!({ "path": repo.path().to_string_lossy(), "file": file, "source": { "kind": "unstaged" }, "full": false, "encoding": encoding }))
+        .expect("file_diff")
+}
+
+fn write_bytes(repo: &TestRepo, file: &str, bytes: &[u8]) {
+    std::fs::write(repo.path().join(file), bytes).expect("escreve");
+}
+
+fn utf16le(text: &str) -> Vec<u8> {
+    let mut out = vec![0xFF, 0xFE];
+    out.extend(text.encode_utf16().flat_map(u16::to_le_bytes));
+    out
+}
+
+#[test]
+fn adivinha_windows_1252_e_aceita_troca_manual() {
+    let repo = TestRepo::new();
+    write_bytes(&repo, "l.txt", b"informa\xe7\xe3o sobre a a\xe7\xe3o do cora\xe7\xe3o\n");
+    let d = diff_enc(&repo, "l.txt", "guess");
+    assert_eq!((d["encodingId"].as_str(), d["guessed"].as_bool()), (Some("windows-1252"), Some(true)));
+    assert_eq!(lines(&d), ["+1 informação sobre a ação do coração"]);
+    let manual = diff_enc(&repo, "l.txt", "cp850");
+    assert_eq!((manual["encodingId"].as_str(), manual["guessed"].as_bool()), (Some("cp850"), Some(false)));
+    assert_ne!(lines(&manual), lines(&d));
+}
+
+#[test]
+fn utf8_valido_nao_aciona_o_detector() {
+    let repo = TestRepo::new();
+    repo.write("u.txt", "ação\n");
+    let d = diff_enc(&repo, "u.txt", "guess");
+    assert_eq!((d["encoding"].as_str(), d["guessed"].as_bool(), d["stageable"].as_bool()), (Some("UTF-8"), Some(false), Some(true)));
+}
+
+#[test]
+fn utf16_com_bom_vira_diff_de_texto_sem_stage() {
+    let repo = TestRepo::empty();
+    write_bytes(&repo, "w.txt", &utf16le("um\ndois\n"));
+    repo.commit_all("utf16");
+    write_bytes(&repo, "w.txt", &utf16le("um\ndois\ntrês\n"));
+    let d = diff_enc(&repo, "w.txt", "guess");
+    assert_eq!((d["binary"].as_bool(), d["encodingId"].as_str(), d["stageable"].as_bool()), (Some(false), Some("utf-16le"), Some(false)));
+    assert_eq!(lines(&d), [" 1 um", " 2 dois", "+3 três"]);
+}
+
+#[test]
+fn binario_nao_mostra_linhas_e_codificacao_desconhecida_falha() {
+    let repo = TestRepo::new();
+    repo.write("a.txt", "mudou\n");
+    let d = diff_enc(&repo, "a.txt", "binary");
+    assert_eq!((d["binary"].as_bool(), d["lines"].as_array().map(Vec::len)), (Some(true), Some(0)));
+    assert!(repo
+        .core
+        .invoke("file_diff", json!({ "path": repo.path().to_string_lossy(), "file": "a.txt", "source": { "kind": "unstaged" }, "full": false, "encoding": "nada" }))
+        .is_err());
+}
+
+#[test]
+fn lista_de_codificacoes_comeca_por_adivinhar_e_binario() {
+    let repo = TestRepo::new();
+    let list = repo.core.invoke("list_encodings", json!({})).expect("lista");
+    assert_eq!((list[0]["id"].as_str(), list[1]["id"].as_str()), (Some("guess"), Some("binary")));
+}

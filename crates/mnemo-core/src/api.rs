@@ -580,6 +580,9 @@ impl Mnemo {
             diag::error_from_js(&text("context"), &text("message"));
             return Ok(Value::Null);
         }
+        if cmd == "list_encodings" {
+            return out(crate::application::encoding::LIST);
+        }
         if cmd == "check_git" {
             return out(self.check_git()?);
         }
@@ -629,7 +632,8 @@ impl Mnemo {
                     let source: crate::application::diff::DiffSource =
                         parse(&json!(args.get("source").cloned().unwrap_or(Value::Null)))?;
                     let full = args.get("full").and_then(Value::as_bool).unwrap_or(false);
-                    return out(crate::application::diff::file_diff(&git, text("file")?, &source, full)?);
+                    let encoding = args.get("encoding").and_then(Value::as_str).unwrap_or("guess");
+                    return out(crate::application::diff::file_diff(&git, text("file")?, &source, full, encoding)?);
                 }
                 "stage_lines" => {
                     let lines: Vec<(usize, usize)> = parse(&json!(args.get("lines").cloned().unwrap_or(json!([]))))?;

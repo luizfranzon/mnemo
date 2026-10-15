@@ -35,6 +35,10 @@ _Avoid_: pill de hover, preview de branch
 Fundo na cor da lane do commit, do centro da bolinha até o fim da coluna Grafo, mais uma borda de 2px na mesma cor no início da coluna da mensagem. Vale para commits, merges, WIP (cor da lane do HEAD) e layout compacto; na linha selecionada e na WIP o fundo fica mais forte.
 _Avoid_: tarja, highlight da lane
 
+**Codificação do diff**:
+Como os bytes do arquivo viram texto no diff. O padrão é Adivinhar: UTF-8 válido fica UTF-8, senão o detector escolhe, e o rótulo mostra o resultado (`Windows-1252 (adivinhada)`). O usuário troca pelo rótulo, num painel com busca e grupos (Unicode, Windows, ISO-8859, DOS, Mac, KOI8, asiáticas); a escolha vale só para o diff aberto. Binário mostra o aviso de arquivo binário, sem linhas. Em UTF-16/32 os dois lados são convertidos para UTF-8 antes do diff, e o stage por trecho/linha fica desligado.
+_Avoid_: charset, encoding (no texto da UI, use Codificação)
+
 **Visibilidade inteligente**:
 Modo do grafo que mostra só a branch atual e a Base dela. Commits mergeados nelas aparecem por fazerem parte da história; as outras branches não ganham pill.
 _Avoid_: filtro inteligente, modo foco

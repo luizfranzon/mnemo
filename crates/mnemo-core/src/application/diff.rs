@@ -1,5 +1,6 @@
 //! Diff de um arquivo, já parseado para a UI (trechos, linhas, números), e stage por trecho/linha.
 //! O patch parcial é montado a partir do diff relido aqui; a UI só manda índices.
+use crate::application::encoding;
 use crate::application::git::{RepoGit, EMPTY_TREE};
 use crate::application::ports::GitCmd;
 use crate::application::wip;
@@ -61,7 +62,13 @@ pub struct FileDiff {
     pub old_path: Option<String>,
     pub binary: bool,
     pub too_large: bool,
+    /// Nome para o rótulo; `encoding_id` é o que a UI manda de volta.
     pub encoding: String,
+    pub encoding_id: String,
+    /// O detector (e não UTF-8 válido ou BOM) escolheu a codificação.
+    pub guessed: bool,
+    /// Falso quando o texto mostrado foi convertido: os índices de linha não batem com o arquivo e o stage fica desligado.
+    pub stageable: bool,
     pub added: u64,
     pub removed: u64,
     pub hunks: Vec<Hunk>,
@@ -89,16 +96,74 @@ struct RawDiff {
     new_file: bool,
     binary: bool,
     too_large: bool,
-    utf8: bool,
     hunks: Vec<RawHunk>,
 }
 
-pub fn file_diff(git: &RepoGit, path: &str, source: &DiffSource, full: bool) -> Result<FileDiff> {
-    let raw = load(git, path, source)?;
+/// `choice`: `guess`, `binary` ou um id de `encoding::LIST`.
+pub fn file_diff(git: &RepoGit, path: &str, source: &DiffSource, full: bool, choice: &str) -> Result<FileDiff> {
+    if !choice.is_empty() && choice != encoding::GUESS && choice != encoding::BINARY && !encoding::is_known(choice) {
+        return Err(CoreError::invalid(format!("codificação desconhecida: {choice}")));
+    }
+    let mut raw = load(git, path, source, false)?;
+    // `Some` quando o texto precisa ser convertido para UTF-8 antes do diff (UTF-16/32)
+    let mut converted: Option<(String, Vec<u8>)> = None;
+    let (enc_id, guessed): (String, bool);
+    if choice == encoding::BINARY {
+        return Ok(FileDiff {
+            path: path.to_string(),
+            old_path: raw.old_path,
+            binary: true,
+            too_large: false,
+            encoding: encoding::label(encoding::BINARY).into(),
+            encoding_id: encoding::BINARY.into(),
+            guessed: false,
+            stageable: true,
+            added: 0,
+            removed: 0,
+            hunks: Vec::new(),
+            lines: Vec::new(),
+        });
+    }
+    let wide_choice = encoding::is_wide(choice);
+    let try_wide = wide_choice || ((choice.is_empty() || choice == encoding::GUESS) && raw.binary);
+    if try_wide && !raw.too_large {
+        let (old, new) = sides(git, path, source)?;
+        let id = if wide_choice {
+            Some(choice)
+        } else {
+            [&new, &old].into_iter().flatten().find_map(|b| encoding::wide_bom(b))
+        };
+        if let Some(id) = id {
+            let (old_text, new_text) = (old.as_deref().map(|b| encoding::decode(id, b)), new.as_deref().map(|b| encoding::decode(id, b)));
+            raw = convert_diff(git, path, old_text.as_deref().unwrap_or(""), new_text.as_deref().unwrap_or(""))?;
+            converted = Some((id.to_string(), new_text.unwrap_or_default().into_bytes()));
+        }
+    }
+    if let Some((id, _)) = &converted {
+        (enc_id, guessed) = (id.clone(), false);
+    } else if choice.is_empty() || choice == encoding::GUESS {
+        let sample: Vec<u8> = raw.hunks.iter().flat_map(|h| &h.lines).flat_map(|l| l.bytes.iter().copied().chain([b'\n'])).collect();
+        let (id, by_detector) = encoding::guess(&sample);
+        (enc_id, guessed) = (id.to_string(), by_detector);
+    } else {
+        // codificação escolhida num arquivo que o git trata como binário: relê como texto
+        if raw.binary {
+            raw = load(git, path, source, true)?;
+        }
+        (enc_id, guessed) = (choice.to_string(), false);
+    }
+    let stageable = converted.is_none();
+    let text = |bytes: &[u8]| if converted.is_some() { String::from_utf8_lossy(bytes).into_owned() } else { encoding::decode(&enc_id, bytes) };
     let mut lines = Vec::new();
     let mut hunks = Vec::new();
     let (mut added, mut removed) = (0, 0);
-    let gap_source = if full && !raw.binary && !raw.too_large { new_side(git, path, source)? } else { None };
+    let gap_source = if !full || raw.binary || raw.too_large {
+        None
+    } else if let Some((_, new)) = &converted {
+        Some(new.clone())
+    } else {
+        new_side(git, path, source)?
+    };
     let gap: Vec<&[u8]> = gap_source.as_deref().map(split_lines).unwrap_or_default();
     let (mut old_next, mut new_next) = (1u32, 1u32);
     let push_gap = |lines: &mut Vec<DiffLine>, old_next: &mut u32, new_next: &mut u32, until: u32| {
@@ -108,7 +173,7 @@ pub fn file_diff(git: &RepoGit, path: &str, source: &DiffSource, full: bool) -> 
                 kind: LineKind::Context,
                 old: Some(*old_next),
                 new: Some(*new_next),
-                text: String::from_utf8_lossy(bytes).into_owned(),
+                text: text(bytes),
                 no_newline: false,
                 hunk: None,
             });
@@ -143,7 +208,7 @@ pub fn file_diff(git: &RepoGit, path: &str, source: &DiffSource, full: bool) -> 
                 kind: line.kind,
                 old: o,
                 new: n,
-                text: String::from_utf8_lossy(&line.bytes).into_owned(),
+                text: text(&line.bytes),
                 no_newline: line.no_newline,
                 hunk: Some(h as u32),
             });
@@ -169,7 +234,10 @@ pub fn file_diff(git: &RepoGit, path: &str, source: &DiffSource, full: bool) -> 
         old_path: raw.old_path,
         binary: raw.binary,
         too_large: raw.too_large,
-        encoding: if raw.utf8 { "UTF-8" } else { "desconhecido" }.into(),
+        encoding: encoding::label(&enc_id).to_string(),
+        encoding_id: enc_id,
+        guessed,
+        stageable,
         added,
         removed,
         hunks,
@@ -180,7 +248,7 @@ pub fn file_diff(git: &RepoGit, path: &str, source: &DiffSource, full: bool) -> 
 /// Prepara (ou tira, com `unstage`) só as linhas escolhidas: `(trecho, linha no trecho)` do diff
 /// não preparado (ou preparado). Mexe só no index. Escolher todas as mudanças age no arquivo inteiro.
 pub fn stage_lines(git: &RepoGit, path: &str, unstage: bool, selected: &[(usize, usize)]) -> Result<()> {
-    let raw = load(git, path, if unstage { &DiffSource::Staged } else { &DiffSource::Unstaged })?;
+    let raw = load(git, path, if unstage { &DiffSource::Staged } else { &DiffSource::Unstaged }, false)?;
     let is_change = |h: usize, i: usize| {
         raw.hunks.get(h).and_then(|hunk| hunk.lines.get(i)).is_some_and(|l| l.kind != LineKind::Context)
     };
@@ -271,19 +339,21 @@ fn diff_cmd(extra: &[&str]) -> GitCmd {
     GitCmd::new(args)
 }
 
-fn load(git: &RepoGit, path: &str, source: &DiffSource) -> Result<RawDiff> {
+fn load(git: &RepoGit, path: &str, source: &DiffSource, as_text: bool) -> Result<RawDiff> {
+    let text_flag: &[&str] = if as_text { &["--text"] } else { &[] };
     let out = match source {
         DiffSource::Unstaged if !tracked(git, path)? => {
-            git.exec(&diff_cmd(&["--no-index", "--", "/dev/null", path]).also_ok(1))?
+            git.exec(&diff_cmd(&[text_flag, &["--no-index", "--", "/dev/null", path]].concat()).also_ok(1))?
         }
-        DiffSource::Unstaged => git.exec(&diff_cmd(&["--", path]))?,
-        DiffSource::Staged => git.exec(&diff_cmd(&["--cached", "-M", "--", path]))?,
+        DiffSource::Unstaged => git.exec(&diff_cmd(&[text_flag, &["--", path]].concat()))?,
+        DiffSource::Staged => git.exec(&diff_cmd(&[text_flag, &["--cached", "-M", "--", path]].concat()))?,
         DiffSource::Commit { sha, old_path } => {
             let parent = git
                 .exec(&GitCmd::new(["rev-parse", "-q", "--verify", &format!("{sha}^1")]).also_ok(1))?
                 .text();
             let base = if parent.is_empty() { EMPTY_TREE.to_string() } else { parent };
             let mut extra = vec!["-M", base.as_str(), sha.as_str(), "--", path];
+            extra.splice(0..0, text_flag.iter().copied());
             if let Some(old) = old_path {
                 extra.push(old);
             }
@@ -291,9 +361,38 @@ fn load(git: &RepoGit, path: &str, source: &DiffSource) -> Result<RawDiff> {
         }
     };
     if out.stdout.len() > DIFF_SIZE_LIMIT {
-        return Ok(RawDiff { too_large: true, utf8: true, ..RawDiff::default() });
+        return Ok(RawDiff { too_large: true, ..RawDiff::default() });
     }
     Ok(parse(&out.stdout, path))
+}
+
+/// Conteúdo dos dois lados (`None` = o lado não existe), para converter antes do diff.
+fn sides(git: &RepoGit, path: &str, source: &DiffSource) -> Result<(Option<Vec<u8>>, Option<Vec<u8>>)> {
+    let old_spec = match source {
+        DiffSource::Unstaged => format!(":{path}"),
+        DiffSource::Staged => format!("HEAD:{path}"),
+        DiffSource::Commit { sha, old_path } => format!("{sha}^1:{}", old_path.as_deref().unwrap_or(path)),
+    };
+    let out = git.exec(&GitCmd::new(["cat-file", "blob", &old_spec]).also_ok(128))?;
+    Ok(((out.code == 0).then_some(out.stdout), new_side(git, path, source)?))
+}
+
+/// Diff de dois textos já em UTF-8, via arquivos temporários (o git não lê da memória).
+fn convert_diff(git: &RepoGit, path: &str, old: &str, new: &str) -> Result<RawDiff> {
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos());
+    let dir = std::env::temp_dir().join(format!("mnemo-enc-{}-{nanos}", std::process::id()));
+    let io = |e: std::io::Error| CoreError::internal(e.to_string());
+    std::fs::create_dir_all(&dir).map_err(io)?;
+    let (a, b) = (dir.join("a"), dir.join("b"));
+    let result = std::fs::write(&a, old)
+        .and_then(|_| std::fs::write(&b, new))
+        .map_err(io)
+        .and_then(|_| {
+            let (a, b) = (a.to_string_lossy(), b.to_string_lossy());
+            git.exec(&diff_cmd(&["--no-index", "--", &a, &b]).also_ok(1))
+        });
+    let _ = std::fs::remove_dir_all(&dir);
+    Ok(parse(&result?.stdout, path))
 }
 
 fn tracked(git: &RepoGit, path: &str) -> Result<bool> {
@@ -336,7 +435,7 @@ fn parse(bytes: &[u8], path: &str) -> RawDiff {
                 .unwrap_or_else(|| section(0))
         }
     };
-    let mut raw = RawDiff { utf8: std::str::from_utf8(bytes).is_ok(), ..RawDiff::default() };
+    let mut raw = RawDiff::default();
     for line in chosen {
         if let Some(hunk) = raw.hunks.last_mut() {
             match line.first() {

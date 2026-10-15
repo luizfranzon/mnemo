@@ -9,6 +9,9 @@ serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
+encoding_rs = "0.8.42"
+chardetng = "1.0.0"
+oem_cp = "2.1.2"
 
 [dev-dependencies]
 tempfile = "3"

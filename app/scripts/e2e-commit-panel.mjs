@@ -20,7 +20,7 @@ try {
   await until(() => ev(`document.querySelectorAll('.commit-file').length`), 2)
   assert.match(await text('.commit-summary'), /2 adicionados/)
   assert.match(await text('.commit-summary'), /\+3/)
-  await ev(`[...document.querySelectorAll('.segmented button')].find((b) => b.textContent === 'Árvore').click()`)
+  await ev(`[...document.querySelectorAll('.segmented .seg-btn')].find((b) => b.textContent === 'Árvore').click()`)
   await until(() => ev(`!!document.querySelector('.commit-dir')`), true)
   await ev(`document.querySelector('.commit-parents a').click()`)
   await until(() => ev(`document.querySelector('.commit-subject')?.value`), 'inicial')
