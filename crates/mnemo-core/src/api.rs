@@ -656,7 +656,8 @@ impl Mnemo {
                     return Ok(Value::Null);
                 }
                 "conflict_take" => {
-                    crate::application::conflict::take(&git, text("file")?, text("choice")?)?;
+                    let choice = parse(&json!(args.get("choice").cloned().unwrap_or(Value::Null)))?;
+                    crate::application::conflict::take(&git, text("file")?, choice)?;
                     return Ok(Value::Null);
                 }
                 "conflict_reopen" => {

@@ -63,6 +63,7 @@ export function ConflictEditor({ path }: { path: string }) {
   }
   const chunks = doc ? conflictsOf(doc) : []
   const pending = unresolved(picks)
+  const autoCount = chunks.filter((c) => c.auto).length
   const goto = (n: number) => {
     const next = Math.min(Math.max(n, 0), chunks.length - 1)
     setCurrent(next)
@@ -114,16 +115,16 @@ export function ConflictEditor({ path }: { path: string }) {
           if (!p) return null
           return <section key={k} data-chunk={n} className={`conflict-chunk${p.touched ? ' done' : ''}${n === current ? ' current' : ''}`} onClick={() => setCurrent(n)}>
             <div className="conflict-bar">
-              <button onClick={() => setPick(n, takeSide(s, true, false))}>Usar o atual</button>
-              <button onClick={() => setPick(n, takeSide(s, false, true))}>Usar o que entra</button>
-              <button onClick={() => setPick(n, takeSide(s, true, true))}>Os dois</button>
-              <button onClick={() => setPick(n, takeSide(s, false, false))}>Nenhum</button>
+              <button disabled={manual !== null} onClick={() => setPick(n, takeSide(s, true, false))}>Usar o atual</button>
+              <button disabled={manual !== null} onClick={() => setPick(n, takeSide(s, false, true))}>Usar o que entra</button>
+              <button disabled={manual !== null} onClick={() => setPick(n, takeSide(s, true, true))}>Os dois</button>
+              <button disabled={manual !== null} onClick={() => setPick(n, takeSide(s, false, false))}>Nenhum</button>
               {s.auto && <span className="muted">só espaço em branco: Atual escolhido</span>}
             </div>
             <div className="conflict-sides">
               {(['ours', 'theirs'] as const).map((side) => <div key={side} className={`conflict-side ${side}`}>
                 <h4>{side === 'ours' ? 'Atual' : 'Entrando'}</h4>
-                {s[side].map((t, i) => <label key={i}><input type="checkbox" checked={p[side][i] ?? false} onChange={() => toggle(n, side, i)} /><code>{t || ' '}</code></label>)}
+                {s[side].map((t, i) => <label key={i}><input type="checkbox" disabled={manual !== null} checked={p[side][i] ?? false} onChange={() => toggle(n, side, i)} /><code>{t || ' '}</code></label>)}
               </div>)}
             </div>
           </section>
@@ -132,7 +133,7 @@ export function ConflictEditor({ path }: { path: string }) {
       <div className="conflict-result">
         <div className="diff-tools">
           <strong>Resultado</strong>
-          <span className="muted">{pending > 0 ? `${pending} sem escolha` : 'todos os conflitos resolvidos'}</span>
+          <span className="muted">{manual !== null ? 'editado à mão: Reset volta para a escolha por trechos' : pending > 0 ? `${pending} sem escolha` : 'todos os conflitos resolvidos'}{autoCount > 0 && manual === null ? ` · ${autoCount} só de espaço em branco (Atual escolhido)` : ''}</span>
           <span className="spacer" />
           <button onClick={() => void core.conflictMergetool(path, file).then(() => actions.wipChanged(path), fail)}>Abrir na ferramenta externa</button>
           <button onClick={() => { setManual(null); setPicks(initialPicks(doc)) }}>Reset</button>

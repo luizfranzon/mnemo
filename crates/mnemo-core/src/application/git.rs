@@ -194,6 +194,9 @@ impl RepoGit {
         }
         let tmp = self.temp_index_path()?;
         std::fs::copy(&real, &tmp)?;
+        // o git decide "edição no mesmo segundo do último add" pelo mtime do index: a cópia precisa herdá-lo
+        let mtime = std::fs::metadata(&real)?.modified()?;
+        std::fs::OpenOptions::new().write(true).open(&tmp)?.set_modified(mtime)?;
         Ok(Some(tmp))
     }
 

@@ -2,18 +2,39 @@
 use crate::application::git::RepoGit;
 use crate::application::ports::GitCmd;
 use crate::domain::error::{CoreError, Result};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// Marcador longo para o texto do arquivo dificilmente colidir com ele.
 const MARKER: usize = 13;
 
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ConflictKind {
+    Both,
+    BothAdded,
+    DeletedByUs,
+    DeletedByThem,
+    AddedByUs,
+    AddedByThem,
+    BothDeleted,
+}
+
+/// Versão a manter de um arquivo em conflito. Um lado que apagou o arquivo não tem versão.
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Choice {
+    Base,
+    Ours,
+    Theirs,
+    Delete,
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConflictFile {
     pub path: String,
-    /// both, bothAdded, deletedByUs, deletedByThem, addedByUs, addedByThem, bothDeleted
-    pub kind: &'static str,
+    pub kind: ConflictKind,
     /// Sem editor de linhas: só escolher um lado.
     pub binary: bool,
 }
@@ -61,15 +82,16 @@ fn is_text(b: &[u8]) -> bool {
     !b.contains(&0) && std::str::from_utf8(b).is_ok()
 }
 
-fn kind_of(s: &[Option<String>; 3]) -> &'static str {
+fn kind_of(s: &[Option<String>; 3]) -> ConflictKind {
+    use ConflictKind::*;
     match (s[0].is_some(), s[1].is_some(), s[2].is_some()) {
-        (true, true, true) => "both",
-        (false, true, true) => "bothAdded",
-        (true, false, true) => "deletedByUs",
-        (true, true, false) => "deletedByThem",
-        (false, true, false) => "addedByUs",
-        (false, false, true) => "addedByThem",
-        _ => "bothDeleted",
+        (true, true, true) => Both,
+        (false, true, true) => BothAdded,
+        (true, false, true) => DeletedByUs,
+        (true, true, false) => DeletedByThem,
+        (false, true, false) => AddedByUs,
+        (false, false, true) => AddedByThem,
+        _ => BothDeleted,
     }
 }
 
@@ -176,15 +198,13 @@ pub fn save(git: &RepoGit, file: &str, content: &str, resolve: bool) -> Result<(
     Ok(())
 }
 
-/// `choice`: base, ours (Atual), theirs (Entrando) ou delete. Um lado que apagou o arquivo não tem versão para manter.
-pub fn take(git: &RepoGit, file: &str, choice: &str) -> Result<()> {
+pub fn take(git: &RepoGit, file: &str, choice: Choice) -> Result<()> {
     let stages = stages_of(git, file)?;
     let stage = match choice {
-        "delete" => return git.run(["rm", "-f", "-q", "--", file]),
-        "base" => 0,
-        "ours" => 1,
-        "theirs" => 2,
-        other => return Err(CoreError::invalid(format!("escolha inválida: {other}"))),
+        Choice::Delete => return git.run(["rm", "-f", "-q", "--", file]),
+        Choice::Base => 0,
+        Choice::Ours => 1,
+        Choice::Theirs => 2,
     };
     if stages[stage].is_none() {
         return Err(CoreError::invalid("esse lado não tem uma versão do arquivo (foi apagado)"));
