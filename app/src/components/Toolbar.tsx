@@ -54,7 +54,7 @@ export function Toolbar() {
   const reason = toolbarAvailability(head, toolbar, executing)
   const branchName = head.kind === 'branch' ? head.name : `HEAD ${head.sha}`
   const mode = PULL_MODES.find((m) => m.value === toolbar.pullMode) ?? PULL_MODES[1]!
-  const run = async (control: Control, label: string, action: () => Promise<void>) => {
+  const run = async (control: Control, label: string, action: () => Promise<unknown>) => {
     setOpen(null)
     const task = { path, control, label }
     setPending(task)

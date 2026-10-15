@@ -91,9 +91,9 @@ export function WipPanel({ path }: { path: string }) {
   const commit = () => {
     if (why) return
     const message = description.trim() ? `${summary.trim()}\n\n${description.trim()}` : summary.trim()
-    if (merging) { void actions.progressAction(path, 'continue', message || undefined); setSummary(''); setDescription(''); return }
-    void actions.execute(path, { type: 'commit', message, amend, allowEmpty: false })
-    setSummary(''); setDescription(''); setAmend(false)
+    // O texto só some quando deu certo: erro (ex.: hook) não pode custar a mensagem escrita.
+    const done = merging ? actions.progressAction(path, 'continue', message || undefined) : actions.execute(path, { type: 'commit', message, amend, allowEmpty: false })
+    void done.then((ok) => { if (ok) { setSummary(''); setDescription(''); setAmend(false) } })
   }
   const stash = () => {
     void actions.execute(path, { type: 'stashCreate', message: summary.trim() || null, includeUntracked: true })

@@ -16,7 +16,6 @@ export function Workspace() {
     <div className="workspace">
       <TabBar />
       {path && <Toolbar />}
-      <ErrorBanner />
       {path ? (
         <Panels key={path} path={path}>
           <Graph key={path} path={path} />
@@ -46,24 +45,6 @@ function Empty() {
           Abrir repositório
         </button>
       </div>
-    </div>
-  )
-}
-
-function ErrorBanner() {
-  const error = useApp((s) => s.error)
-  const retry = useApp((s) => s.retry)
-  if (!error) return null
-  return (
-    <div className="error" role="alert">
-      <span>{error}</span>
-      {retry && <button
-          onClick={() => {
-            actions.clearError() // some o banner (e o botão) antes: clique duplo não repete a Operação
-            void retry()
-          }}
-        >Tentar de novo</button>}
-      <button onClick={actions.clearError}>Fechar</button>
     </div>
   )
 }

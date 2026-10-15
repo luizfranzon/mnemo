@@ -20,6 +20,9 @@ export interface Toast {
   /** Mostra o botão "Desfazer" (Operação desfazível). */
   undoPath?: string
   pullPath?: string
+  /** Erro: fica mais tempo e, se `retry`, oferece "Tentar de novo". */
+  error?: boolean
+  retry?: () => Promise<void>
 }
 
 export type PaletteMode = 'checkout' | 'createBranch'
@@ -41,9 +44,7 @@ interface AppState {
   /** Operação em curso, por diretório (a toolbar mostra o texto). */
   running: Record<string, string>
   toasts: Toast[]
-  error: string | null
   /** Refaz a ação que falhou por `index.lock` (botão "Tentar de novo"). */
-  retry: (() => Promise<void>) | null
   palette: PaletteMode | null
   /** Ponto de partida da nova branch (nulo = HEAD). */
   paletteStart: string | null
@@ -78,8 +79,6 @@ export const useApp = create<AppState>(() => ({
   conflict: null,
   running: {},
   toasts: [],
-  error: null,
-  retry: null,
   palette: null,
   paletteStart: null,
   checkoutPrompt: null,
@@ -108,7 +107,7 @@ function pushToast(toast: Omit<Toast, 'id'>) {
   const id = ++toastSeq
   // O "Desfazer" do toast age na última Operação: toasts antigos perdem o botão.
   set((s) => ({ toasts: [...s.toasts.map(stripUndo), { ...toast, id }] }))
-  setTimeout(() => dismissToast(id), 6000)
+  setTimeout(() => dismissToast(id), toast.error ? 12000 : 6000)
 }
 
 const stripUndo = (t: Toast): Toast => ({ ...t, undoPath: undefined })
@@ -119,8 +118,7 @@ export function dismissToast(id: number) {
 
 function fail(err: unknown, retry?: () => Promise<void>) {
   const text = errorMessage(err)
-  pushToast({ text: text.length > 200 ? `${text.slice(0, 200)}…` : text })
-  set({ error: errorMessage(err), retry: errorCode(err) === 'indexLocked' ? (retry ?? null) : null })
+  pushToast({ text: text.length > 300 ? `${text.slice(0, 300)}…` : text, error: true, retry: errorCode(err) === 'indexLocked' ? retry : undefined })
 }
 
 export const actions = {
@@ -135,18 +133,18 @@ export const actions = {
         return
       }
     } catch (err) { fail(err); return }
-    await actions.execute(path, kind)
+    const executed = await actions.execute(path, kind)
     const head = get().tabs.find((tab) => same(tab.path, path))?.head
-    if (behind > 0 && head?.kind === 'branch' && head.name === target && !get().error)
+    if (behind > 0 && head?.kind === 'branch' && head.name === target && executed)
       pushToast({ text: `${target} está ${behind} commit(s) atrás do remoto`, pullPath: path })
   },
   async confirmCheckout(mode: 'stash' | 'carry') {
     const prompt = get().checkoutPrompt
     set({ checkoutPrompt: null })
     if (!prompt) return
-    await actions.execute(prompt.path, { type: 'checkoutWithChanges', target: prompt.target, remote: prompt.remote, mode })
+    const executed = await actions.execute(prompt.path, { type: 'checkoutWithChanges', target: prompt.target, remote: prompt.remote, mode })
     const head = get().tabs.find((tab) => same(tab.path, prompt.path))?.head
-    if (prompt.behind > 0 && head?.kind === 'branch' && head.name === prompt.target && !get().error)
+    if (prompt.behind > 0 && head?.kind === 'branch' && head.name === prompt.target && executed)
       pushToast({ text: `${prompt.target} está ${prompt.behind} commit(s) atrás do remoto`, pullPath: prompt.path })
   },
   cancelCheckout() { set({ checkoutPrompt: null }) },
@@ -184,7 +182,6 @@ export const actions = {
     try {
       const info = await core.openRepository(target)
       adoptRepository(info)
-      set({ error: null })
     } catch (err) {
       fail(err)
     }
@@ -195,7 +192,7 @@ export const actions = {
     set((s) => {
       const tabs = s.tabs.filter((t) => !same(t.path, path))
       const activePath = s.activePath && same(s.activePath, path) ? (tabs.at(-1)?.path ?? null) : s.activePath
-      return { tabs, activePath, diff: s.diff && same(s.diff.path, path) ? null : s.diff, selectedSha: activePath !== s.activePath ? null : s.selectedSha, retry: null, pushPrompt: s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt } // o retry pendente era de uma aba que pode ser esta
+      return { tabs, activePath, diff: s.diff && same(s.diff.path, path) ? null : s.diff, selectedSha: activePath !== s.activePath ? null : s.selectedSha, pushPrompt: s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt } // o retry pendente era de uma aba que pode ser esta
     })
   },
 
@@ -211,7 +208,8 @@ export const actions = {
   wipChanged(path: string) { set((s) => ({ wipRevision: { ...s.wipRevision, [norm(path)]: (s.wipRevision[norm(path)] ?? 0) + 1 } })) },
   setAuthorFilter(path: string, authors: string[]) { patchTab(path, { authors }) },
 
-  async execute(path: string, kind: OperationKind) {
+  /** `false` quando a Operação falhou (o erro já virou toast). */
+  async execute(path: string, kind: OperationKind): Promise<boolean> {
     try {
       const r = await core.execute(path, kind)
       patchTab(path, { undo: r.state })
@@ -224,9 +222,10 @@ export const actions = {
           undoPath: r.undoable ? path : undefined })
       }
       r.status === 'completed' && r.warnings.forEach((w) => pushToast({ text: w }))
-      set({ error: null, retry: null })
+      return true
     } catch (err) {
-      fail(err, () => actions.execute(path, kind))
+      fail(err, async () => void (await actions.execute(path, kind)))
+      return false
     }
   },
 
@@ -265,7 +264,7 @@ export const actions = {
     set({ pushPrompt: null })
   },
 
-  async progressAction(path: string, action: 'continue' | 'skip' | 'abort', message?: string) {
+  async progressAction(path: string, action: 'continue' | 'skip' | 'abort', message?: string): Promise<boolean> {
     try {
       if (action === 'abort') patchTab(path, { undo: await core.abortInProgress(path) })
       else {
@@ -273,8 +272,8 @@ export const actions = {
         patchTab(path, { undo: result.state })
       }
       await refreshHead(path)
-      set({ error: null })
-    } catch (err) { fail(err) }
+      return true
+    } catch (err) { fail(err); return false }
   },
 
   async undo(path: string) {
@@ -289,7 +288,7 @@ export const actions = {
     try {
       const preview = await core.discardPreview(path, paths)
       if (preview.trackedChanges + preview.untrackedFiles === 0) return pushToast({ text: 'Não há mudanças para descartar' })
-      set({ discardPrompt: { path, paths, preview }, error: null })
+      set({ discardPrompt: { path, paths, preview } })
     } catch (err) {
       fail(err)
     }
@@ -307,7 +306,7 @@ export const actions = {
 
   async requestResetHard(path: string, target: string) {
     try {
-      set({ resetPrompt: { path, target, preview: await core.resetPreview(path, target) }, error: null })
+      set({ resetPrompt: { path, target, preview: await core.resetPreview(path, target) } })
     } catch (err) {
       fail(err)
     }
@@ -355,7 +354,6 @@ export const actions = {
   },
 
   clearError() {
-    set({ error: null, retry: null })
   },
 
   /** Janela voltou ao foco: relê todas as abas, que podem ter mudado fora (VS Code, terminal). */
@@ -389,11 +387,10 @@ async function stepHistory(path: string, fn: (p: string) => Promise<UndoRedoStat
   try {
     patchTab(path, { undo: await fn(path) })
     await refreshHead(path)
-    set({ error: null })
   } catch (err) {
     const c = err as { code?: string; op_id?: number; paths?: string[] }
     if (c.code === 'restoreConflict') {
-      set({ restoreConflict: { path, opId: c.op_id!, paths: c.paths ?? [] }, error: null })
+      set({ restoreConflict: { path, opId: c.op_id!, paths: c.paths ?? [] } })
       return
     }
     fail(err, () => stepHistory(path, fn))

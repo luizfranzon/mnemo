@@ -97,7 +97,6 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 @media (max-width: 1099px) { .toolbar .fetch-time { display: none; } .toolbar-search kbd, .toolbar-search span { display: none; } .toolbar-search { flex: 0 0 30px !important; min-width: 30px; } }
 .badge { padding: 3px var(--space-2); border-radius: var(--radius-menu); background: var(--control); color: var(--text-muted); }
 .badge.warning { background: var(--warning-bg); border: 1px solid var(--warning-border); }
-.error { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); background: var(--danger-bg); border-bottom: 1px solid var(--danger-border); color: var(--danger-text); }
 
 /* Painéis: refs · centro · direito. Larguras em --left-w / --right-w (Panels.tsx). */
 .panels { flex: 1; min-height: 0; display: flex; position: relative; }
@@ -227,6 +226,7 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 
 .toasts { position: fixed; right: var(--space-4); bottom: calc(var(--h-statusbar) + var(--space-4)); display: flex; flex-direction: column; gap: var(--space-2); }
 .toast { display: flex; align-items: center; gap: 14px; background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 9px var(--space-3); box-shadow: var(--shadow-menu); }
+.toast.error { max-width: 520px; background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger-text); white-space: pre-wrap; overflow-wrap: anywhere; }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; justify-content: center; padding-top: 12vh; }
 .palette { width: 520px; max-height: 60vh; display: flex; flex-direction: column; gap: var(--space-2); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-menu); padding: 10px; align-self: flex-start; }
 .palette-list { overflow: auto; max-height: 40vh; }

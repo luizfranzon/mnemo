@@ -16,7 +16,7 @@ test('Push pede o remoto quando não há origin; cancelar não executa Operaçã
     invoke: async (cmd: string) => { calls.push(cmd); return tab },
     listen: () => () => {},
   } } })
-  useApp.setState({ tabs: [tab], activePath: tab.path, running: {}, error: null })
+  useApp.setState({ tabs: [tab], activePath: tab.path, running: {} })
   await actions.requestPush(tab.path)
   assert.deepEqual(useApp.getState().pushPrompt, { path: tab.path, branch: 'feature', remotes: ['company', 'personal'] })
   actions.cancelPush()
