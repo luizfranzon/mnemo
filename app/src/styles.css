@@ -224,8 +224,9 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .statusbar { display: flex; align-items: center; gap: var(--space-4); height: var(--h-statusbar); padding: 0 var(--space-3); background: var(--bg-rail); border-top: 1px solid var(--border-subtle); color: var(--text-subtle); font-size: var(--fs-overline); white-space: nowrap; }
 .spacer { flex: 1; }
 
-.toasts { position: fixed; right: var(--space-4); bottom: calc(var(--h-statusbar) + var(--space-4)); display: flex; flex-direction: column; gap: var(--space-2); }
-.toast { display: flex; align-items: center; gap: 14px; background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 9px var(--space-3); box-shadow: var(--shadow-menu); }
+.toasts { position: fixed; left: var(--space-4); bottom: calc(var(--h-statusbar) + var(--space-4)); display: flex; flex-direction: column; gap: var(--space-2); }
+@keyframes toast-in { from { transform: translateX(-24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.toast { animation: toast-in .25s ease-out; display: flex; align-items: center; gap: 14px; background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); padding: 9px var(--space-3); box-shadow: var(--shadow-menu); }
 .toast.error { max-width: 520px; background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger-text); white-space: pre-wrap; overflow-wrap: anywhere; }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; justify-content: center; padding-top: 12vh; }
 .palette { width: 520px; max-height: 60vh; display: flex; flex-direction: column; gap: var(--space-2); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--radius-menu); padding: 10px; align-self: flex-start; }
