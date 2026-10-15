@@ -185,3 +185,24 @@ fn branches_irmas_mantem_lanes_proprias_ate_o_pai_comum() {
     let tips: Vec<usize> = all.commits.iter().take(3).map(|c| c.lane).collect();
     assert_eq!(tips.iter().collect::<std::collections::HashSet<_>>().len(), 3, "cada ponta na sua lane: {tips:?}");
 }
+
+#[test]
+fn commit_sem_ref_aponta_branch_atual_ou_ponta_da_lane() {
+    let repo = TestRepo::new();
+    repo.write("a.txt", "a");
+    repo.commit_all("base");
+    repo.git(&["switch", "-q", "-c", "feature"]);
+    repo.write("f.txt", "f");
+    repo.commit_all("na feature");
+    repo.git(&["switch", "-q", "main"]);
+    repo.write("m.txt", "m");
+    repo.commit_all("so na main");
+    let path = repo.path().to_string_lossy();
+    let page = repo.core.graph_page(&path, None, 20, &GraphVisibility::default()).expect("grafo");
+    let ghost = |subject: &str| page.commits.iter().find(|c| c.subject == subject).and_then(|c| c.ghost.as_ref()).map(|g| g.name.clone());
+    // pontas de branch têm pill própria; commit só da feature não tem commit sem ref acima dele
+    assert_eq!(ghost("so na main"), None);
+    assert_eq!(ghost("na feature"), None);
+    // o commit base está na ancestralidade do HEAD (main), mesmo com a feature em outra lane
+    assert_eq!(ghost("base").as_deref(), Some("main"));
+}

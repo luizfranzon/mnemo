@@ -9,6 +9,17 @@ pub const COLORS: [&str; 8] = ["#4fb3d9", "#d65bd0", "#e5534b", "#e0a43a", "#5b8
 pub struct ActiveLane {
     pub sha: String,
     pub color: usize,
+    /// Ponta de branch mais próxima acima nesta lane (a "branch" dos commits sem ref própria).
+    #[serde(default)]
+    pub tip: Option<GhostRef>,
+}
+
+/// Branch que a pill fantasma mostra: `remote` marca a que só existe como `remoto/branch`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GhostRef {
+    pub name: String,
+    pub remote: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -17,6 +28,9 @@ pub struct GraphCursor {
     pub offset: usize,
     pub lanes: Vec<Option<ActiveLane>>,
     pub next_color: usize,
+    /// Commits esperados na ancestralidade do HEAD (pais dos já vistos); só a fronteira, não o histórico.
+    #[serde(default)]
+    pub head_line: HashSet<String>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -63,6 +77,8 @@ pub struct GraphCommit {
     pub segments: Vec<GraphSegment>,
     pub refs: Vec<GraphRef>,
     pub head: bool,
+    /// Branch mostrada em opacidade baixa no hover/seleção; só em commit sem pill própria.
+    pub ghost: Option<GhostRef>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -110,7 +126,7 @@ pub struct CommitInput {
 
 impl GraphCursor {
     /// Avança exatamente um commit em ordem topológica. Lanes já emitidas nunca mudam.
-    pub fn layout(&mut self, input: CommitInput, refs: Vec<GraphRef>, head_sha: Option<&str>) -> GraphCommit {
+    pub fn layout(&mut self, input: CommitInput, refs: Vec<GraphRef>, head_sha: Option<&str>, current: Option<&str>) -> GraphCommit {
         let old_count = self.lanes.len();
         let matching: Vec<usize> = self
             .lanes
@@ -127,6 +143,24 @@ impl GraphCursor {
             color
         };
         let color = COLORS[color_index % COLORS.len()].to_string();
+        let lane_tip = self.lanes.get(lane).and_then(Option::as_ref).and_then(|active| active.tip.clone());
+        let own_tip = refs
+            .iter()
+            .filter(|r| r.kind != "tag")
+            .min_by_key(|r| (!r.current, r.kind == "remote"))
+            .map(|r| GhostRef { name: r.name.clone(), remote: r.kind == "remote" });
+        let in_head = head_sha == Some(input.sha.as_str()) || self.head_line.remove(&input.sha);
+        if in_head {
+            self.head_line.extend(input.parents.iter().cloned());
+        }
+        let tip = own_tip.or(lane_tip);
+        let ghost = if !refs.is_empty() {
+            None
+        } else if let (true, Some(name)) = (in_head, current) {
+            Some(GhostRef { name: name.to_string(), remote: false })
+        } else {
+            tip.clone()
+        };
         let mut segments = Vec::new();
         for (i, active) in self.lanes.iter().enumerate() {
             let Some(active) = active else { continue };
@@ -171,7 +205,7 @@ impl GraphCursor {
                     if slot == self.lanes.len() {
                         self.lanes.push(None);
                     }
-                    self.lanes[slot] = Some(ActiveLane { sha: parent.clone(), color: parent_color });
+                    self.lanes[slot] = Some(ActiveLane { sha: parent.clone(), color: parent_color, tip: if parent_index == 0 { tip.clone() } else { None } });
                     slot
                 });
             let edge_color = self.lanes[target].as_ref().map(|a| COLORS[a.color % COLORS.len()]).unwrap_or(&color);
@@ -201,6 +235,7 @@ impl GraphCursor {
             segments,
             refs,
             head: head_sha == Some(input.sha.as_str()),
+            ghost,
         }
     }
 

@@ -168,8 +168,13 @@ input:focus { border-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .graph-veil, .graph-rows { animation: none; } }
 .graph-list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; position: relative; }
 .graph-row { position: absolute; top: 0; left: 0; width: 100%; align-items: center; cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; }
-.graph-row:hover { background: var(--hover); }
-.graph-row.selected { background: var(--accent-selected, rgba(91, 141, 239, .18)); box-shadow: inset 2px 0 #5b8def; }
+.graph-row:hover { background: rgba(91, 141, 239, .09); }
+.graph-row.selected { background: rgba(91, 141, 239, .2); }
+/* Faixa da lane: fundo do centro da bolinha ao fim da coluna Grafo + borda no início da mensagem */
+.lane-band { opacity: .14; }
+.graph-row.selected .lane-band, .lane-band.wip { opacity: .28; }
+.graph-refs .graph-ghost { display: none; opacity: .45; flex: none; }
+.graph-row:hover .graph-refs .graph-ghost, .graph-row.selected .graph-refs .graph-ghost { display: inline-flex; }
 .graph-row > span, .graph-row > div { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 5px; }
 .graph-row .graph-cell { height: 28px; overflow: hidden; padding: 0; }
 .graph-canvas { transform: translateX(var(--graph-offset)); height: 28px; }
@@ -186,6 +191,7 @@ input:focus { border-color: var(--accent); }
 .graph-pill-list { position: fixed; z-index: 40; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding-top: 4px; }
 .graph-pill-list .graph-pill { box-shadow: 0 4px 12px rgba(0, 0, 0, .4); }
 .graph-message { color: var(--text); font-size: 12px; }
+.graph-row > .graph-message { box-shadow: inset 2px 0 var(--lane); padding-left: 10px; }
 .graph-message.merge { color: var(--text-muted); }
 .graph-author, .graph-date { color: var(--text-muted); font-family: var(--font-ui); }
 .graph-row.selected .graph-message, .graph-row.selected .graph-author, .graph-row.selected .graph-date { color: var(--text); }

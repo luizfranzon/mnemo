@@ -31,6 +31,7 @@ function CommitSvg({ row, width, geo, compact }: { row: GraphCommit; width: numb
   const x = geo.first + row.lane * geo.lane
   const photo = useGravatar(row.email)
   return <svg width={width} height={ROW} viewBox={`0 0 ${width} ${ROW}`} aria-label={`Grafo de ${row.sha.slice(0, 7)}`}>
+    <rect className="lane-band" x={x} width="4000" height={ROW} fill={row.color} />
     {row.refs.length > 0 && <path d={`M0 14 H${x}`} stroke={row.color} strokeOpacity="0.55" strokeWidth="1" />}
     {row.segments.map((segment, index) => <path key={`${segment.kind}:${segment.fromLane}:${segment.toLane}:${index}`}
       d={segmentPath(segment, geo)} fill="none" stroke={segment.color} strokeWidth="2" />)}
@@ -342,14 +343,18 @@ export function Graph({ path }: { path: string }) {
     },
   }
   const branch = head?.kind === 'branch' ? head.name : head?.sha ?? 'HEAD'
+  const headColor = commits.find((c) => c.head)?.color ?? '#5b8def'
   const cell = (id: ColId, commit: GraphCommit | null | undefined, wip: boolean) => {
     switch (id) {
       case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} on={pillHandlers} />}{commit && commit.refs.length > 0 &&
-        <span className="graph-ref-connector" style={{ borderColor: commit.color }} />}</div>
+        <span className="graph-ref-connector" style={{ borderColor: commit.color }} />}
+        {commit?.ghost && !commit.refs.length && <span className="graph-pill graph-ghost" style={{ '--pill': commit.color } as CSSProperties} aria-hidden="true">
+          <span className="graph-pill-name">{commit.ghost.name}</span><RefIcon name={commit.ghost.remote ? 'cloud' : 'laptop'} size={11} /></span>}</div>
       case 'graph': return <div key={id} className="graph-cell">
         <div className="graph-canvas" style={{ width: contentWidth }}>
           {commit ? <CommitSvg row={commit} width={contentWidth} geo={geo} compact={layout.compact} /> : <svg width={contentWidth} height={ROW}>
-            <circle cx={geo.first} cy="14" r={layout.compact ? 5 : 10} fill="var(--surface-2)" stroke="#9c9992" strokeWidth="2" strokeDasharray="3 3" />
+            <rect className="lane-band wip" x={geo.first} width="4000" height={ROW} fill={headColor} />
+            <circle cx={geo.first} cy="14" r={layout.compact ? 5 : 10} fill="var(--surface-2)" stroke={headColor} strokeWidth="2" strokeDasharray="3 3" />
           </svg>}
         </div>
       </div>
@@ -423,7 +428,7 @@ export function Graph({ path }: { path: string }) {
           const commit = item.index ? commits[item.index - 1] : null
           const wip = !item.index
           const selected = commit ? selectedSha === commit.sha : selectedSha === 'wip'
-          return <div key={item.key} className={`graph-row graph-grid${selected ? ' selected' : ''}${commit && !matches(commit) ? ' dim' : ''}`} style={{ height: ROW, transform: `translateY(${item.start}px)` }}
+          return <div key={item.key} className={`graph-row graph-grid${selected ? ' selected' : ''}${commit && !matches(commit) ? ' dim' : ''}`} style={{ height: ROW, transform: `translateY(${item.start}px)`, '--lane': commit?.color ?? headColor } as CSSProperties}
             onClick={() => actions.selectCommit(commit?.sha ?? 'wip')}
             onContextMenu={(e) => { if (commit) void openMenu(commit, e) }}
             >

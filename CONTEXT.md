@@ -27,6 +27,14 @@ _Avoid_: card, tag (tag é a ref `refs/tags`)
 **Pills de um commit**:
 Quando um commit tem várias pills, só a primeira aparece, mais um chip `+N` com as demais; passar o mouse sobre o conjunto abre a lista sobreposta, sem mudar a altura da linha. Ordem: branch atual, local com remota, só local, só remota, tags; alfabética dentro do nível.
 
+**Pill fantasma**:
+Pill em opacidade baixa que a linha em hover ou selecionada mostra na coluna Branch / Tag quando o commit não tem pill própria. Indica a branch do commit: a branch atual, se ela contém o commit; senão, a ponta mais próxima subindo pela mesma lane (remota sem local leva o nome completo e ☁). Sem ponta acima na lane, não aparece.
+_Avoid_: pill de hover, preview de branch
+
+**Faixa da lane**:
+Fundo na cor da lane do commit, do centro da bolinha até o fim da coluna Grafo, mais uma borda de 2px na mesma cor no início da coluna da mensagem. Vale para commits, merges, WIP (cor da lane do HEAD) e layout compacto; na linha selecionada e na WIP o fundo fica mais forte.
+_Avoid_: tarja, highlight da lane
+
 **Visibilidade inteligente**:
 Modo do grafo que mostra só a branch atual e a Base dela. Commits mergeados nelas aparecem por fazerem parte da história; as outras branches não ganham pill.
 _Avoid_: filtro inteligente, modo foco

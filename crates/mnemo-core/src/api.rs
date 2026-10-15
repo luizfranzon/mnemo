@@ -451,6 +451,7 @@ impl Mnemo {
             labels.push((tag.sha.clone(), GraphRef { name: tag.name.clone(), kind: "tag".into(), current: false, upstream: None }));
         }
         let current = refs.local.iter().find(|b| b.current);
+        let current_name = current.map(|b| b.name.as_str());
         let head_visible = current.map_or(true, |b| visibility.shows(&format!("refs/heads/{}", b.name), &smart_set));
         if head_sha.is_some() && head_visible {
             revs.push("HEAD".into());
@@ -496,7 +497,7 @@ impl Mnemo {
             .take(limit)
             .map(|input| {
                 let labels = by_sha.get(&input.sha).cloned().unwrap_or_default();
-                cursor.layout(input, labels, head_sha.as_deref())
+                cursor.layout(input, labels, head_sha.as_deref(), current_name)
             })
             .collect();
         Ok(GraphPage { commits, next: has_more.then_some(cursor), wip })
