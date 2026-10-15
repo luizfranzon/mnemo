@@ -448,7 +448,7 @@ button.diff-gutter:hover:not(:disabled) { background: var(--hover); border: 0; }
 button.diff-gutter[aria-pressed="true"] { background: var(--accent-primary); color: var(--accent-text); }
 .diff-num { display: inline-block; width: 44px; padding-right: 10px; text-align: right; }
 .diff-mark { display: inline-block; width: 16px; }
-.diff-code { white-space: pre; padding-right: 16px; }
+.diff-code { white-space: pre; tab-size: 4; padding-right: 16px; }
 .diff-code::selection, .diff-code *::selection { background: color-mix(in srgb, var(--accent) 38%, transparent); color: inherit; }
 /* a área toda do diff começa a seleção (até o espaço em branco); calha, números e botões não */
 .diff-scroll { user-select: text; cursor: text; }
