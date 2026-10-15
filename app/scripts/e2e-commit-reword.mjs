@@ -6,6 +6,8 @@ import { launch, makeRepo } from './e2e-lib.mjs'
 const { repo, g } = makeRepo()
 g('commit', '-q', '--allow-empty', '-m', 'antigo', '-m', 'corpo')
 g('commit', '-q', '--allow-empty', '-m', 'topo')
+// a linha WIP só aparece com algo para commitar
+;(await import('node:fs')).writeFileSync(`${repo}/wip.txt`, 'x')
 const ui = await launch(repo, 9348)
 const { ev, until } = ui
 const set = (sel, v) => ev(`(() => { const el = document.querySelector('${sel}'); Object.getOwnPropertyDescriptor(el.constructor.prototype, 'value').set.call(el, ${JSON.stringify(v)}); el.dispatchEvent(new Event('input', { bubbles: true })); return true })()`)

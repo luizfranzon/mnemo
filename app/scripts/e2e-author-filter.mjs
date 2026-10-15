@@ -9,6 +9,8 @@ const as = (name, email, msg) => g('-c', `user.name=${name}`, '-c', `user.email=
 as('Ana Lima', 'ana@x.com', 'a1')
 as('Bruno Melo', 'bruno@x.com', 'b1')
 as('Ana Lima', 'ANA@x.com', 'a2')
+// a linha WIP só aparece com algo para commitar
+;(await import('node:fs')).writeFileSync(`${repo}/wip.txt`, 'x')
 const ui = await launch(repo, 9353)
 const { ev, until, send } = ui
 const dimmed = () => ev(`document.querySelectorAll('.graph-row.dim').length`)

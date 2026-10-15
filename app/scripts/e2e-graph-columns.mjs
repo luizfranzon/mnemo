@@ -16,6 +16,8 @@ const mouse = (ui, type, x, y, buttons) => ui.send('Input.dispatchMouseEvent', {
 const gear = (ui) => ui.ev(`document.querySelector('.graph-gear').click()`)
 const check = (ui, label) => ui.ev(`[...document.querySelectorAll('.graph-pop label')].find((l) => l.textContent.includes(${JSON.stringify(label)})).querySelector('input').click()`)
 
+// a linha WIP só aparece com algo para commitar
+;(await import('node:fs')).writeFileSync(`${repo}/wip.txt`, 'x')
 let ui = await launch(repo, 9342, data)
 try {
   await ui.until(() => ui.ev(`document.querySelectorAll('.graph-row').length > 1`), true)

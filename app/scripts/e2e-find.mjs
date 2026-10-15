@@ -6,6 +6,8 @@ import { launch, makeRepo } from './e2e-lib.mjs'
 
 const { repo, g } = makeRepo()
 for (const m of ['fix a', 'outro', 'fix b', 'fix c']) g('commit', '-q', '--allow-empty', '-m', m)
+// a linha WIP só aparece com algo para commitar
+;(await import('node:fs')).writeFileSync(`${repo}/wip.txt`, 'x')
 const ui = await launch(repo, 9355)
 const { ev, until, send } = ui
 const count = () => ev(`document.querySelector('.graph-filter-count')?.textContent`)

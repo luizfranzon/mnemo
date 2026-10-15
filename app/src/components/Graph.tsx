@@ -52,6 +52,30 @@ function CommitSvg({ row, width, geo, compact }: { row: GraphCommit; width: numb
   </svg>
 }
 
+const NO_COMMITS: GraphCommit[] = []
+let pillCtx: CanvasRenderingContext2D | null | undefined
+/** Largura da maior pill que a coluna mostra (a primeira de cada commit + o chip `+N`, e a fantasma), mais o respiro da célula. */
+function refsMinWidth(commits: GraphCommit[]): number {
+  pillCtx ??= document.createElement('canvas').getContext('2d')
+  if (!pillCtx) return 0
+  pillCtx.font = `12px ${getComputedStyle(document.documentElement).getPropertyValue('--font-mono') || 'monospace'}`
+  const ctx = pillCtx
+  // borda 2 + padding 14 + nome + 16 (ícone 11 + gap 5) por ícone
+  const width = (name: string, icons: number) => 16 + ctx.measureText(name).width + 16 * icons
+  let widest = 0
+  for (const c of commits) {
+    const pills = pillsOf(c.refs)
+    const first = pills[0]
+    if (first) {
+      const chip = pills.length > 1 ? 3 + 14 + ctx.measureText(`+${pills.length - 1}`).width : 0
+      widest = Math.max(widest, width(first.label, (first.current ? 1 : 0) + (first.kind === 'tag' ? 1 : (first.local ? 1 : 0) + (first.remote ? 1 : 0))) + chip)
+    }
+    if (c.ghost) widest = Math.max(widest, width(c.ghost.name, 1 + (c.ghost.current ? 1 : 0)))
+  }
+  // padding esquerdo da célula (13) + trecho mínimo do conector (4)
+  return widest ? Math.ceil(widest) + 17 : 0
+}
+
 type Pill = { key: string; label: string; title: string; kind: 'branch' | 'tag'; local: string | null; remote: string | null; current: boolean }
 
 const rank = (p: Pill) => p.current ? 0 : p.local && p.remote ? 1 : p.local ? 2 : p.remote ? 3 : 4
@@ -142,13 +166,15 @@ export function Graph({ path }: { path: string }) {
   const geo = geometry(layout.compact)
   const contentWidth = geo.first * 2 + maxLanes * geo.lane
   const cols = visibleColumns(layout)
+  const refsMin = refsMinWidth(page?.commits ?? NO_COMMITS)
+  const bounds = { graphMax: contentWidth, refsMin }
   const update = (fn: (l: GraphLayout) => GraphLayout) => setLayout((l) => {
     const next = fn(l)
     saveGraphLayout(path, next)
     return next
   })
   // reaplica a cada render: o arrasto escreveu direto no DOM, e o React não sabe disso
-  useLayoutEffect(() => { root.current?.style.setProperty('--graph-cols', gridTemplate(layout, undefined, contentWidth)) })
+  useLayoutEffect(() => { root.current?.style.setProperty('--graph-cols', gridTemplate(layout, undefined, bounds)) })
   // Branch/Tag + Grafo vizinhas rolam juntas na horizontal; as demais colunas ficam fixas
   const refsAt = cols.indexOf('refs'), graphAt = cols.indexOf('graph')
   const pane = refsAt >= 0 && Math.abs(refsAt - graphAt) === 1 ? { start: Math.min(refsAt, graphAt), refsFirst: refsAt < graphAt } : null
@@ -212,8 +238,10 @@ export function Graph({ path }: { path: string }) {
     })
   }
   const commits = page?.commits ?? []
-  const virtual = useVirtualizer({ count: commits.length + 1, getScrollElement: () => scroller.current,
-    estimateSize: () => ROW, overscan: 12, getItemKey: (index) => index === 0 ? `wip:${path}` : commits[index - 1]!.sha })
+  // sem nada para commitar a linha WIP some e os commits começam no índice 0
+  const top = page && page.wip.changed + page.wip.untracked > 0 ? 1 : 0
+  const virtual = useVirtualizer({ count: commits.length + top, getScrollElement: () => scroller.current,
+    estimateSize: () => ROW, overscan: 12, getItemKey: (index) => index < top ? `wip:${path}` : commits[index - top]!.sha })
   useEffect(() => {
     if (!selectedSha || !page) return
     if (selectedSha !== lastSelection.current) {
@@ -222,12 +250,12 @@ export function Graph({ path }: { path: string }) {
     }
     const target = pendingSelection.current
     if (!target) return
-    if (target === 'wip') { virtual.scrollToIndex(0); pendingSelection.current = null; return }
+    if (target === 'wip') { if (top) virtual.scrollToIndex(0); pendingSelection.current = null; return }
     const index = page.commits.findIndex((commit) => commit.sha === target)
-    if (index >= 0) { virtual.scrollToIndex(index + 1, { align: 'auto' }); pendingSelection.current = null }
+    if (index >= 0) { virtual.scrollToIndex(index + top, { align: 'auto' }); pendingSelection.current = null }
     else if (page.next) loadMore()
     else pendingSelection.current = null
-  }, [selectedSha, page])
+  }, [selectedSha, page, top])
 
   /** Largura útil da grade: sem a barra de rolagem da lista (10px). */
   const room = () => (root.current?.clientWidth ?? 0) - 10
@@ -238,13 +266,13 @@ export function Graph({ path }: { path: string }) {
     const handle = e.currentTarget
     handle.setPointerCapture(e.pointerId)
     handle.classList.add('dragging')
-    const start = columnWidth(layout, id, contentWidth)
+    const start = columnWidth(layout, id, bounds)
     const startX = e.clientX
     const sign = cols.indexOf(id) < cols.indexOf('message') ? 1 : -1 // à direita da Mensagem, arrastar para a esquerda alarga
     let width = start
     const onMove = (ev: PointerEvent) => {
-      width = dragColumnWidth(layout, id, start + sign * (ev.clientX - startX), room(), contentWidth)
-      box.style.setProperty('--graph-cols', gridTemplate(layout, { id, width }, contentWidth))
+      width = dragColumnWidth(layout, id, start + sign * (ev.clientX - startX), room(), bounds)
+      box.style.setProperty('--graph-cols', gridTemplate(layout, { id, width }, bounds))
     }
     handle.addEventListener('pointermove', onMove)
     handle.addEventListener('lostpointercapture', () => {
@@ -265,7 +293,7 @@ export function Graph({ path }: { path: string }) {
       : id === 'description' ? c.description : id === 'author' ? c.author : id === 'date' ? formatDate(c.timestamp) : c.sha.slice(0, 7)
     const extra = id === 'refs' ? 44 : id === 'author' && layout.compact ? 36 : 16
     const wanted = id === 'graph' ? contentWidth : Math.max(0, ...commits.map((c) => ctx.measureText(text(c)).width)) + extra
-    update((l) => ({ ...l, widths: { ...l.widths, [id]: dragColumnWidth(l, id, Math.ceil(wanted), room(), contentWidth) } }))
+    update((l) => ({ ...l, widths: { ...l.widths, [id]: dragColumnWidth(l, id, Math.ceil(wanted), room(), bounds) } }))
   }
 
   useEffect(() => {
@@ -425,8 +453,8 @@ export function Graph({ path }: { path: string }) {
     }}>
       <div key={version} className="graph-rows" style={{ height: virtual.getTotalSize(), position: 'relative' }}>
         {virtual.getVirtualItems().map((item) => {
-          const commit = item.index ? commits[item.index - 1] : null
-          const wip = !item.index
+          const commit = item.index >= top ? commits[item.index - top] : null
+          const wip = item.index < top
           const selected = commit ? selectedSha === commit.sha : selectedSha === 'wip'
           return <div key={item.key} className={`graph-row graph-grid${selected ? ' selected' : ''}${commit && !matches(commit) ? ' dim' : ''}`} style={{ height: ROW, transform: `translateY(${item.start}px)`, '--lane': commit?.color ?? headColor } as CSSProperties}
             onClick={() => actions.selectCommit(commit?.sha ?? 'wip')}

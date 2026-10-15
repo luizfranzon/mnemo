@@ -24,7 +24,7 @@ try {
   assert.deepEqual(await ev(`[...document.querySelectorAll('.titlebar-menu')].map((b) => b.textContent)`), ['Arquivo', 'Editar', 'Exibir', 'Repositório', 'Ajuda'])
 
   // Editar sem foco em campo: só a Operação
-  await ui.click('Checkout…')
+  await ev(`document.querySelector('.branch-button').click()`)
   await until(() => ev(`document.activeElement?.tagName`), 'INPUT')
   await key('Escape')
   await until(() => ev(`!!document.querySelector('.palette')`), false)

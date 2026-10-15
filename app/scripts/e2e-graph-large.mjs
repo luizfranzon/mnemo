@@ -10,6 +10,8 @@ let stream = ''
 for (let i = 1; i <= 2100; i++) stream += `commit refs/heads/main\nmark :${i}\ncommitter Teste <teste@example.com> ${1700000000 + i} +0000\ndata 1\nx\nfrom ${i === 1 ? base : `:${i - 1}`}\n\n`
 const imported = spawnSync('git', ['fast-import', '--quiet'], { cwd: repo, input: stream })
 assert.equal(imported.status, 0, imported.stderr?.toString())
+// a linha WIP só aparece com algo para commitar
+;(await import('node:fs')).writeFileSync(`${repo}/wip.txt`, 'x')
 const ui = await launch(repo, 9341)
 const { ev, until } = ui
 try {

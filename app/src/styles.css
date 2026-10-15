@@ -22,14 +22,15 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .main { flex: 1; min-height: 0; }
 
 /* Barra de título (TopBar.dc.html): janela sem moldura, arrasta por aqui */
-.titlebar { display: flex; align-items: center; gap: var(--space-1); height: var(--h-titlebar); padding-left: var(--space-3); background: var(--bg-rail); border-bottom: 1px solid var(--border-subtle); -webkit-app-region: drag; user-select: none; }
+.titlebar { position: relative; display: flex; align-items: center; gap: var(--space-1); height: var(--h-titlebar); padding-left: var(--space-3); background: var(--bg-rail); border-bottom: 1px solid var(--border-subtle); -webkit-app-region: drag; user-select: none; }
 .titlebar button { -webkit-app-region: no-drag; background: transparent; border: 0; }
 .titlebar-brand { display: flex; align-items: center; gap: var(--space-2); margin-right: 10px; font-weight: 600; color: var(--text); }
 .titlebar-brand svg { color: var(--accent); }
-.titlebar-menus { display: flex; gap: var(--space-1); }
+.titlebar-menus { display: flex; gap: var(--space-1); margin-right: auto; }
 .titlebar .titlebar-menu { padding: 6px var(--space-2); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: var(--fs-caption); }
 .titlebar .titlebar-menu.open { background: var(--hover); color: var(--text); }
-.titlebar-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; color: var(--text-subtle); font-size: var(--fs-caption); }
+/* centrado na janela, não no espaço que sobra entre os menus e os botões; os 340px laterais reservam o lado maior */
+.titlebar-title { position: absolute; top: 0; bottom: 0; left: 340px; right: 340px; line-height: var(--h-titlebar); pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; color: var(--text-subtle); font-size: var(--fs-caption); }
 .titlebar .window-control { display: flex; align-items: center; justify-content: center; width: 44px; height: 100%; padding: 0; border-radius: 0; color: var(--text-muted); }
 .titlebar .window-control:hover:not(:disabled) { color: var(--text); }
 .titlebar .window-control.close:hover:not(:disabled) { background: var(--danger); }

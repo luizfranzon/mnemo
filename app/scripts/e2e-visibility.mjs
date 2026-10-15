@@ -10,6 +10,8 @@ g('commit', '-q', '--allow-empty', '-m', 'da feat')
 g('checkout', '-q', 'main')
 g('commit', '-q', '--allow-empty', '-m', 'da main')
 
+// a linha WIP só aparece com algo para commitar
+;(await import('node:fs')).writeFileSync(`${repo}/wip.txt`, 'x')
 const ui = await launch(repo, 9341)
 const { ev, until, click } = ui
 const row = (title) => `.refs-row[title="${title}"]`

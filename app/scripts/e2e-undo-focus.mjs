@@ -18,7 +18,7 @@ try {
   await ev(`window.__mnemo.invoke('execute_operation', { path: '${p}', kind: { type: 'checkout', target: 't34951' } })`)
   await until(branch, 't34951')
   // abre a paleta (Ctrl+P) para ter um campo de texto focado
-  await ui.click('Checkout')
+  await ev(`document.querySelector('.branch-button').click()`)
   await until(() => ev(`document.activeElement?.tagName`), 'INPUT')
   await ctrlZ('document.activeElement')
   await sleep(1000)
