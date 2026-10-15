@@ -1,10 +1,26 @@
-import { useEffect, useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { core } from '../bridge'
-import type { ConflictChoice, ConflictDoc, ConflictFile } from '../bridge/types'
+import type { ConflictChoice, ConflictDoc, ConflictFile, SideLabel } from '../bridge/types'
 import { actions, selectConflict, selectWipRevision, useApp } from '../store/app'
-import { conflictsOf, initialPicks, output, takeSide, unresolved, type Pick } from './conflictModel'
+import {
+  chunkStarts, conflictsOf, fileSideState, initialPicks, output, outputWithMarkers, paneRows, resultLayout, sideState, taken, toggleFileSide, toggleLine, toggleSide, unresolved,
+  type Pick, type PaneRow, type Side, type State,
+} from './conflictModel'
+import { highlight } from './diffModel'
+import { ResultEditor, type ResultHandle } from './ResultEditor'
 
-const CONTEXT = 3
+const ROW = 20
+const SIDES = ['ours', 'theirs'] as const
+const NAME = { ours: 'Atual', theirs: 'Entrando' } as const
+const LETTER = { ours: 'A', theirs: 'B' } as const
+
+/** Checkbox de três estados: `some` fica indeterminado. */
+function TriBox({ state, label, disabled, onChange }: { state: State; label: string; disabled: boolean; onChange: () => void }) {
+  return <input type="checkbox" aria-label={label} title={label} disabled={disabled} checked={state === 'all'} onChange={onChange}
+    ref={(el) => { if (el) el.indeterminate = state === 'some' }} />
+}
+const labelOf = (l: SideLabel | null) => (l ? <span className="muted"> commit {l.sha}{l.name && <> em <em>{l.name}</em></>}</span> : null)
 const KIND: Record<ConflictFile['kind'], string> = {
   both: 'modificado nos dois lados', bothAdded: 'adicionado nos dois lados', deletedByUs: 'apagado no Atual e modificado no que entra',
   deletedByThem: 'modificado no Atual e apagado no que entra', addedByUs: 'adicionado no Atual', addedByThem: 'adicionado no que entra', bothDeleted: 'apagado nos dois lados',
@@ -21,7 +37,9 @@ export function ConflictEditor({ path }: { path: string }) {
   const [manual, setManual] = useState<string | null>(null)
   const [current, setCurrent] = useState(0)
   const [ask, setAsk] = useState(false)
-  const body = useRef<HTMLDivElement>(null)
+  const main = useRef<HTMLDivElement>(null)
+  const scroller = useRef<HTMLDivElement>(null)
+  const result = useRef<ResultHandle | null>(null)
   const dialog = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -59,31 +77,58 @@ export function ConflictEditor({ path }: { path: string }) {
   const take = (choice: ConflictChoice) => void core.conflictTake(path, file, choice).then(done, fail)
   const save = (markers: boolean) => {
     if (!doc) return
-    void core.conflictSave(path, file, manual ?? output(doc, picks, markers), !markers).then(done, fail)
+    void core.conflictSave(path, file, manual ?? (markers ? outputWithMarkers(doc, picks) : output(doc, picks)), !markers).then(done, fail)
   }
   const chunks = doc ? conflictsOf(doc) : []
+  const rows = doc ? paneRows(doc) : []
+  const starts = chunkStarts(rows)
+  const lay = doc ? resultLayout(doc, picks) : null
   const pending = unresolved(picks)
   const autoCount = chunks.filter((c) => c.auto).length
+  const locked = manual !== null
+  const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current, overscan: 20, estimateSize: () => ROW })
   const goto = (n: number) => {
     const next = Math.min(Math.max(n, 0), chunks.length - 1)
     setCurrent(next)
-    body.current?.querySelector(`[data-chunk="${next}"]`)?.scrollIntoView({ block: 'center' })
+    if (starts[next] !== undefined) virtual.scrollToIndex(starts[next]!, { align: 'center' })
+    if (lay?.starts[next] !== undefined) result.current?.reveal(lay.starts[next]!)
   }
-  const setPick = (n: number, pick: Pick) => { setManual(null); setPicks((all) => all.map((p, i) => (i === n ? pick : p))) }
-  const toggle = (n: number, side: 'ours' | 'theirs', i: number) => {
-    const p = picks[n]!
-    setPick(n, { ...p, [side]: p[side].map((v, j) => (j === i ? !v : v)), touched: true })
+  const change = (n: number, fn: (p: Pick) => Pick) => { setManual(null); setCurrent(n); setPicks((all) => all.map((p, i) => (i === n ? fn(p) : p))) }
+  const reset = () => { setManual(null); setPicks(initialPicks(doc!)) }
+
+  /** Arrasto a 60fps só mexe na CSS variable; a altura não é guardada. */
+  const dragSplit = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const box = main.current
+    if (!box || e.button !== 0) return
+    e.preventDefault()
+    const handle = e.currentTarget
+    handle.setPointerCapture(e.pointerId)
+    handle.classList.add('dragging')
+    const rect = box.getBoundingClientRect()
+    const onMove = (ev: PointerEvent) => box.style.setProperty('--conflict-top', `${Math.min(85, Math.max(15, ((ev.clientY - rect.top) / rect.height) * 100))}%`)
+    handle.addEventListener('pointermove', onMove)
+    handle.addEventListener('lostpointercapture', () => { handle.removeEventListener('pointermove', onMove); handle.classList.remove('dragging') }, { once: true })
   }
 
-  let chunk = -1
+  const half = (r: PaneRow, side: Side) => {
+    const cell = r[side]
+    const hot = r.chunk !== null
+    const n = r.chunk ?? 0
+    const on = hot && cell?.i != null && taken(picks[n]!, side, cell.i)
+    return <div className={`conflict-half ${side}${hot && cell ? ' hot' : ''}${cell ? '' : ' diff-empty'}`}>
+      <span className="conflict-chk">{hot && r.first && cell && <TriBox state={sideState(picks[n]!, chunks[n]!, side)} disabled={locked}
+        label={`Pegar o trecho inteiro de ${NAME[side]}`} onChange={() => change(n, (p) => toggleSide(p, chunks[n]!, side))} />}</span>
+      <span className="diff-num">{cell?.n ?? ''}</span>
+      <span className="conflict-take">{hot && cell && cell.i !== null && <button className={on ? 'on' : ''} aria-pressed={on} disabled={locked}
+        title={on ? 'Tirar esta linha do Resultado' : 'Pegar esta linha'} aria-label={`Pegar linha ${cell.n} de ${NAME[side]}`}
+        onClick={() => change(n, (p) => toggleLine(p, side, cell.i!))}>{on ? '✓' : '+'}</button>}</span>
+      {cell && <span className="diff-code">{highlight(cell.text).map((p, k) => <span key={k} className={`syn-${p.c}`}>{p.t}</span>)}</span>}
+    </div>
+  }
+
   return <div className="diff-view conflict-view">
     <div className="diff-head">
       <div className="diff-crumb"><span>{file}</span> <span className="diff-side">{info ? KIND[info.kind] : ''}</span></div>
-      {chunks.length > 0 && <>
-        <button className="diff-nav" aria-label="Conflito anterior" disabled={current <= 0} onClick={() => goto(current - 1)}>‹</button>
-        <span className="muted">conflito {current + 1} de {chunks.length}</span>
-        <button className="diff-nav" aria-label="Próximo conflito" disabled={current >= chunks.length - 1} onClick={() => goto(current + 1)}>›</button>
-      </>}
       <button className="diff-close" aria-label="Fechar editor de conflito (Esc)" title="Fechar (Esc)" onClick={actions.closeConflict}>×</button>
     </div>
     {info && !doc && <div className="conflict-choices">
@@ -95,60 +140,53 @@ export function ConflictEditor({ path }: { path: string }) {
         {!info.binary && <button onClick={() => take('delete')}>Apagar o arquivo</button>}
       </div>
     </div>}
-    {doc && <>
-      <div className="conflict-body" ref={body}>
-        {doc.segments.map((s, k) => {
-          if (s.kind === 'text') {
-            const L = s.lines
-            const headN = k === 0 ? 0 : CONTEXT, tailN = k === doc.segments.length - 1 ? 0 : CONTEXT
-            const small = L.length <= headN + tailN
-            const head = small ? L : L.slice(0, headN)
-            const tail = small ? [] : L.slice(L.length - tailN)
-            return <div key={k} className="conflict-text">
-              {head.map((t, i) => <div key={i}>{t}</div>)}
-              {!small && <div className="muted">… {L.length - headN - tailN} linhas iguais</div>}
-              {tail.map((t, i) => <div key={i}>{t}</div>)}
-            </div>
-          }
-          const n = ++chunk
-          const p = picks[n]
-          if (!p) return null
-          return <section key={k} data-chunk={n} className={`conflict-chunk${p.touched ? ' done' : ''}${n === current ? ' current' : ''}`} onClick={() => setCurrent(n)}>
-            <div className="conflict-bar">
-              <button disabled={manual !== null} onClick={() => setPick(n, takeSide(s, true, false))}>Usar o atual</button>
-              <button disabled={manual !== null} onClick={() => setPick(n, takeSide(s, false, true))}>Usar o que entra</button>
-              <button disabled={manual !== null} onClick={() => setPick(n, takeSide(s, true, true))}>Os dois</button>
-              <button disabled={manual !== null} onClick={() => setPick(n, takeSide(s, false, false))}>Nenhum</button>
-              {s.auto && <span className="muted">só espaço em branco: Atual escolhido</span>}
-            </div>
-            <div className="conflict-sides">
-              {(['ours', 'theirs'] as const).map((side) => <div key={side} className={`conflict-side ${side}`}>
-                <h4>{side === 'ours' ? 'Atual' : 'Entrando'}</h4>
-                {s[side].map((t, i) => <label key={i}><input type="checkbox" disabled={manual !== null} checked={p[side][i] ?? false} onChange={() => toggle(n, side, i)} /><code>{t || ' '}</code></label>)}
-              </div>)}
-            </div>
-          </section>
-        })}
+    {doc && lay && <div className="conflict-main" ref={main}>
+      <div className="conflict-top">
+        <div className="conflict-heads">
+          {SIDES.map((side) => <div key={side} className={`conflict-head ${side}`}>
+            <TriBox state={fileSideState(picks, chunks, side)} disabled={locked} label={`Pegar tudo de ${NAME[side]}`} onChange={() => { setManual(null); setPicks((all) => toggleFileSide(all, chunks, side)) }} />
+            <span className="conflict-letter">{LETTER[side]}</span>
+            <span>{NAME[side]}{labelOf(doc[`${side}Label`])}</span>
+          </div>)}
+        </div>
+        <div className="diff-scroll split" ref={scroller}>
+          <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
+            {virtual.getVirtualItems().map((item) => {
+              const r = rows[item.index]!
+              return <div key={item.key} className="diff-row" style={{ transform: `translateY(${item.start}px)`, height: item.size }}>
+                <div className="diff-split">{half(r, 'ours')}{half(r, 'theirs')}</div>
+              </div>
+            })}
+          </div>
+        </div>
       </div>
+      <div className="conflict-split" role="separator" aria-orientation="horizontal" aria-label="Redimensionar o Resultado" onPointerDown={dragSplit}
+        onDoubleClick={() => main.current?.style.removeProperty('--conflict-top')} />
       <div className="conflict-result">
         <div className="diff-tools">
           <strong>Resultado</strong>
-          <span className="muted">{manual !== null ? 'editado à mão: Reset volta para a escolha por trechos' : pending > 0 ? `${pending} sem escolha` : 'todos os conflitos resolvidos'}{autoCount > 0 && manual === null ? ` · ${autoCount} só de espaço em branco (Atual escolhido)` : ''}</span>
+          <span className="muted">{locked ? 'editado à mão: Reset volta para a escolha por linhas' : pending > 0 ? `${pending} sem escolha` : 'todos os conflitos resolvidos'}{autoCount > 0 && !locked ? ` · ${autoCount} só de espaço em branco (Atual escolhido)` : ''}</span>
+          <span className="spacer" />
+          {chunks.length > 0 && <>
+            <button className="diff-nav" aria-label="Conflito anterior" disabled={current <= 0} onClick={() => goto(current - 1)}>‹</button>
+            <span className="muted">conflito {current + 1} de {chunks.length}</span>
+            <button className="diff-nav" aria-label="Próximo conflito" disabled={current >= chunks.length - 1} onClick={() => goto(current + 1)}>›</button>
+          </>}
           <span className="spacer" />
           <button onClick={() => void core.conflictMergetool(path, file).then(() => actions.wipChanged(path), fail)}>Abrir na ferramenta externa</button>
-          <button onClick={() => { setManual(null); setPicks(initialPicks(doc)) }}>Reset</button>
-          <button className="primary" onClick={() => (pending > 0 && manual === null ? setAsk(true) : save(false))}>Salvar</button>
+          <button onClick={reset}>Reset</button>
+          <button className="primary" onClick={() => (pending > 0 && !locked ? setAsk(true) : save(false))}>Salvar</button>
         </div>
-        <textarea aria-label="Resultado" spellCheck={false} value={manual ?? output(doc, picks, true)} onChange={(e) => setManual(e.target.value)} />
+        <ResultEditor value={manual ?? output(doc, picks)} layout={locked ? null : lay} onChange={setManual} handle={result} />
       </div>
       <dialog ref={dialog} className="push-dialog card" aria-labelledby="conflict-ask" onCancel={() => setAsk(false)}>
         <h2 id="conflict-ask">Há {pending} conflito(s) sem escolha</h2>
-        <p>Dá para gravar o arquivo com os marcadores <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> e resolver depois.</p>
+        <p>Dá para gravar o arquivo com os marcadores <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> e resolver depois. O arquivo gravado difere do Resultado exibido, e continua em conflito até você resolvê-lo.</p>
         <div className="actions">
           <button onClick={() => setAsk(false)}>Voltar</button>
           <button className="primary" autoFocus onClick={() => { setAsk(false); save(true) }}>Gravar com marcadores</button>
         </div>
       </dialog>
-    </>}
+    </div>}
   </div>
 }

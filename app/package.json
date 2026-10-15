@@ -16,6 +16,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@codemirror/commands": "6",
+    "@codemirror/state": "6",
+    "@codemirror/view": "6",
     "@fontsource/ibm-plex-sans": "5",
     "@fontsource/jetbrains-mono": "5",
     "@tanstack/react-virtual": "^3.14.14",

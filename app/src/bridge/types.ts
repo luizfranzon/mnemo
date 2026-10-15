@@ -163,5 +163,7 @@ export type ConflictSegment =
   | { kind: 'text'; lines: string[] }
   /** `auto`: Atual e Entrando só diferem em espaço em branco. */
   | { kind: 'conflict'; ours: string[]; theirs: string[]; base: string[]; auto: boolean }
-export interface ConflictDoc { path: string; segments: ConflictSegment[]; finalNewline: boolean }
+/** Commit e ref de um lado; `null` fora de merge/rebase/cherry-pick/revert. */
+export interface SideLabel { sha: string; name: string | null }
+export interface ConflictDoc { path: string; segments: ConflictSegment[]; finalNewline: boolean; oursLabel: SideLabel | null; theirsLabel: SideLabel | null }
 export type ConflictChoice = 'base' | 'ours' | 'theirs' | 'delete'
