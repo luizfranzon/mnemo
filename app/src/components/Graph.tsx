@@ -143,6 +143,7 @@ export function Graph({ path }: { path: string }) {
   const [maxLanes, setMaxLanes] = useState(1)
   const [loading, setLoading] = useState(false)
   const [reloading, setReloading] = useState(false)
+  const [conflicts, setConflicts] = useState(0)
   const [version, setVersion] = useState(0)
   const loadedPath = useRef<string | null>(null)
   const [menu, setMenu] = useState<{ items: MenuEntry[]; anchor: Rect } | null>(null)
@@ -196,6 +197,12 @@ export function Graph({ path }: { path: string }) {
   }, [pane !== null, refsAt, graphAt, contentWidth])
 
   useEffect(() => {
+    let active = true
+    void core.conflictList(path).then((list) => active && setConflicts(list.length), () => active && setConflicts(0))
+    return () => { active = false }
+  }, [path, revision])
+
+  useEffect(() => {
     const current = ++generation.current
     busy.current = true
     // mesmo repositório: mantém o grafo antigo sob um véu até chegarem os dados novos
@@ -239,7 +246,7 @@ export function Graph({ path }: { path: string }) {
   }
   const commits = page?.commits ?? []
   // sem nada para commitar a linha WIP some e os commits começam no índice 0
-  const top = page && page.wip.changed + page.wip.untracked > 0 ? 1 : 0
+  const top = page && page.wip.changed + page.wip.untracked + conflicts > 0 ? 1 : 0
   const virtual = useVirtualizer({ count: commits.length + top, getScrollElement: () => scroller.current,
     estimateSize: () => ROW, overscan: 12, getItemKey: (index) => index < top ? `wip:${path}` : commits[index - top]!.sha })
   useEffect(() => {
@@ -386,7 +393,10 @@ export function Graph({ path }: { path: string }) {
           </svg>}
         </div>
       </div>
-      case 'message': return wip
+      case 'message': return wip && conflicts > 0
+        ? <span key={id} className="graph-message graph-wip graph-conflict"><RefIcon name="warning" size={13} />
+          {conflicts} {conflicts === 1 ? 'conflito de arquivo' : 'conflitos de arquivo'} pendente{conflicts === 1 ? '' : 's'} em {branch}</span>
+        : wip
         ? <span key={id} className="graph-message graph-wip"><em>// WIP</em>
           <span className="wip-chip changed"><RefIcon name="edit" size={11} />{page?.wip.changed ?? 0}</span>
           <span className="wip-chip added">+ {page?.wip.untracked ?? 0}</span></span>
@@ -456,7 +466,7 @@ export function Graph({ path }: { path: string }) {
           const commit = item.index >= top ? commits[item.index - top] : null
           const wip = item.index < top
           const selected = commit ? selectedSha === commit.sha : selectedSha === 'wip'
-          return <div key={item.key} className={`graph-row graph-grid${selected ? ' selected' : ''}${commit && !matches(commit) ? ' dim' : ''}`} style={{ height: ROW, transform: `translateY(${item.start}px)`, '--lane': commit?.color ?? headColor } as CSSProperties}
+          return <div key={item.key} className={`graph-row graph-grid${wip && conflicts > 0 ? ' conflict' : ''}${selected ? ' selected' : ''}${commit && !matches(commit) ? ' dim' : ''}`} style={{ height: ROW, transform: `translateY(${item.start}px)`, '--lane': commit?.color ?? headColor } as CSSProperties}
             onClick={() => actions.selectCommit(commit?.sha ?? 'wip')}
             onContextMenu={(e) => { if (commit) void openMenu(commit, e) }}
             >

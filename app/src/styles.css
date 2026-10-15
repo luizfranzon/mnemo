@@ -201,6 +201,9 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .graph-row.selected .graph-message, .graph-row.selected .graph-author, .graph-row.selected .graph-date { color: var(--text); }
 .graph-message.graph-wip { display: flex; align-items: center; gap: 8px; }
 .graph-wip em { color: var(--text-muted); font-size: 14px; }
+.graph-row.conflict { --row-bg: color-mix(in srgb, #e0a43a 38%, var(--bg)); }
+.graph-row.conflict.selected { --row-bg: color-mix(in srgb, #e0a43a 50%, var(--bg)); }
+.graph-message.graph-conflict { color: #fff; font-size: 13px; }
 .wip-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: 999px; font-size: 12px; }
 .wip-chip.changed { background: color-mix(in srgb, #e0a43a 20%, var(--bg)); color: #e0a43a; }
 .wip-chip.added { background: color-mix(in srgb, #7fdc95 18%, var(--bg)); color: #7fdc95; }
