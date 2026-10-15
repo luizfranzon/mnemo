@@ -2,7 +2,9 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { Annotation, EditorState, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
 import { Decoration, EditorView, GutterMarker, ViewPlugin, WidgetType, gutter, keymap, lineNumbers, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 import { useEffect, useRef, type RefObject } from 'react'
+import { syntaxHighlighting } from '@codemirror/language'
 import { highlight } from './diffModel'
+import { dracula, languageFor } from './syntax'
 import type { ResultLayout } from './conflictModel'
 
 export interface ResultHandle { reveal: (line: number) => void }
@@ -52,7 +54,7 @@ const origins = gutter({
   lineMarkerChange: (u) => u.transactions.some((t) => t.effects.some((e) => e.is(setLayout))) || u.docChanged,
 })
 
-/** Mesmo highlight genérico do diff (`highlight`), só nas linhas visíveis. */
+/** Highlight genérico por regex, só nas linhas visíveis: para arquivo sem parser de linguagem. */
 const syntax = ViewPlugin.fromClass(class {
   decorations: DecorationSet
   constructor(view: EditorView) { this.decorations = this.build(view) }
@@ -74,22 +76,23 @@ const syntax = ViewPlugin.fromClass(class {
   }
 }, { decorations: (v) => v.decorations })
 
-interface Props { value: string; layout: ResultLayout | null; onChange: (text: string) => void; handle: RefObject<ResultHandle | null> }
+interface Props { file: string; value: string; layout: ResultLayout | null; onChange: (text: string) => void; handle: RefObject<ResultHandle | null> }
 
 /** Resultado editável (ADR 0006). `value` e `layout` mandam; digitar chama `onChange`. */
-export function ResultEditor({ value, layout, onChange, handle }: Props) {
+export function ResultEditor({ file, value, layout, onChange, handle }: Props) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const change = useRef(onChange)
   change.current = onChange
 
   useEffect(() => {
+    const lang = languageFor(file)
     const v = new EditorView({
       parent: host.current!,
       state: EditorState.create({
         doc: value,
         extensions: [
-          lineNumbers(), origins, layoutField, syntax, history(), keymap.of([...defaultKeymap, ...historyKeymap]),
+          lineNumbers(), origins, layoutField, lang ? [lang, syntaxHighlighting(dracula)] : syntax, history(), keymap.of([...defaultKeymap, ...historyKeymap]),
           EditorView.contentAttributes.of({ 'aria-label': 'Resultado', spellcheck: 'false' }),
           EditorView.updateListener.of((u) => { if (u.docChanged && !u.transactions.some((t) => t.annotation(external))) change.current(u.state.doc.toString()) }),
         ],
@@ -98,7 +101,7 @@ export function ResultEditor({ value, layout, onChange, handle }: Props) {
     view.current = v
     handle.current = { reveal: (line) => { const pos = v.state.doc.line(Math.min(line + 1, v.state.doc.lines)).from; v.dispatch({ effects: EditorView.scrollIntoView(pos, { y: 'center' }) }) } }
     return () => { v.destroy(); view.current = null; handle.current = null }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- criado uma vez; `value`/`layout` entram pelo efeito abaixo
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- criado uma vez (o pai troca a `key` com o arquivo); `value`/`layout` entram pelo efeito abaixo
   }, [])
 
   useEffect(() => {

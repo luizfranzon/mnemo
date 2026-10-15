@@ -8,7 +8,8 @@ import { core } from '../bridge'
 import type { DiffLine, DiffSource, FileDiff } from '../bridge/types'
 import { actions, selectDiff, selectWipRevision, useApp } from '../store/app'
 import type { Rect } from './menuModel'
-import { diffRows, display, highlight, hunkLines, hunkRows, LAYOUTS, markers, selectionArgs, type DiffLayout, type DiffRow } from './diffModel'
+import { diffParts, type Part } from './syntax'
+import { diffRows, hunkLines, hunkRows, LAYOUTS, markers, selectionArgs, type DiffLayout, type DiffRow } from './diffModel'
 
 const LINE = 20
 const HUNK = 28
@@ -71,6 +72,7 @@ export function DiffView({ path }: { path: string }) {
 
   const rows = diff && !diff.binary && !diff.tooLarge ? diffRows(diff, layout) : []
   const heads = hunkRows(rows)
+  const parts = rows.length ? diffParts(diff!) : []
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current, overscan: 20,
     estimateSize: (i) => (rows[i]?.type === 'hunk' ? HUNK : LINE), getItemKey: (i) => rows[i]!.key })
   if (!target || !source) return null
@@ -104,7 +106,7 @@ export function DiffView({ path }: { path: string }) {
   const g = GLYPH[target.file.status] ?? GLYPH.M!
   const slash = file.lastIndexOf('/')
 
-  const code = (l: DiffLine) => <span className="diff-code">{highlight(display(l)).map((p, k) => <span key={k} className={`syn-${p.c}`}>{p.t}</span>)}
+  const code = (l: DiffLine, i: number) => <span className="diff-code">{(parts[i] ?? ([] as Part[])).map((p, k) => <span key={k} className={`syn-${p.c}`}>{p.t}</span>)}
     {l.noNewline && <span className="diff-eol" title="Sem quebra de linha no fim do arquivo"><Icon name="noEol" size={12} /></span>}</span>
   const mark = (l: DiffLine) => (l.kind === 'add' ? '+' : l.kind === 'del' ? '−' : '')
   const gutter = (i: number, nums: (number | null)[]) => {
@@ -117,7 +119,7 @@ export function DiffView({ path }: { path: string }) {
   const half = (i: number | null, side: 'left' | 'right') => {
     if (i === null) return <div className={`diff-half ${side} diff-empty`} />
     const l = diff!.lines[i]!
-    return <div className={`diff-half ${side} ${l.kind}${selected.has(i) ? ' selected' : ''}`}>{gutter(i, [side === 'left' ? l.old : l.new])}{code(l)}</div>
+    return <div className={`diff-half ${side} ${l.kind}${selected.has(i) ? ' selected' : ''}`}>{gutter(i, [side === 'left' ? l.old : l.new])}{code(l, i)}</div>
   }
   const row = (r: DiffRow) => {
     if (r.type === 'hunk') {
@@ -127,7 +129,7 @@ export function DiffView({ path }: { path: string }) {
     }
     if (r.type === 'split') return <div className="diff-split">{half(r.left, 'left')}{half(r.right, 'right')}</div>
     const l = diff!.lines[r.line]!
-    return <div className={`diff-line ${l.kind}${selected.has(r.line) ? ' selected' : ''}`}>{gutter(r.line, [l.old, l.new])}{code(l)}</div>
+    return <div className={`diff-line ${l.kind}${selected.has(r.line) ? ' selected' : ''}`}>{gutter(r.line, [l.old, l.new])}{code(l, r.line)}</div>
   }
 
   return <div className="diff-view" aria-label={`Diff de ${file}`}>

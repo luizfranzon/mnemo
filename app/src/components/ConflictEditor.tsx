@@ -7,7 +7,7 @@ import {
   chunkStarts, conflictsOf, fileSideState, initialPicks, output, outputWithMarkers, paneRows, resultLayout, sideState, taken, toggleFileSide, toggleLine, toggleSide, unresolved,
   type Pick, type PaneRow, type Side, type State,
 } from './conflictModel'
-import { highlight } from './diffModel'
+import { highlightLines } from './syntax'
 import { selectSide } from './selectSide'
 import { ResultEditor, type ResultHandle } from './ResultEditor'
 import { Icon } from './Icon'
@@ -84,6 +84,8 @@ export function ConflictEditor({ path }: { path: string }) {
   const chunks = doc ? conflictsOf(doc) : []
   const rows = doc ? paneRows(doc) : []
   const starts = chunkStarts(rows)
+  /** Cada lado parseado inteiro; o índice é o número da linha no lado menos 1. */
+  const parts = { ours: highlightLines(rows.flatMap((r) => (r.ours ? [r.ours.text] : [])).join('\n'), file), theirs: highlightLines(rows.flatMap((r) => (r.theirs ? [r.theirs.text] : [])).join('\n'), file) }
   const lay = doc ? resultLayout(doc, picks) : null
   const pending = unresolved(picks)
   const autoCount = chunks.filter((c) => c.auto).length
@@ -124,7 +126,7 @@ export function ConflictEditor({ path }: { path: string }) {
       <span className="conflict-take">{hot && cell && cell.i !== null && <button className={on ? 'on' : ''} aria-pressed={on} disabled={locked}
         title={on ? 'Tirar esta linha do Resultado' : 'Pegar esta linha'} aria-label={`Pegar linha ${cell.n} de ${NAME[side]}`}
         onClick={() => change(n, (p) => toggleLine(p, side, cell.i!))}><Icon name={on ? 'check' : 'plus'} size={12} strokeWidth={2.2} /></button>}</span>
-      {cell && <span className="diff-code">{highlight(cell.text).map((p, k) => <span key={k} className={`syn-${p.c}`}>{p.t}</span>)}</span>}
+      {cell && <span className="diff-code">{(parts[side][cell.n - 1] ?? []).map((p, k) => <span key={k} className={`syn-${p.c}`}>{p.t}</span>)}</span>}
     </div>
   }
 
@@ -179,7 +181,7 @@ export function ConflictEditor({ path }: { path: string }) {
           <button onClick={reset}>Reset</button>
           <button className="primary" onClick={() => (pending > 0 && !locked ? setAsk(true) : save(false))}>Salvar</button>
         </div>
-        <ResultEditor value={manual ?? output(doc, picks)} layout={locked ? null : lay} onChange={setManual} handle={result} />
+        <ResultEditor key={file} file={file} value={manual ?? output(doc, picks)} layout={locked ? null : lay} onChange={setManual} handle={result} />
       </div>
       <dialog ref={dialog} className="push-dialog card" aria-labelledby="conflict-ask" onCancel={() => setAsk(false)}>
         <h2 id="conflict-ask">Há {pending} conflito(s) sem escolha</h2>

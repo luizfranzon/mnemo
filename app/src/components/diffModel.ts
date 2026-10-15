@@ -100,7 +100,7 @@ const TOKEN = new RegExp([
 ].join('|'), 'g')
 const GROUPS: Token[] = ['comment', 'string', 'constant', 'keyword', 'keyword', 'constant', 'constant', 'type', 'function', 'punctuation']
 
-/** Syntax highlight genérico (paleta Dracula do 04-design-system.md). Roda só nas linhas visíveis. */
+/** Syntax highlight genérico por regex (paleta Dracula do 04-design-system.md), para arquivo sem parser de linguagem (`syntax.ts`). */
 export function highlight(text: string): { t: string; c: Token }[] {
   const out: { t: string; c: Token }[] = []
   let last = 0

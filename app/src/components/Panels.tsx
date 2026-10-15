@@ -1,12 +1,14 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react'
 import { dragWidth, loadLayout, PANEL, RAIL, saveLayout, type Layout, type Side } from './panelLayout'
 import { CommitPanel } from './CommitPanel'
 import { WipPanel } from './WipPanel'
 import { selectConflict, selectDiff, useApp } from '../store/app'
-import { DiffView } from './DiffView'
-import { ConflictEditor } from './ConflictEditor'
 import { RefPanel } from './RefPanel'
 import { TOGGLE_PANEL } from './windowMenus'
+
+// diff e conflito trazem o CodeMirror e os parsers de linguagem: só carregam ao abrir o primeiro
+const DiffView = lazy(() => import('./DiffView').then((m) => ({ default: m.DiffView })))
+const ConflictEditor = lazy(() => import('./ConflictEditor').then((m) => ({ default: m.ConflictEditor })))
 
 /** Refs · centro · painel direito. Montado por Aba (`key` = caminho): cada repo lembra suas larguras. */
 export function Panels({ path, children }: { path: string; children: ReactNode }) {
@@ -49,7 +51,7 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
           collapse={() => (diffOpen ? setPeek(false) : update((l) => ({ ...l, leftOpen: false })))} />
         <Divider side="left" layout={layout} root={root} update={update} />
       </aside>
-      <main className="panel-center">{children}{conflictOpen ? <ConflictEditor path={path} /> : diffOpen && <DiffView path={path} />}</main>
+      <main className="panel-center">{children}<Suspense>{conflictOpen ? <ConflictEditor path={path} /> : diffOpen && <DiffView path={path} />}</Suspense></main>
       {layout.rightOpen && (
         <aside className="panel panel-right" aria-label="Detalhes">
           <Divider side="right" layout={layout} root={root} update={update} />
