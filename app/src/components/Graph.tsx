@@ -60,7 +60,7 @@ function refsMinWidth(commits: GraphCommit[]): number {
   if (!pillCtx) return 0
   pillCtx.font = `12px ${getComputedStyle(document.documentElement).getPropertyValue('--font-mono') || 'monospace'}`
   const ctx = pillCtx
-  // borda 2 + padding 14 + nome + 16 (ícone 11 + gap 5) por ícone
+  // borda 2 + padding 14 + nome + 16 (ícone 11 + gap 5) por ícone, +4 em laptop/cloud (15)
   const width = (name: string, icons: number) => 16 + ctx.measureText(name).width + 16 * icons
   let widest = 0
   for (const c of commits) {
@@ -68,7 +68,7 @@ function refsMinWidth(commits: GraphCommit[]): number {
     const first = pills[0]
     if (first) {
       const chip = pills.length > 1 ? 3 + 14 + ctx.measureText(`+${pills.length - 1}`).width : 0
-      widest = Math.max(widest, width(first.label, (first.current ? 1 : 0) + (first.kind === 'tag' ? 1 : (first.local ? 1 : 0) + (first.remote ? 1 : 0))) + chip)
+      widest = Math.max(widest, width(first.label, (first.current ? 1 : 0) + (first.kind === 'tag' ? 1 : (first.local ? 1 : 0) + (first.remote ? 1 : 0))) + chip + (first.kind === 'branch' ? ((first.local ? 1 : 0) + (first.remote ? 1 : 0)) * 4 : 0))
     }
     if (c.ghost) widest = Math.max(widest, width(c.ghost.name, 1 + (c.ghost.current ? 1 : 0)))
   }
@@ -106,7 +106,7 @@ function PillView({ pill, on }: { pill: Pill; on: PillHandlers }) {
     {pill.current && <RefIcon name="check" size={11} />}
     <span className="graph-pill-name">{pill.label}</span>
     {pill.kind === 'tag' ? <RefIcon name="tags" size={11} /> : <>
-      {pill.local && <RefIcon name="laptop" size={11} />}{pill.remote && <RefIcon name="cloud" size={11} />}</>}
+      {pill.local && <RefIcon name="laptop" size={15} />}{pill.remote && <RefIcon name="cloud" size={15} />}</>}
   </span>
 }
 
