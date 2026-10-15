@@ -504,7 +504,8 @@ button.diff-gutter[aria-pressed="true"] { background: var(--accent-primary); col
 .syn-string { color: var(--syn-string); }
 .syn-constant { color: var(--syn-constant); }
 .syn-type { color: var(--syn-type); }
-.syn-punctuation, .syn-comment { color: var(--syn-punctuation); }
+.syn-punctuation { color: var(--syn-punctuation); }
+.syn-comment { color: var(--syn-comment); }
 .syn-default { color: var(--syn-default); }
 .commit-file:not(.commit-dir) { cursor: pointer; border-radius: 6px; }
 .commit-file:not(.commit-dir):hover { background: var(--hover); }

@@ -88,7 +88,7 @@ const KEYWORDS = 'abstract|as|async|await|break|case|catch|class|const|continue|
 const TOKEN = new RegExp(String.raw`(\/\/.*$|#.*$)|("(?:[^"\\]|\\.)*"?|'(?:[^'\\]|\\.)*'?|\x60[^\x60]*\x60?)|\b(${KEYWORDS})\b|(=>)|\b([A-Z][A-Z0-9_]{2,})\b|\b([A-Z][A-Za-z0-9]*)\b|([{}()\[\]:,;.=<>+\-*/!?&|%])`, 'g')
 const GROUPS: Token[] = ['comment', 'string', 'keyword', 'keyword', 'constant', 'type', 'punctuation']
 
-/** Syntax highlight genérico (paleta "Mnemo Dark" do 04-design-system.md). Roda só nas linhas visíveis. */
+/** Syntax highlight genérico (paleta Dracula do 04-design-system.md). Roda só nas linhas visíveis. */
 export function highlight(text: string): { t: string; c: Token }[] {
   const out: { t: string; c: Token }[] = []
   let last = 0
