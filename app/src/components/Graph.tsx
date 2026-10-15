@@ -21,7 +21,8 @@ import {
 } from './graphColumns'
 
 const PAGE = 200
-const date = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+const formatDate = (ts: number) => dateFmt.format(new Date(ts * 1000)).replace(', ', ' - ')
 const fullDate = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeStyle: 'short' })
 type Geo = ReturnType<typeof geometry>
 
@@ -260,7 +261,7 @@ export function Graph({ path }: { path: string }) {
     if (!ctx) return
     ctx.font = `${style.fontSize} ${style.fontFamily}`
     const text = (c: GraphCommit) => id === 'refs' ? c.refs.slice(0, 2).map((r) => r.name).join('   ')
-      : id === 'description' ? c.description : id === 'author' ? c.author : id === 'date' ? date.format(new Date(c.timestamp * 1000)) : c.sha.slice(0, 7)
+      : id === 'description' ? c.description : id === 'author' ? c.author : id === 'date' ? formatDate(c.timestamp) : c.sha.slice(0, 7)
     const extra = id === 'refs' ? 44 : id === 'author' && layout.compact ? 36 : 16
     const wanted = id === 'graph' ? contentWidth : Math.max(0, ...commits.map((c) => ctx.measureText(text(c)).width)) + extra
     update((l) => ({ ...l, widths: { ...l.widths, [id]: dragColumnWidth(l, id, Math.ceil(wanted), room()) } }))
@@ -360,7 +361,7 @@ export function Graph({ path }: { path: string }) {
       case 'description': return <span key={id} className="graph-description" title={commit?.description}>{commit?.description}</span>
       case 'author': return <span key={id} className="graph-author" title={commit?.email}>
         {commit && layout.compact && <Avatar small name={commit.author} email={commit.email} />}{commit?.author}</span>
-      case 'date': return <span key={id} className="graph-date" title={commit ? fullDate.format(new Date(commit.timestamp * 1000)) : undefined}>{commit ? date.format(new Date(commit.timestamp * 1000)).replace(',', '') : ''}</span>
+      case 'date': return <span key={id} className="graph-date" title={commit ? fullDate.format(new Date(commit.timestamp * 1000)) : undefined}>{commit ? formatDate(commit.timestamp) : ''}</span>
       case 'sha': return <span key={id} className="graph-sha" title={commit?.sha}>{commit?.sha.slice(0, 7)}</span>
     }
   }

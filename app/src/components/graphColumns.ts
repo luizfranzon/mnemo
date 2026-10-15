@@ -9,7 +9,7 @@ export const COLUMNS: Record<ColId, { label: string; def: number; min: number; h
   message: { label: 'Mensagem', def: 0, min: 200, hideable: false },
   description: { label: 'Descrição', def: 220, min: 80, hideable: true },
   author: { label: 'Autor', def: 120, min: 60, hideable: true },
-  date: { label: 'Data', def: 104, min: 70, hideable: true },
+  date: { label: 'Data', def: 150, min: 100, hideable: true },
   sha: { label: 'SHA', def: 70, min: 56, hideable: true },
 }
 const IDS = Object.keys(COLUMNS) as ColId[]
