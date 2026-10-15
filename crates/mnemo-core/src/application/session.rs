@@ -193,9 +193,11 @@ impl RepoSession {
             };
             let out = self.git.exec(&cmd)?;
             if out.code != 0 {
+                // Ainda em andamento sem arquivo em conflito: o git recusou por outro motivo (ex.: hook falhou).
+                let unmerged = !self.git.exec(&GitCmd::new(["ls-files", "-u"]))?.text().is_empty();
                 return match self.git.in_progress() {
-                    Some(k) => Ok(self.conflict_result(k)),
-                    None => Err(failure(&cmd, &out)),
+                    Some(k) if unmerged => Ok(self.conflict_result(k)),
+                    _ => Err(failure(&cmd, &out)),
                 };
             }
             if let Some(k) = self.git.in_progress() {

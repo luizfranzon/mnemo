@@ -118,6 +118,8 @@ export function dismissToast(id: number) {
 }
 
 function fail(err: unknown, retry?: () => Promise<void>) {
+  const text = errorMessage(err)
+  pushToast({ text: text.length > 200 ? `${text.slice(0, 200)}…` : text })
   set({ error: errorMessage(err), retry: errorCode(err) === 'indexLocked' ? (retry ?? null) : null })
 }
 

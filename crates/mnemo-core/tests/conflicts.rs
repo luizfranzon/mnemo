@@ -254,3 +254,15 @@ fn continuar_merge_com_mensagem_usa_a_mensagem_no_commit() {
     repo.session().continue_in_progress(Some("Mensagem editada")).unwrap();
     assert_eq!(repo.git(&["log", "-1", "--format=%s"]), "Mensagem editada");
 }
+
+#[test]
+fn continuar_merge_com_hook_que_falha_devolve_erro() {
+    let repo = conflicted(&ten(&[(2, "main")]), &ten(&[(2, "feat")]));
+    call(&repo, "conflict_save", json!({ "file": "a.txt", "content": ten(&[(2, "main feat")]) })).unwrap();
+    let hook = repo.path().join(".git/hooks/commit-msg");
+    std::fs::write(&hook, "#!/bin/sh\necho hook barrou >&2\nexit 1\n").unwrap();
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let err = repo.session().continue_in_progress(None).unwrap_err();
+    assert!(err.to_string().contains("hook barrou"), "{err}");
+}
