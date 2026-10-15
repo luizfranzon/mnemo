@@ -54,6 +54,12 @@ pub enum OperationKind {
         message: String,
         amend: bool,
         allow_empty: bool,
+        /// `-S`: assina com a chave do git.
+        #[serde(default)]
+        sign: bool,
+        /// `--no-verify`: pula os hooks pre-commit e commit-msg.
+        #[serde(default)]
+        no_verify: bool,
     },
     Reset {
         target: String,

@@ -168,9 +168,9 @@ impl RepoSession {
         })
     }
 
-    /// `message` só vale para merge: conclui com `commit -m` em vez de `merge --continue`.
-    pub fn continue_in_progress(&self, message: Option<&str>) -> Result<ExecuteResult> {
-        self.advance_in_progress("continue", "Continuando…", message)
+    /// Mensagem e opções (`-S`, `--no-verify`) só valem para merge: conclui com `git commit` em vez de `merge --continue`.
+    pub fn continue_in_progress(&self, message: Option<&str>, sign: bool, no_verify: bool) -> Result<ExecuteResult> {
+        self.advance_in_progress("continue", "Continuando…", Some((message, sign, no_verify)))
     }
 
     pub fn skip_in_progress(&self) -> Result<ExecuteResult> {
@@ -180,15 +180,28 @@ impl RepoSession {
         self.advance_in_progress("skip", "Pulando…", None)
     }
 
-    fn advance_in_progress(&self, action: &str, label: &str, message: Option<&str>) -> Result<ExecuteResult> {
+    fn advance_in_progress(&self, action: &str, label: &str, commit: Option<(Option<&str>, bool, bool)>) -> Result<ExecuteResult> {
         self.in_turn(label, || {
             let kind = match self.progress_or_err() {
                 Ok(k) => k,
                 // concluído fora enquanto a UI ainda mostrava o conflito
                 Err(e) => return self.adopt_finished_locked()?.ok_or(e),
             };
-            let cmd = match message.map(str::trim).filter(|m| !m.is_empty()) {
-                Some(m) if kind == ProgressKind::Merge && action == "continue" => GitCmd::new(["commit", "-m", m]).also_ok(1).env("GIT_EDITOR", "true"),
+            let cmd = match commit {
+                Some((message, sign, no_verify)) if kind == ProgressKind::Merge && action == "continue" && (message.is_some_and(|m| !m.trim().is_empty()) || sign || no_verify) => {
+                    let mut args = vec!["commit".to_string()];
+                    match message.map(str::trim).filter(|m| !m.is_empty()) {
+                        Some(m) => args.extend(["-m".into(), m.to_string()]),
+                        None => args.push("--no-edit".into()),
+                    }
+                    if sign {
+                        args.push("-S".into());
+                    }
+                    if no_verify {
+                        args.push("--no-verify".into());
+                    }
+                    GitCmd::new(args).also_ok(1).env("GIT_EDITOR", "true")
+                }
                 _ => progress_command(kind, action),
             };
             let out = self.git.exec(&cmd)?;

@@ -396,6 +396,8 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .wip-box textarea { resize: none; background: transparent; border: 0; outline: none; padding: 8px 12px; color: #C9C6C0; font: inherit; font-size: 13px; line-height: 1.5; }
 .wip-panel .wip-options { justify-content: flex-start; gap: 6px; height: 26px; color: #9C9992; font-size: 12px; }
 .wip-options span { color: #8A877F; }
+.wip-opts { display: flex; flex-direction: column; gap: 6px; padding: 2px 12px 8px; font-size: 12px; color: var(--text-secondary); }
+.wip-opts label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .wip-buttons { display: flex; gap: 8px; }
 .wip-panel .wip-commit { flex: 1; gap: 8px; height: 40px; background: #237A3B; color: #fff; font-size: 13.5px; font-weight: 500; border-radius: 8px; }
 .wip-panel .wip-commit:disabled { background: #1C1C1E; color: #8A877F; opacity: 1; }

@@ -39,6 +39,8 @@ export function WipPanel({ path }: { path: string }) {
   const [summary, setSummary] = useState('')
   const [description, setDescription] = useState('')
   const [amend, setAmend] = useState(false)
+  const [opts, setOpts] = useState({ sign: false, hooks: true, pushAfter: false })
+  const [optsOpen, setOptsOpen] = useState(false)
   const [busy, setBusy] = useState(false) // hooks podem demorar: trava o botão e mostra o carregando
   const scroller = useRef<HTMLDivElement>(null)
 
@@ -93,9 +95,15 @@ export function WipPanel({ path }: { path: string }) {
     if (why || busy) return
     const message = description.trim() ? `${summary.trim()}\n\n${description.trim()}` : summary.trim()
     // O texto só some quando deu certo: erro (ex.: hook) não pode custar a mensagem escrita.
-    const done = merging ? actions.progressAction(path, 'continue', message || undefined) : actions.execute(path, { type: 'commit', message, amend, allowEmpty: false })
+    const noVerify = !opts.hooks
+    const done = merging ? actions.progressAction(path, 'continue', message || undefined, opts.sign, noVerify)
+      : actions.execute(path, { type: 'commit', message, amend, allowEmpty: false, sign: opts.sign, noVerify })
     setBusy(true)
-    void done.then((ok) => { if (ok) { setSummary(''); setDescription(''); setAmend(false) } }).finally(() => setBusy(false))
+    void done.then(async (ok) => {
+      if (!ok) return
+      setSummary(''); setDescription(''); setAmend(false)
+      if (opts.pushAfter) await actions.requestPush(path)
+    }).finally(() => setBusy(false))
   }
   const stash = () => {
     if (busy) return
@@ -195,8 +203,13 @@ export function WipPanel({ path }: { path: string }) {
           <textarea id="wip-desc" rows={3} placeholder="Descrição (opcional)" value={description} onChange={(e) => setDescription(e.target.value)} />
         </>}
       </div>
-      {tab === 'commit' && <button className="wip-options" type="button">
-        <Svg size={12}><path d="M9 6l6 6-6 6" /></Svg>Opções<span>· assinar: não · hooks: sim · push depois: não</span></button>}
+      {tab === 'commit' && <button className="wip-options" type="button" aria-expanded={optsOpen} onClick={() => setOptsOpen((v) => !v)}>
+        <Svg size={12}><path d={optsOpen ? 'M6 9l6 6 6-6' : 'M9 6l6 6-6 6'} /></Svg>Opções<span>· assinar: {opts.sign ? 'sim' : 'não'} · hooks: {opts.hooks ? 'sim' : 'não'} · push depois: {opts.pushAfter ? 'sim' : 'não'}</span></button>}
+      {tab === 'commit' && optsOpen && <div className="wip-opts">
+        <label><input type="checkbox" checked={opts.sign} onChange={(e) => setOpts({ ...opts, sign: e.target.checked })} />Assinar o commit</label>
+        <label><input type="checkbox" checked={opts.hooks} onChange={(e) => setOpts({ ...opts, hooks: e.target.checked })} />Rodar hooks</label>
+        <label><input type="checkbox" checked={opts.pushAfter} onChange={(e) => setOpts({ ...opts, pushAfter: e.target.checked })} />Fazer push depois do commit</label>
+      </div>}
       <div className="wip-buttons">
         {tab === 'commit'
           ? <button className="wip-commit" disabled={!!why || busy} aria-busy={busy} title={why ?? undefined} onClick={commit}>

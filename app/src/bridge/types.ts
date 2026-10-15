@@ -72,7 +72,7 @@ export type OperationKind =
   | { type: 'checkout'; target: string }
   | { type: 'checkoutRemote'; remote: string; branch: string }
   | { type: 'checkoutWithChanges'; target: string; remote: string | null; mode: 'stash' | 'carry' }
-  | { type: 'commit'; message: string; amend: boolean; allowEmpty: boolean }
+  | { type: 'commit'; message: string; amend: boolean; allowEmpty: boolean; sign?: boolean; noVerify?: boolean }
   | { type: 'reset'; target: string; mode: 'soft' | 'mixed' | 'hard' }
   | { type: 'branchCreate'; name: string; start: string | null; checkout: boolean }
   | { type: 'discard'; paths: string[] }

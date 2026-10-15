@@ -178,7 +178,7 @@ fn merge_com_conflito_resolvido_entra_no_historico_ao_concluir_e_desfaz_inteiro(
     repo.write("a.txt", "resolvido\ndois\ntres\n");
     repo.git(&["add", "a.txt"]);
 
-    let r = repo.session().continue_in_progress(None).expect("continua");
+    let r = repo.session().continue_in_progress(None, false, false).expect("continua");
     assert!(matches!(r, ExecuteResult::Completed { op_id: Some(_), .. }));
     assert_eq!(repo.read("a.txt"), "resolvido\ndois\ntres\n");
     repo.session().undo().expect("desfaz o merge inteiro");
@@ -195,7 +195,7 @@ fn pendencia_de_conflito_sobrevive_a_reabrir_o_core() {
     let (_core, session) = repo.reopen();
     repo.write("a.txt", "resolvido\n");
     repo.git(&["add", "a.txt"]);
-    session.continue_in_progress(None).expect("continua");
+    session.continue_in_progress(None, false, false).expect("continua");
     session.undo().expect("desfaz");
     assert_eq!(repo.head(), before);
 }
@@ -431,7 +431,7 @@ fn continuar_depois_de_concluir_fora_adota_o_merge() {
     repo.write("a.txt", "resolvido\n");
     repo.git(&["add", "a.txt"]);
     repo.git(&["commit", "-q", "--no-edit"]);
-    let r = repo.session().continue_in_progress(None).expect("adota");
+    let r = repo.session().continue_in_progress(None, false, false).expect("adota");
     assert!(matches!(r, ExecuteResult::Completed { op_id: Some(_), .. }));
 }
 
@@ -459,5 +459,5 @@ fn merge_abortado_fora_some_sem_entrar_no_historico() {
     repo.exec(OperationKind::Merge { target: "feat".into() });
     repo.git(&["merge", "--abort"]);
     assert!(repo.session().refresh_external().expect("atualiza").is_none());
-    assert!(matches!(repo.session().continue_in_progress(None), Err(CoreError::NothingInProgress { .. })));
+    assert!(matches!(repo.session().continue_in_progress(None, false, false), Err(CoreError::NothingInProgress { .. })));
 }

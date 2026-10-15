@@ -702,7 +702,11 @@ impl Mnemo {
             "refresh_external" => out(s.refresh_external()?),
             "is_busy" => out(json!({ "busy": s.is_busy(), "label": s.running_label() })),
             "abort_in_progress" => out(s.abort_in_progress()?),
-            "continue_in_progress" => out(s.continue_in_progress(args.get("message").and_then(Value::as_str))?),
+            "continue_in_progress" => out(s.continue_in_progress(
+                args.get("message").and_then(Value::as_str),
+                args.get("sign").and_then(Value::as_bool).unwrap_or(false),
+                args.get("noVerify").and_then(Value::as_bool).unwrap_or(false),
+            )?),
             "skip_in_progress" => out(s.skip_in_progress()?),
             "discard_preview" => {
                 let paths: Vec<String> = parse(&json!(args.get("paths").cloned().unwrap_or(json!([]))))?;

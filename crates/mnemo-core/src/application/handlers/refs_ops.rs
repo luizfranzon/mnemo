@@ -113,7 +113,7 @@ impl Handler for RefsOps {
                 git.run(["switch", "--track", "-c", branch.as_str(), &format!("{remote}/{branch}")])?;
                 RefsStrategy::Checkout
             }
-            Commit { message, amend, allow_empty } => {
+            Commit { message, amend, allow_empty, sign, no_verify } => {
                 let mut args = vec!["commit".to_string()];
                 if *amend {
                     args.push("--amend".into());
@@ -125,6 +125,12 @@ impl Handler for RefsOps {
                     args.push("--no-edit".into());
                 } else {
                     args.extend(["-m".into(), message.clone()]);
+                }
+                if *sign {
+                    args.push("-S".into());
+                }
+                if *no_verify {
+                    args.push("--no-verify".into());
                 }
                 if *allow_empty {
                     args.push("--allow-empty".into());

@@ -78,7 +78,7 @@ fn salvar_grava_o_resultado_e_marca_como_resolvido() {
     call(&repo, "conflict_save", json!({ "file": "a.txt", "content": ten(&[(2, "main feat")]) })).unwrap();
     assert_eq!(repo.read("a.txt"), ten(&[(2, "main feat")]));
     assert!(call(&repo, "conflict_list", json!({})).unwrap().as_array().unwrap().is_empty());
-    let r = repo.session().continue_in_progress(None).unwrap();
+    let r = repo.session().continue_in_progress(None, false, false).unwrap();
     assert!(matches!(r, ExecuteResult::Completed { .. }), "{r:?}");
     assert_eq!(repo.git(&["show", "HEAD:a.txt"]), ten(&[(2, "main feat")]).trim_end());
 }
@@ -196,7 +196,7 @@ fn rebase_em_conflito_lista_arquivo_e_continua_depois_de_salvar() {
     assert_eq!(c["ours"], json!(["main"]));
     assert_eq!(c["theirs"], json!(["feat"]));
     call(&repo, "conflict_save", json!({ "file": "a.txt", "content": ten(&[(2, "ok")]) })).unwrap();
-    let r = repo.session().continue_in_progress(None).unwrap();
+    let r = repo.session().continue_in_progress(None, false, false).unwrap();
     assert!(matches!(r, ExecuteResult::Completed { .. }), "{r:?}");
 }
 
@@ -251,7 +251,7 @@ fn merge_em_conflito_grava_mensagem_merge_branch_na_atual() {
 fn continuar_merge_com_mensagem_usa_a_mensagem_no_commit() {
     let repo = conflicted(&ten(&[(2, "main")]), &ten(&[(2, "feat")]));
     call(&repo, "conflict_save", json!({ "file": "a.txt", "content": ten(&[(2, "main feat")]) })).unwrap();
-    repo.session().continue_in_progress(Some("Mensagem editada")).unwrap();
+    repo.session().continue_in_progress(Some("Mensagem editada"), false, false).unwrap();
     assert_eq!(repo.git(&["log", "-1", "--format=%s"]), "Mensagem editada");
 }
 
@@ -263,6 +263,6 @@ fn continuar_merge_com_hook_que_falha_devolve_erro() {
     std::fs::write(&hook, "#!/bin/sh\necho hook barrou >&2\nexit 1\n").unwrap();
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let err = repo.session().continue_in_progress(None).unwrap_err();
+    let err = repo.session().continue_in_progress(None, false, false).unwrap_err();
     assert!(err.to_string().contains("hook barrou"), "{err}");
 }

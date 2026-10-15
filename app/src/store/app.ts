@@ -264,11 +264,11 @@ export const actions = {
     set({ pushPrompt: null })
   },
 
-  async progressAction(path: string, action: 'continue' | 'skip' | 'abort', message?: string): Promise<boolean> {
+  async progressAction(path: string, action: 'continue' | 'skip' | 'abort', message?: string, sign = false, noVerify = false): Promise<boolean> {
     try {
       if (action === 'abort') patchTab(path, { undo: await core.abortInProgress(path) })
       else {
-        const result = action === 'continue' ? await core.continueInProgress(path, message) : await core.skipInProgress(path)
+        const result = action === 'continue' ? await core.continueInProgress(path, message, sign, noVerify) : await core.skipInProgress(path)
         patchTab(path, { undo: result.state })
       }
       await refreshHead(path)
