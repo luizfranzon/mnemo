@@ -82,9 +82,12 @@ export function WipPanel({ path }: { path: string }) {
   const toggleDir = (key: string) => setCollapsed((old) => { const next = new Set(old); if (next.has(key)) next.delete(key); else next.add(key); return next })
 
   const changed = new Set([...unstaged, ...staged].map((f) => f.path)).size
-  const why = !staged.length && !amend ? 'Prepare arquivos para commitar' : !summary.trim() && !amend ? 'Escreva um resumo' : null
+  const merging = useApp((s) => s.tabs.find((t) => t.path === path)?.toolbar.progress?.kind)
+  // Em merge/rebase parado, o commit é o "Continuar" do git (mensagem do próprio merge); `commit` comum é recusado pelo core.
+  const why = merging ? null : !staged.length && !amend ? 'Prepare arquivos para commitar' : !summary.trim() && !amend ? 'Escreva um resumo' : null
   const commit = () => {
     if (why) return
+    if (merging) return void actions.progressAction(path, 'continue')
     const message = description.trim() ? `${summary.trim()}\n\n${description.trim()}` : summary.trim()
     void actions.execute(path, { type: 'commit', message, amend, allowEmpty: false })
     setSummary(''); setDescription(''); setAmend(false)
@@ -190,7 +193,7 @@ export function WipPanel({ path }: { path: string }) {
       <div className="wip-buttons">
         {tab === 'commit'
           ? <button className="wip-commit" disabled={!!why} title={why ?? undefined} onClick={commit}>
-              {why ?? (staged.length ? `Commitar ${plural(staged.length, 'arquivo', 'arquivos')} em ${branch}` : `Emendar o último commit em ${branch}`)}
+              {why ?? (merging ? `Concluir ${merging.toLowerCase()}` : staged.length ? `Commitar ${plural(staged.length, 'arquivo', 'arquivos')} em ${branch}` : `Emendar o último commit em ${branch}`)}
               {!why && <kbd>Ctrl Enter</kbd>}</button>
           : <button className="wip-commit" disabled={!changed} title={changed ? undefined : 'Não há mudanças para guardar'} onClick={stash}>
               Guardar {plural(changed, 'arquivo', 'arquivos')} no stash<kbd>Ctrl Enter</kbd></button>}
