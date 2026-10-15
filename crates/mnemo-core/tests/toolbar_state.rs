@@ -26,7 +26,7 @@ fn fetch_updates_and_prunes_all_remotes() {
         run_git(remote.path(), &["update-ref", "refs/heads/new", &sha]);
     }
 
-    repo.exec(OperationKind::Fetch { remote: None });
+    repo.exec(OperationKind::Fetch { remote: None, prune: true });
     let refs = repo
         .core
         .list_remote_branches(repo.path().to_str().expect("caminho UTF-8"))
@@ -67,7 +67,7 @@ fn explicit_fetch_only_updates_the_chosen_remote() {
     for remote in [&origin, &upstream] {
         run_git(remote.path(), &["update-ref", "refs/heads/new", &sha]);
     }
-    repo.exec(OperationKind::Fetch { remote: Some("upstream".into()) });
+    repo.exec(OperationKind::Fetch { remote: Some("upstream".into()), prune: true });
     let refs = repo
         .core
         .list_remote_branches(repo.path().to_str().expect("caminho UTF-8"))
@@ -91,7 +91,7 @@ fn fetch_is_available_while_merge_waits_for_conflict_resolution() {
     let status = repo.status();
     let head = repo.head();
 
-    repo.exec(OperationKind::Fetch { remote: None });
+    repo.exec(OperationKind::Fetch { remote: None, prune: true });
     assert_eq!(repo.status(), status);
     assert_eq!(repo.head(), head);
     let info =

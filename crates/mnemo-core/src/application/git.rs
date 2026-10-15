@@ -267,6 +267,16 @@ impl RepoGit {
         self.run(["config", "--local", "mnemo.pullMode", mode])
     }
 
+    /// Valor booleano efetivo (local, global ou sistema); ausente ou inválido = falso.
+    pub fn config_bool(&self, key: &str) -> Result<bool> {
+        let out = self.exec(&GitCmd::new(["config", "--type=bool", "--get", key]).also_ok(1).also_ok(128))?;
+        Ok(out.text() == "true")
+    }
+
+    pub fn set_config_bool(&self, key: &str, value: bool) -> Result<()> {
+        self.run(["config", "--local", "--type=bool", key, if value { "true" } else { "false" }])
+    }
+
     /// Primeira linha do MERGE_MSG (existe só com merge parado).
     pub fn merge_message(&self) -> Option<String> {
         let text = std::fs::read_to_string(self.git_dir().ok()?.join("MERGE_MSG")).ok()?;

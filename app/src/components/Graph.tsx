@@ -161,6 +161,8 @@ export function Graph({ path }: { path: string }) {
   const head = useApp((s) => s.tabs.find((t) => t.path === path)?.head)
   const vis = useVisibility(selectVisibility(path))
   const dateOrder = useApp((s) => s.prefs.dateOrder)
+  const ghostRefs = useApp((s) => s.prefs.ghostRefs)
+  const doubleClickCheckout = useApp((s) => s.prefs.doubleClickCheckout)
   const [find, setFind] = useState<{ text: string } | null>(null)
   const authors = useApp((s) => s.tabs.find((t) => t.path === path)?.authors)
   const [authorAnchor, setAuthorAnchor] = useState<Rect | null>(null)
@@ -372,7 +374,7 @@ export function Graph({ path }: { path: string }) {
     return remote ? { kind: 'remote', ref: remote, local: refs.local.find((b) => b.name === remote.name) } : null
   }
   const pillHandlers: PillHandlers = {
-    checkout: (pill) => void targetOf(pill).then((t) => { if (t) branchActions.checkout(t) }),
+    checkout: (pill) => { if (doubleClickCheckout) void targetOf(pill).then((t) => { if (t) branchActions.checkout(t) }) },
     menu: (pill, e) => {
       const anchor = { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }
       void targetOf(pill).then((t) => { if (t) void branchActions.open(t, anchor) })
@@ -384,7 +386,7 @@ export function Graph({ path }: { path: string }) {
     switch (id) {
       case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} on={pillHandlers} />}{commit && commit.refs.length > 0 &&
         <span className={`graph-ref-connector${commit.head ? ' current' : ''}`} style={{ borderColor: commit.head ? `color-mix(in srgb, ${commit.color} 55%, black)` : commit.color }} />}
-        {commit?.ghost && !commit.refs.length && <span className="graph-pill graph-ghost" style={{ '--pill': commit.color } as CSSProperties} aria-hidden="true">
+        {ghostRefs && commit?.ghost && !commit.refs.length && <span className="graph-pill graph-ghost" style={{ '--pill': commit.color } as CSSProperties} aria-hidden="true">
           {commit.ghost.current && <RefIcon name="check" size={15} />}<span className="graph-pill-name">{commit.ghost.name}</span><RefIcon name={commit.ghost.remote ? 'cloud' : 'laptop'} size={11} /></span>}</div>
       case 'graph': return <div key={id} className="graph-cell">
         <div className="graph-canvas" style={{ width: contentWidth }}>

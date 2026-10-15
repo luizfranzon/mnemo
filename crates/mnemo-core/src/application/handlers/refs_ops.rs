@@ -126,9 +126,8 @@ impl Handler for RefsOps {
                 } else {
                     args.extend(["-m".into(), message.clone()]);
                 }
-                if *sign {
-                    args.push("-S".into());
-                }
+                // explícito nos dois sentidos: o checkbox vence o `commit.gpgsign` do config
+                args.push(if *sign { "-S" } else { "--no-gpg-sign" }.into());
                 if *no_verify {
                     args.push("--no-verify".into());
                 }

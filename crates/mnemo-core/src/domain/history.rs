@@ -102,7 +102,7 @@ mod tests {
     fn op(h: &mut OperationHistory, refs: bool) -> Operation {
         Operation {
             id: h.allocate_id(),
-            kind: OperationKind::Fetch { remote: None },
+            kind: OperationKind::Fetch { remote: None, prune: true },
             label: "x".into(),
             at_ms: 0,
             before: RepoState::default(),

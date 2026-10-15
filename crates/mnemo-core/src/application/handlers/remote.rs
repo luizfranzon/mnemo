@@ -49,8 +49,8 @@ impl Handler for RemoteHandler {
                 }
                 a
             }
-            Fetch { remote } => {
-                let mut a = vec!["fetch".to_string(), "--prune".into()];
+            Fetch { remote, prune } => {
+                let mut a = vec!["fetch".to_string(), if *prune { "--prune" } else { "--no-prune" }.into()];
                 a.push(remote.clone().unwrap_or_else(|| "--all".into()));
                 a
             }

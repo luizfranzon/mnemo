@@ -64,6 +64,18 @@ pub struct ToolbarInfo {
     pub progress: Option<ProgressInfo>,
 }
 
+/// Preferências › Repositório › Commit, no `.git/config` (ADR 0005). São o padrão das Opções do painel WIP.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoPrefs {
+    pub push_after_commit: bool,
+    pub skip_hooks: bool,
+    pub sign_commits: bool,
+}
+
+const REPO_PREF_KEYS: [(&str, &str); 3] =
+    [("pushAfterCommit", "mnemo.pushAfterCommit"), ("skipHooks", "mnemo.skipHooks"), ("signCommits", "commit.gpgsign")];
+
 /// O que um Force Push sobrescreveria: o fetch da branch remota já foi feito.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -252,6 +264,26 @@ impl Mnemo {
         let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
         git.set_pull_mode(mode)?;
         self.toolbar_info(&git)
+    }
+
+    pub fn repo_prefs(&self, path: &str) -> Result<RepoPrefs> {
+        let session = self.session_for(Path::new(path))?;
+        let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+        Ok(RepoPrefs {
+            push_after_commit: git.config_bool("mnemo.pushAfterCommit")?,
+            skip_hooks: git.config_bool("mnemo.skipHooks")?,
+            sign_commits: git.config_bool("commit.gpgsign")?,
+        })
+    }
+
+    pub fn set_repo_pref(&self, path: &str, key: &str, value: bool) -> Result<RepoPrefs> {
+        let (_, config) = REPO_PREF_KEYS
+            .iter()
+            .find(|(name, _)| *name == key)
+            .ok_or_else(|| CoreError::invalid("preferência de repositório desconhecida"))?;
+        let session = self.session_for(Path::new(path))?;
+        RepoGit::new(self.git.clone(), session.workdir().to_path_buf()).set_config_bool(config, value)?;
+        self.repo_prefs(path)
     }
 
     /// Branches locais, para a paleta de checkout.
@@ -624,6 +656,14 @@ impl Mnemo {
         if cmd == "set_pull_mode" {
             let mode = args.get("mode").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("mode ausente"))?;
             return out(self.set_pull_mode(&path, mode)?);
+        }
+        if cmd == "repo_prefs" {
+            return out(self.repo_prefs(&path)?);
+        }
+        if cmd == "set_repo_pref" {
+            let key = args.get("key").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("key ausente"))?;
+            let value = args.get("value").and_then(Value::as_bool).ok_or_else(|| CoreError::invalid("value ausente"))?;
+            return out(self.set_repo_pref(&path, key, value)?);
         }
         if cmd == "list_branches" {
             return out(self.list_branches(&path)?);

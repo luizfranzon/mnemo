@@ -347,7 +347,7 @@ fn push_fetch_e_excluir_remota_nao_sao_desfazíveis() {
     assert_eq!(state.undo.reason.as_deref(), Some("Não é possível desfazer push: mexe no remoto"));
     assert!(matches!(repo.session().undo(), Err(CoreError::NotUndoable { .. })));
 
-    repo.exec(OperationKind::Fetch { remote: None });
+    repo.exec(OperationKind::Fetch { remote: None, prune: true });
     assert!(repo.session().undo_state().undo.reason.expect("motivo").contains("mexe no remoto"));
 
     repo.exec(OperationKind::DeleteRemoteBranch { remote: "origin".into(), branch: "velha".into() });

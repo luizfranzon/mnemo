@@ -22,6 +22,9 @@ export interface RepositoryInfo {
   toolbar: ToolbarInfo
 }
 export type PullMode = 'fetch' | 'merge' | 'ffOnly' | 'rebase'
+/** Preferências › Repositório › Commit (`.git/config`): padrão das Opções do painel WIP. */
+export interface RepoPrefs { pushAfterCommit: boolean; skipHooks: boolean; signCommits: boolean }
+
 export interface ToolbarInfo {
   remotes: string[]
   ahead: number | null
@@ -78,7 +81,7 @@ export type OperationKind =
   | { type: 'discard'; paths: string[] }
   | { type: 'merge'; target: string }
   | { type: 'push'; remote: string | null; branch: string | null; setUpstream: boolean; lease?: string }
-  | { type: 'fetch'; remote: string | null }
+  | { type: 'fetch'; remote: string | null; prune?: boolean }
   | { type: 'pull'; strategy: 'merge' | 'ffOnly' | 'rebase' }
   | { type: 'stashCreate'; message: string | null; includeUntracked: boolean; paths?: string[] }
   | { type: 'stashApplyPaths'; index: number; paths: string[] }

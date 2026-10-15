@@ -116,6 +116,7 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
   const scroller = useRef<HTMLDivElement>(null)
   const running = useApp((s) => runningLabel(s, path))
   const undo = useApp((s) => s.tabs.find((t) => t.path === path)?.undo)
+  const doubleClickCheckout = useApp((s) => s.prefs.doubleClickCheckout)
   const branch = useBranchActions(path)
   const [stashMenu, setStashMenu] = useState<{ items: MenuEntry[]; anchor: Rect } | null>(null)
   const [stashApply, setStashApply] = useState<{ index: number; name: string } | null>(null)
@@ -218,7 +219,7 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
                     setSelected(row.key)
                     if (row.type === 'local' || (row.type === 'remote' && row.ref.localExists)) actions.selectCommit(row.ref.sha)
                     else if (row.type === 'plain' && row.section === 'tags' && row.sha) actions.selectCommit(row.sha)
-                  }} onDoubleClick={() => checkout(row)}>
+                  }} onDoubleClick={() => { if (doubleClickCheckout) checkout(row) }}>
                   <span className="refs-symbol"><RefIcon name={row.type === 'local' && row.ref.current ? 'check' : row.type === 'plain' ? ICON[row.section] : 'branch'} /></span>
                   <span className="refs-label">{row.type === 'remote' ? row.ref.name.split('/').at(-1) : row.type === 'local' ? row.ref.name : row.name}</span>
                   {row.type === 'local' && row.ref.upstream && <span className="refs-tracking" title={`Upstream: ${row.ref.upstream}`}>

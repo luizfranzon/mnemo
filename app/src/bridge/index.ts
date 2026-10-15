@@ -1,6 +1,6 @@
 // Único módulo da UI que conhece como falar com o backend. Mesmo formato do `@tauri-apps/api`:
 // na migração para o Tauri, só este arquivo troca. Nenhum componente importa `electron`.
-import type { AuthorInfo, ConflictChoice, ConflictDoc, ConflictFile, BranchInfo, CoreError, CoreEvent, DiffSource, DiscardPreview, ExecuteResult, EncodingInfo, FileChange, FileDiff, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepositoryInfo, ForcePushPreview, ToolbarInfo, UndoRedoState, WindowAction, WipStatus } from './types'
+import type { AuthorInfo, ConflictChoice, ConflictDoc, ConflictFile, BranchInfo, CoreError, CoreEvent, DiffSource, DiscardPreview, ExecuteResult, EncodingInfo, FileChange, FileDiff, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepoPrefs, RepositoryInfo, ForcePushPreview, ToolbarInfo, UndoRedoState, WindowAction, WipStatus } from './types'
 
 interface Transport {
   invoke(cmd: string, args: Record<string, unknown>): Promise<unknown>
@@ -36,6 +36,8 @@ export const core = {
   pickFolder: () => invoke<string | null>('pick_folder'),
   openRepository: (path: string) => invoke<RepositoryInfo>('open_repository', { path }),
   setPullMode: (path: string, mode: PullMode) => invoke<ToolbarInfo>('set_pull_mode', { path, mode }),
+  repoPrefs: (path: string) => invoke<RepoPrefs>('repo_prefs', { path }),
+  setRepoPref: (path: string, key: keyof RepoPrefs, value: boolean) => invoke<RepoPrefs>('set_repo_pref', { path, key, value }),
   abortInProgress: (path: string) => invoke<UndoRedoState>('abort_in_progress', { path }),
   continueInProgress: (path: string, message?: string, sign = false, noVerify = false) => invoke<ExecuteResult>('continue_in_progress', { path, message, sign, noVerify }),
   skipInProgress: (path: string) => invoke<ExecuteResult>('skip_in_progress', { path }),

@@ -9,6 +9,10 @@ pub enum ResetMode {
     Hard,
 }
 
+fn prune_by_default() -> bool {
+    true
+}
+
 impl ResetMode {
     pub fn flag(self) -> &'static str {
         match self {
@@ -136,6 +140,9 @@ pub enum OperationKind {
     },
     Fetch {
         remote: Option<String>,
+        /// `--prune` (Preferências › Geral › Auto-prune); ligado quando o pedido não diz.
+        #[serde(default = "prune_by_default")]
+        prune: bool,
     },
     DeleteRemoteBranch {
         remote: String,

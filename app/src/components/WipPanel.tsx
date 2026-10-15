@@ -3,7 +3,7 @@ import { Segmented, FILE_VIEWS } from './Segmented'
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { core } from '../bridge'
 import type { ConflictFile, FileChange, WipStatus } from '../bridge/types'
-import { actions, selectActiveTab, selectWipRevision, useApp } from '../store/app'
+import { actions, commitOptions, selectActiveTab, selectRepoPrefs, selectWipRevision, useApp } from '../store/app'
 import { fileRows, type TreeRow } from './fileTree'
 import { Menu } from './Menu'
 import { copyText } from './menuBase'
@@ -39,7 +39,10 @@ export function WipPanel({ path }: { path: string }) {
   const [summary, setSummary] = useState('')
   const [description, setDescription] = useState('')
   const [amend, setAmend] = useState(false)
-  const [opts, setOpts] = useState({ sign: false, hooks: true, pushAfter: false })
+  const repoPrefs = useApp(selectRepoPrefs(path))
+  const [opts, setOpts] = useState(() => commitOptions(repoPrefs))
+  useEffect(() => { void actions.loadRepoPrefs(path) }, [path])
+  useEffect(() => { setOpts(commitOptions(repoPrefs)) }, [repoPrefs]) // mudou nas Preferências: vira o novo padrão
   const [optsOpen, setOptsOpen] = useState(false)
   const [busy, setBusy] = useState(false) // hooks podem demorar: trava o botão e mostra o carregando
   const scroller = useRef<HTMLDivElement>(null)

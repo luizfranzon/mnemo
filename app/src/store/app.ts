@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { core, errorCode, errorMessage } from '../bridge'
-import type { DiffSource, DiscardPreview, FileChange, ForcePushPreview, ResetPreview, HeadInfo, OperationKind, PullMode, RepositoryInfo, ToolbarInfo, UndoRedoState } from '../bridge/types'
+import type { DiffSource, DiscardPreview, FileChange, ForcePushPreview, ResetPreview, HeadInfo, OperationKind, PullMode, RepoPrefs, RepositoryInfo, ToolbarInfo, UndoRedoState } from '../bridge/types'
 import { toolbarAvailability } from '../components/toolbarModel'
 
 export interface Tab {
@@ -62,17 +62,32 @@ interface AppState {
   /** Preferências globais (dados do app). Preferência de repositório fica no `.git/config` (ADR 0005). */
   prefs: Prefs
   prefsOpen: boolean
+  /** Preferências de repositório já lidas do `.git/config`, por diretório. */
+  repoPrefs: Record<string, RepoPrefs>
 }
 
 export interface DiffTarget { path: string; file: FileChange; source: DiffSource }
 
-export interface Prefs { gravatar: boolean; dateOrder: boolean }
+export interface Prefs {
+  gravatar: boolean
+  dateOrder: boolean
+  /** Reabre as abas da sessão anterior. */
+  rememberTabs: boolean
+  /** Fetch com `--prune`. */
+  prune: boolean
+  /** Duplo clique numa branch (grafo ou painel de refs) faz checkout. */
+  doubleClickCheckout: boolean
+  /** Pill fantasma da branch ao passar o mouse ou selecionar um commit sem ref. */
+  ghostRefs: boolean
+}
+export const DEFAULT_PREFS: Prefs = { gravatar: true, dateOrder: false, rememberTabs: true, prune: true, doubleClickCheckout: true, ghostRefs: true }
 const PREFS_KEY = 'mnemo.prefs'
-function loadPrefs(): Prefs {
+/** Só aceita booleano salvo; o resto (chave ausente, lixo) fica no padrão. */
+export function loadPrefs(): Prefs {
   try {
-    const saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}')
-    return { gravatar: saved.gravatar !== false, dateOrder: saved.dateOrder === true }
-  } catch { return { gravatar: true, dateOrder: false } }
+    const saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') as Record<string, unknown>
+    return Object.fromEntries(Object.entries(DEFAULT_PREFS).map(([k, v]) => [k, typeof saved[k] === 'boolean' ? saved[k] : v])) as unknown as Prefs
+  } catch { return DEFAULT_PREFS }
 }
 
 export const useApp = create<AppState>(() => ({
@@ -97,6 +112,7 @@ export const useApp = create<AppState>(() => ({
   restoreConflict: null,
   prefs: loadPrefs(),
   prefsOpen: false,
+  repoPrefs: {},
 }))
 
 const set = useApp.setState
@@ -177,7 +193,7 @@ export const actions = {
 
   /** Reabre as Abas da sessão anterior (as que sumiram do disco ficam de fora) e depois as passadas na linha de comando. */
   async openInitialPaths() {
-    const saved = loadSession()
+    const saved = get().prefs.rememberTabs ? loadSession() : { paths: [], active: null }
     for (const p of saved.paths) {
       try { adoptRepository(await core.openRepository(p)) } catch { /* pasta apagada ou movida */ }
     }
@@ -224,7 +240,7 @@ export const actions = {
   /** `false` quando a Operação falhou (o erro já virou toast). */
   async execute(path: string, kind: OperationKind): Promise<boolean> {
     try {
-      const r = await core.execute(path, kind)
+      const r = await core.execute(path, kind.type === 'fetch' ? { ...kind, prune: get().prefs.prune } : kind)
       patchTab(path, { undo: r.state })
       await refreshHead(path)
       if (r.status === 'conflict') pushToast({ text: `${r.progress} parou em conflito` })
@@ -393,6 +409,21 @@ export const actions = {
     try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)) } catch { /* sem storage */ }
   },
 
+  async loadRepoPrefs(path: string) {
+    try {
+      const prefs = await core.repoPrefs(path)
+      set((s) => ({ repoPrefs: { ...s.repoPrefs, [norm(path)]: prefs } }))
+    } catch (err) { fail(err) }
+  },
+
+  async setRepoPref(path: string, key: keyof RepoPrefs, value: boolean) {
+    try {
+      const prefs = await core.setRepoPref(path, key, value)
+      set((s) => ({ repoPrefs: { ...s.repoPrefs, [norm(path)]: prefs } }))
+      pushToast({ text: 'Preferências salvas' })
+    } catch (err) { fail(err) }
+  },
+
   setPalette(palette: PaletteMode | null, start: string | null = null) {
     set({ palette, paletteStart: start })
   },
@@ -495,4 +526,7 @@ export const runningLabel = (s: AppState, path: string) => s.running[norm(path)]
 export const selectWipRevision = (path: string) => (s: AppState) => (s.graphRevision[norm(path)] ?? 0) + (s.wipRevision[norm(path)] ?? 0)
 /** Diff aberto nesta Aba (o de outra Aba não aparece aqui). */
 export const selectDiff = (path: string) => (s: AppState) => (s.diff && same(s.diff.path, path) ? s.diff : null)
+export const selectRepoPrefs = (path: string) => (s: AppState): RepoPrefs | undefined => s.repoPrefs[norm(path)]
+/** Opções do painel WIP com o padrão das Preferências do repositório (antes de ler o config: tudo desligado, hooks ligados). */
+export const commitOptions = (p: RepoPrefs | undefined) => ({ sign: p?.signCommits ?? false, hooks: !p?.skipHooks, pushAfter: p?.pushAfterCommit ?? false })
 export const selectConflict = (path: string) => (s: AppState) => (s.conflict && same(s.conflict.path, path) ? s.conflict : null)
