@@ -168,8 +168,10 @@ input:focus { border-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .graph-veil, .graph-rows { animation: none; } }
 .graph-list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; position: relative; }
 .graph-row { position: absolute; top: 0; left: 0; width: 100%; align-items: center; cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; }
-.graph-row:hover { background: rgba(91, 141, 239, .09); }
-.graph-row.selected { background: rgba(91, 141, 239, .2); }
+/* Gap de 2px entre as linhas: fundo, faixa da lane e borda ficam 1px para dentro; as linhas do grafo seguem contínuas */
+.graph-row { background: linear-gradient(var(--row-bg, transparent), var(--row-bg, transparent)) 0 1px / 100% calc(100% - 2px) no-repeat; }
+.graph-row:hover { --row-bg: rgba(91, 141, 239, .09); }
+.graph-row.selected { --row-bg: rgba(91, 141, 239, .2); }
 /* Faixa da lane: fundo do centro da bolinha ao fim da coluna Grafo + borda no início da mensagem */
 .lane-band { opacity: .14; }
 .graph-row.selected .lane-band, .lane-band.wip { opacity: .28; }
@@ -191,7 +193,7 @@ input:focus { border-color: var(--accent); }
 .graph-pill-list { position: fixed; z-index: 40; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding-top: 4px; }
 .graph-pill-list .graph-pill { box-shadow: 0 4px 12px rgba(0, 0, 0, .4); }
 .graph-message { color: var(--text); font-size: 12px; }
-.graph-row > .graph-message { box-shadow: inset 2px 0 var(--lane); padding-left: 10px; }
+.graph-row > .graph-message { background: linear-gradient(var(--lane), var(--lane)) 0 1px / 2px calc(100% - 2px) no-repeat; padding-left: 10px; }
 .graph-message.merge { color: var(--text-muted); }
 .graph-author, .graph-date { color: var(--text-muted); font-family: var(--font-ui); }
 .graph-row.selected .graph-message, .graph-row.selected .graph-author, .graph-row.selected .graph-date { color: var(--text); }

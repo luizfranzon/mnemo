@@ -31,7 +31,7 @@ function CommitSvg({ row, width, geo, compact }: { row: GraphCommit; width: numb
   const x = geo.first + row.lane * geo.lane
   const photo = useGravatar(row.email)
   return <svg width={width} height={ROW} viewBox={`0 0 ${width} ${ROW}`} aria-label={`Grafo de ${row.sha.slice(0, 7)}`}>
-    <rect className="lane-band" x={x} width="4000" height={ROW} fill={row.color} />
+    <rect className="lane-band" x={x} y="1" width="4000" height={ROW - 2} fill={row.color} />
     {row.refs.length > 0 && <path d={`M0 14 H${x}`} stroke={row.color} strokeOpacity="0.55" strokeWidth="1" />}
     {row.segments.map((segment, index) => <path key={`${segment.kind}:${segment.fromLane}:${segment.toLane}:${index}`}
       d={segmentPath(segment, geo)} fill="none" stroke={segment.color} strokeWidth="2" />)}
@@ -353,7 +353,7 @@ export function Graph({ path }: { path: string }) {
       case 'graph': return <div key={id} className="graph-cell">
         <div className="graph-canvas" style={{ width: contentWidth }}>
           {commit ? <CommitSvg row={commit} width={contentWidth} geo={geo} compact={layout.compact} /> : <svg width={contentWidth} height={ROW}>
-            <rect className="lane-band wip" x={geo.first} width="4000" height={ROW} fill={headColor} />
+            <rect className="lane-band wip" x={geo.first} y="1" width="4000" height={ROW - 2} fill={headColor} />
             <circle cx={geo.first} cy="14" r={layout.compact ? 5 : 10} fill="var(--surface-2)" stroke={headColor} strokeWidth="2" strokeDasharray="3 3" />
           </svg>}
         </div>
