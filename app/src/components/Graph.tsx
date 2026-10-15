@@ -160,6 +160,7 @@ export function Graph({ path }: { path: string }) {
   const revision = useApp((s) => s.graphRevision[path.replace(/\\/g, '/').toLowerCase()] ?? s.graphRevision[path.replace(/\\/g, '/')] ?? 0)
   const head = useApp((s) => s.tabs.find((t) => t.path === path)?.head)
   const vis = useVisibility(selectVisibility(path))
+  const dateOrder = useApp((s) => s.prefs.dateOrder)
   const [find, setFind] = useState<{ text: string } | null>(null)
   const authors = useApp((s) => s.tabs.find((t) => t.path === path)?.authors)
   const [authorAnchor, setAuthorAnchor] = useState<Rect | null>(null)
@@ -214,7 +215,7 @@ export function Graph({ path }: { path: string }) {
     }
     setReloading(same)
     setLoading(true)
-    void core.graphPage(path, null, PAGE, graphVisibility(vis)).then((next) => {
+    void core.graphPage(path, null, PAGE, graphVisibility(vis, dateOrder)).then((next) => {
       if (generation.current !== current) return
       pageRef.current = next
       loadedPath.current = path
@@ -226,7 +227,7 @@ export function Graph({ path }: { path: string }) {
       if (generation.current === current) { busy.current = false; setLoading(false); setReloading(false) }
     })
     return () => { generation.current++ }
-  }, [path, revision, vis.hidden, vis.solo, vis.smart])
+  }, [path, revision, vis.hidden, vis.solo, vis.smart, dateOrder])
 
   const loadMore = () => {
     const currentPage = pageRef.current
@@ -234,7 +235,7 @@ export function Graph({ path }: { path: string }) {
     busy.current = true
     setLoading(true)
     const current = generation.current
-    void core.graphPage(path, currentPage.next, PAGE, graphVisibility(vis)).then((next) => {
+    void core.graphPage(path, currentPage.next, PAGE, graphVisibility(vis, dateOrder)).then((next) => {
       if (generation.current !== current) return
       const merged = { commits: [...currentPage.commits, ...next.commits], next: next.next, wip: next.wip }
       pageRef.current = merged

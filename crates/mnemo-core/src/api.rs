@@ -495,7 +495,7 @@ impl Mnemo {
         let mut cursor = cursor.unwrap_or_default();
         let mut args = vec![
             "log".into(),
-            "--topo-order".into(),
+            if visibility.date_order { "--date-order" } else { "--topo-order" }.into(),
             "--no-decorate".into(),
             "-z".into(),
             "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%s%x00%b".into(),

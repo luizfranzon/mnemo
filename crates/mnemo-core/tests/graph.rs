@@ -206,3 +206,40 @@ fn commit_sem_ref_aponta_branch_atual_ou_ponta_da_lane() {
     // o commit base está na ancestralidade do HEAD (main), mesmo com a feature em outra lane
     assert_eq!(ghost("base").as_deref(), Some("main"));
 }
+
+fn commit_at(repo: &TestRepo, file: &str, msg: &str, ts: u32) {
+    repo.write(file, msg);
+    repo.git(&["add", "-A"]);
+    let date = format!("{ts} +0000");
+    let status = Command::new("git")
+        .current_dir(repo.path())
+        .env("GIT_COMMITTER_DATE", &date)
+        .env("GIT_AUTHOR_DATE", &date)
+        .args(["commit", "-q", "-m", msg])
+        .status()
+        .expect("git commit");
+    assert!(status.success());
+}
+
+#[test]
+fn ordem_por_data_intercala_branches_e_a_topologica_agrupa() {
+    let repo = TestRepo::new();
+    repo.git(&["switch", "-q", "-c", "a"]);
+    commit_at(&repo, "a1", "a1", 1_700_000_100);
+    repo.git(&["switch", "-q", "main"]);
+    repo.git(&["switch", "-q", "-c", "b"]);
+    commit_at(&repo, "b1", "b1", 1_700_000_200);
+    repo.git(&["switch", "-q", "a"]);
+    commit_at(&repo, "a2", "a2", 1_700_000_300);
+    repo.git(&["switch", "-q", "b"]);
+    commit_at(&repo, "b2", "b2", 1_700_000_400);
+    repo.git(&["switch", "-q", "main"]);
+    repo.git(&["merge", "-q", "--no-ff", "-m", "m", "a", "b"]);
+    let subjects = |date_order| {
+        let visibility = GraphVisibility { date_order, ..Default::default() };
+        let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 50, &visibility).expect("grafo");
+        page.commits.into_iter().map(|c| c.subject).take(5).collect::<Vec<_>>()
+    };
+    assert_eq!(subjects(true), ["m", "b2", "a2", "b1", "a1"]);
+    assert_ne!(subjects(false), subjects(true));
+}

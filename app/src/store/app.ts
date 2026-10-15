@@ -66,10 +66,13 @@ interface AppState {
 
 export interface DiffTarget { path: string; file: FileChange; source: DiffSource }
 
-export interface Prefs { gravatar: boolean }
+export interface Prefs { gravatar: boolean; dateOrder: boolean }
 const PREFS_KEY = 'mnemo.prefs'
 function loadPrefs(): Prefs {
-  try { return { gravatar: JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}').gravatar !== false } } catch { return { gravatar: true } }
+  try {
+    const saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}')
+    return { gravatar: saved.gravatar !== false, dateOrder: saved.dateOrder === true }
+  } catch { return { gravatar: true, dateOrder: false } }
 }
 
 export const useApp = create<AppState>(() => ({

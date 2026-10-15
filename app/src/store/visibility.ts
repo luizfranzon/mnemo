@@ -24,7 +24,7 @@ export const toggleSolo = (v: Visibility, ref: string): Visibility => ({ ...v, s
 export const togglePinned = (v: Visibility, ref: string): Visibility => ({ ...v, pinned: flip(v.pinned, ref) })
 
 /** O que o core precisa para recalcular as lanes (Fixar é só da UI). */
-export const graphVisibility = (v: Visibility) => ({ hidden: v.hidden, solo: v.solo, smart: v.smart })
+export const graphVisibility = (v: Visibility, dateOrder = false) => ({ hidden: v.hidden, solo: v.solo, smart: v.smart, dateOrder })
 
 const cache = new Map<string, Visibility>()
 /** Memoizado por caminho: o seletor do Zustand precisa devolver sempre a mesma referência. */

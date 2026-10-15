@@ -15,7 +15,7 @@ test('Ocultar alterna e é desfeito pelo Solo da mesma branch', () => {
 test('Fixar não vai para o core', () => {
   const v = togglePinned(EMPTY, 'refs/heads/a')
   assert.deepEqual(v.pinned, ['refs/heads/a'])
-  assert.deepEqual(graphVisibility(v), { hidden: [], solo: null, smart: false })
+  assert.deepEqual(graphVisibility(v), { hidden: [], solo: null, smart: false, dateOrder: false })
 })
 
 test('sanitize descarta lixo salvo', () => {

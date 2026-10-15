@@ -107,6 +107,8 @@ pub struct GraphVisibility {
     pub solo: Option<String>,
     /// Só a branch atual, a base e o que já foi mergeado nelas.
     pub smart: bool,
+    /// `--date-order` (intercala branches pela data, como outros clientes) em vez de `--topo-order` (agrupa por branch).
+    pub date_order: bool,
 }
 
 impl GraphVisibility {

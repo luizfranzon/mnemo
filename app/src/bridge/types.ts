@@ -65,7 +65,7 @@ export interface GraphCommit {
   /** Branch da pill fantasma (hover/seleção); só em commit sem pill própria. */
   ghost: { name: string; remote: boolean; current: boolean } | null
 }
-export interface GraphVisibilityArg { hidden: string[]; solo: string | null; smart: boolean }
+export interface GraphVisibilityArg { hidden: string[]; solo: string | null; smart: boolean; dateOrder: boolean }
 export interface GraphPage { commits: GraphCommit[]; next: GraphCursor | null; wip: { changed: number; untracked: number } }
 
 export type OperationKind =
