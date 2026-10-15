@@ -83,10 +83,22 @@ export const hunkLines = (diff: FileDiff, hunk: number) => {
   return Array.from({ length: h.len }, (_, k) => h.start + k).filter((i) => diff.lines[i]!.kind !== 'context')
 }
 
-export type Token = 'keyword' | 'string' | 'constant' | 'type' | 'punctuation' | 'comment' | 'default'
-const KEYWORDS = 'abstract|as|async|await|break|case|catch|class|const|continue|def|default|do|else|enum|export|extends|false|fn|for|from|func|function|if|impl|implements|import|in|interface|let|match|mut|new|null|package|private|protected|pub|public|return|self|static|struct|super|switch|then|this|throw|trait|true|try|type|typeof|undefined|use|var|void|while|yield'
-const TOKEN = new RegExp(String.raw`(\/\/.*$|#.*$)|("(?:[^"\\]|\\.)*"?|'(?:[^'\\]|\\.)*'?|\x60[^\x60]*\x60?)|\b(${KEYWORDS})\b|(=>)|\b([A-Z][A-Z0-9_]{2,})\b|\b([A-Z][A-Za-z0-9]*)\b|([{}()\[\]:,;.=<>+\-*/!?&|%])`, 'g')
-const GROUPS: Token[] = ['comment', 'string', 'keyword', 'keyword', 'constant', 'type', 'punctuation']
+export type Token = 'keyword' | 'string' | 'constant' | 'type' | 'function' | 'punctuation' | 'comment' | 'default'
+const KEYWORDS = 'abstract|as|async|await|break|case|catch|class|const|continue|def|default|do|else|enum|export|extends|fn|for|from|func|function|if|impl|implements|import|in|interface|let|match|mut|new|package|private|protected|pub|public|readonly|return|static|struct|switch|then|throw|trait|try|type|typeof|use|var|void|while|yield'
+/** Papéis do tema Dracula (TextMate) aproximados por regex, linha a linha: operador é palavra-chave, `this`/literal/número e nome declarado com const/readonly são constante, identificador seguido de `(` é chamada. */
+const TOKEN = new RegExp([
+  String.raw`(\/\/.*$|#.*$)`,
+  String.raw`("(?:[^"\\]|\\.)*"?|'(?:[^'\\]|\\.)*'?|\x60[^\x60]*\x60?)`,
+  String.raw`(?<![.\w$])(this|self|super|true|false|null|undefined|None|nil)\b`,
+  String.raw`(?<![.\w$])(${KEYWORDS})\b`,
+  String.raw`(=>|\?\?=?|\?(?!\.)|[=!<>+\-*/%&|^~]+)`,
+  String.raw`\b([A-Z][A-Z0-9_]{2,}|\d[\w.]*)\b`,
+  String.raw`(?<=\b(?:const|readonly)\s+)([A-Za-z_$][\w$]*)`,
+  String.raw`\b([A-Z][A-Za-z0-9]*)\b`,
+  String.raw`(?<![\w$])([a-z_$][\w$]*)(?=\s*(?:<[^()]*>)?\()`,
+  String.raw`([{}()\[\]:,;.])`,
+].join('|'), 'g')
+const GROUPS: Token[] = ['comment', 'string', 'constant', 'keyword', 'keyword', 'constant', 'constant', 'type', 'function', 'punctuation']
 
 /** Syntax highlight genérico (paleta Dracula do 04-design-system.md). Roda só nas linhas visíveis. */
 export function highlight(text: string): { t: string; c: Token }[] {

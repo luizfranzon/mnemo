@@ -44,6 +44,15 @@ test('seleção vira (trecho, linha no trecho) e ignora contexto', () => {
 test('highlight separa palavra-chave, string, tipo, constante e pontuação', () => {
   const parts = highlight('const X_Y: Foo = "s"')
   assert.deepEqual(parts.filter((p) => p.c !== 'default').map((p) => `${p.c}:${p.t}`),
-    ['keyword:const', 'constant:X_Y', 'punctuation::', 'type:Foo', 'punctuation:=', 'string:"s"'])
+    ['keyword:const', 'constant:X_Y', 'punctuation::', 'type:Foo', 'keyword:=', 'string:"s"'])
   assert.equal(parts.map((p) => p.t).join(''), 'const X_Y: Foo = "s"')
+})
+
+test('highlight marca chamada, this, literal, número, operador e nome declarado como no tema Dracula', () => {
+  const text = 'private readonly node = computed<Node | null>(() => this.data()?.type ?? 1)'
+  const parts = highlight(text)
+  assert.deepEqual(parts.filter((p) => p.c !== 'default' && p.c !== 'punctuation').map((p) => `${p.c}:${p.t}`),
+    ['keyword:private', 'keyword:readonly', 'constant:node', 'keyword:=', 'function:computed', 'keyword:<', 'type:Node', 'keyword:|',
+      'constant:null', 'keyword:>', 'keyword:=>', 'constant:this', 'function:data', 'keyword:??', 'constant:1'])
+  assert.equal(parts.map((p) => p.t).join(''), text)
 })
