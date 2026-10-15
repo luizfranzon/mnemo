@@ -32,7 +32,7 @@ function CommitSvg({ row, width, geo, compact }: { row: GraphCommit; width: numb
   const photo = useGravatar(row.email)
   return <svg width={width} height={ROW} viewBox={`0 0 ${width} ${ROW}`} aria-label={`Grafo de ${row.sha.slice(0, 7)}`}>
     <rect className="lane-band" x={x} y="1" width="4000" height={ROW - 2} fill={row.color} />
-    {row.refs.length > 0 && <path d={`M0 14 H${x}`} stroke={row.color} strokeOpacity="0.55" strokeWidth="1" />}
+    {row.refs.length > 0 && <path d={`M0 14 H${x}`} stroke={row.color} strokeOpacity={row.head ? 0.9 : 0.55} strokeWidth={row.head ? 2.5 : 1} />}
     {row.segments.map((segment, index) => <path key={`${segment.kind}:${segment.fromLane}:${segment.toLane}:${index}`}
       d={segmentPath(segment, geo)} fill="none" stroke={segment.color} strokeWidth="2" />)}
     {row.head && <circle cx={x} cy="14" r={compact ? 8 : 12} fill="none" stroke="#5b8def" strokeWidth="2" />}
@@ -100,7 +100,7 @@ interface PillHandlers {
 }
 
 function PillView({ pill, on }: { pill: Pill; on: PillHandlers }) {
-  return <span className={`graph-pill ${pill.kind}`} title={pill.title}
+  return <span className={`graph-pill ${pill.kind}${pill.current ? ' current' : ''}`} title={pill.title}
     onDoubleClick={(e) => { if (pill.kind === 'branch') { e.stopPropagation(); on.checkout(pill) } }}
     onContextMenu={(e) => { if (pill.kind === 'branch') { e.preventDefault(); e.stopPropagation(); on.menu(pill, e) } }}>
     {pill.current && <RefIcon name="check" size={11} />}
