@@ -6,6 +6,9 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, screen, shell } from 'electr
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
+import { benchWindow, mark, now } from './bench'
+
+mark('main: módulo carregado')
 
 interface Native {
   init(dataDir: string, onEvent: (json: string) => void): void
@@ -86,9 +89,13 @@ function createWindow() {
     backgroundColor: '#0E0E0F',
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false },
   })
+  mark('main: janela criada')
   const dev = process.env.MNEMO_DEV_URL
-  if (dev) void window.loadURL(dev)
-  else void window.loadFile(join(__dirname, '..', 'dist', 'index.html'))
+  const w = window
+  void benchWindow(w).then(() => {
+    w.webContents.once('did-finish-load', () => mark('main: did-finish-load'))
+    return dev ? w.loadURL(dev) : w.loadFile(join(__dirname, '..', 'dist', 'index.html'))
+  })
   if (saved.maximized) window.maximize()
   // minimizada não grava: abrir o app não pode abrir minimizado
   window.on('close', () => {
@@ -137,6 +144,7 @@ const appCommands: Record<string, (args: Record<string, unknown>) => Promise<unk
 
 function registerIpc() {
   ipcMain.handle('mnemo:invoke', async (_e, cmd: string, args: Record<string, unknown>) => {
+    const t = now()
     try {
       const local = appCommands[cmd]
       if (local) return { ok: true, value: await local(args ?? {}) }
@@ -144,6 +152,8 @@ function registerIpc() {
       return { ok: true, value: JSON.parse(out) as unknown }
     } catch (err) {
       return { ok: false, error: parseError(err) }
+    } finally {
+      mark(`ipc ${cmd}`, t, now() - t)
     }
   })
 }
@@ -161,11 +171,14 @@ function parseError(err: unknown): { code: string; message: string } {
 }
 
 void app.whenReady().then(() => {
+  mark('main: app ready')
   native = loadNative()
+  mark('main: mnemo.node carregado')
   native.init(app.getPath('userData'), (json) => {
     const event = JSON.parse(json) as { type: string }
     send('mnemo:event', event)
   })
+  mark('main: core iniciado')
   registerIpc()
   Menu.setApplicationMenu(null)
   createWindow()

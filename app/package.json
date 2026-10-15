@@ -13,7 +13,8 @@
     "build:electron": "node scripts/build-electron.mjs",
     "build": "bun run native && bun run build:renderer && bun run build:electron",
     "start": "electron .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "bench:startup": "node scripts/bench-startup.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "6",
