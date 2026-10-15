@@ -1,4 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { Segmented, FILE_VIEWS } from './Segmented'
 import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import type { CommitDetail, FileChange } from '../bridge/types'
@@ -111,10 +112,7 @@ export function CommitPanel({ path }: { path: string }) {
       <span className="spacer" /><span className="mono"><span className="added">+{detail.added}</span> <span className="removed">−{detail.removed}</span></span>
     </div>
     <div className="commit-tools">
-      <div role="group" aria-label="Exibição dos arquivos" className="segmented">
-        <button aria-pressed={view === 'path'} onClick={() => setView('path')}>Caminho</button>
-        <button aria-pressed={view === 'tree'} onClick={() => setView('tree')}>Árvore</button>
-      </div>
+      <Segmented label="Exibição dos arquivos" options={FILE_VIEWS} value={view} onChange={setView} />
       <button aria-label="Ordenar arquivos" title={`Ordenado por ${sort === 'path' ? 'caminho' : 'status'}`} onClick={() => setSort(sort === 'path' ? 'status' : 'path')}>⇅ {sort === 'path' ? 'Caminho' : 'Status'}</button>
       <span className="spacer" />
       <label><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Todos os arquivos</label>

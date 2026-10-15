@@ -1,4 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { Segmented } from './Segmented'
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { core } from '../bridge'
 import type { DiffLine, DiffSource, FileDiff } from '../bridge/types'
@@ -141,9 +142,7 @@ export function DiffView({ path }: { path: string }) {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 15l6-6 6 6" /></svg></button>
       <button className="diff-nav" aria-label="Próximo trecho" title="Próximo trecho" disabled={current >= heads.length - 1} onClick={() => goTo(current + 1)}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg></button>
-      <div role="group" aria-label="Layout do diff" className="segmented">
-        {LAYOUTS.map((l) => <button key={l.id} aria-pressed={layout === l.id} onClick={() => pickLayout(l.id)}>{l.label}</button>)}
-      </div>
+      <Segmented label="Layout do diff" options={LAYOUTS} value={layout} onChange={pickLayout} />
       {diff && <span className="mono muted" title="Codificação do arquivo">{diff.encoding}</span>}
     </div>
     {layout === 'split' && rows.length > 0 && <div className="diff-split diff-sides">

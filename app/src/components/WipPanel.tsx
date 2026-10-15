@@ -1,4 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { Segmented, FILE_VIEWS } from './Segmented'
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { core } from '../bridge'
 import type { FileChange, WipStatus } from '../bridge/types'
@@ -102,10 +103,7 @@ export function WipPanel({ path }: { path: string }) {
         onClick={() => void actions.requestDiscard(path, [])}><Svg><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></Svg></button>
     </div>
     <div className="wip-tools">
-      <div role="group" aria-label="Exibição dos arquivos" className="wip-seg">
-        <button aria-pressed={view === 'path'} onClick={() => setView('path')}>Caminho</button>
-        <button aria-pressed={view === 'tree'} onClick={() => setView('tree')}>Árvore</button>
-      </div>
+      <Segmented label="Exibição dos arquivos" options={FILE_VIEWS} value={view} onChange={setView} />
       <button className="wip-icon" aria-label="Ordenar arquivos"><Svg><path d="M7 4v16M3 16l4 4 4-4M14 6h7M14 12h5M14 18h3" /></Svg></button>
       {selected.size > 1 && <span className="wip-picked">{plural(selected.size, 'selecionado', 'selecionados')} · botão direito para agir</span>}
     </div>

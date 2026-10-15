@@ -259,9 +259,9 @@ span.added, .commit-status.added { color: var(--success-text); }
 span.removed, .commit-status.removed { color: var(--danger-text); }
 .commit-status.modified { color: var(--warning-text, #f0c06a); }
 .commit-status.renamed { color: var(--accent); }
-.segmented { display: flex; padding: 2px; border: 1px solid var(--border-subtle); border-radius: 8px; }
-.segmented button { height: 24px; padding: 0 10px; border: 0; background: transparent; color: var(--text-muted); }
-.segmented button[aria-pressed="true"] { background: var(--surface-2); color: var(--text); }
+.segmented { display: flex; padding: 2px; background: #0E0E0F; border: 1px solid #232325; border-radius: 8px; }
+.segmented button { height: 24px; padding: 0 10px; border: 0; background: transparent; font-size: 12px; color: #9C9992; }
+.segmented button[aria-pressed="true"] { background: #2A2A2D; color: #E8E6E3; }
 .commit-tools label { display: flex; align-items: center; gap: 6px; color: var(--text-muted); }
 .commit-files { flex: 1; min-height: 0; overflow: auto; padding: 0 6px; }
 .commit-file { position: absolute; top: 0; left: 0; width: 100%; display: flex; align-items: center; gap: 6px; border: 0; background: transparent; text-align: left; font-size: 12.5px; }
@@ -334,9 +334,6 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .wip-branch { font-family: var(--font-mono); font-size: 12px; padding: 1px 6px; border-radius: 4px; background: #4fb3d92e; border: 1px solid #4fb3d980; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .wip-panel .wip-danger { color: #F0877F; width: 28px; height: 28px; border: 1px solid #3a2020; }
 .wip-tools { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px 16px; }
-.wip-seg { display: flex; padding: 2px; background: #0E0E0F; border: 1px solid #232325; border-radius: 8px; }
-.wip-panel .wip-seg button { height: 24px; padding: 0 10px; font-size: 12px; color: #9C9992; }
-.wip-panel .wip-seg button[aria-pressed="true"] { background: #2A2A2D; color: #E8E6E3; }
 .wip-panel .wip-icon { width: 28px; height: 28px; color: #9C9992; }
 .wip-files { flex: 1; min-height: 0; overflow: auto; padding: 0 6px; }
 .wip-section { position: absolute; top: 0; left: 0; width: 100%; display: flex; align-items: center; gap: 8px; padding: 0 6px; }
