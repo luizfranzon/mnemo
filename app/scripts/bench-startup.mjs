@@ -86,6 +86,9 @@ for (const [label, t] of rows) {
   prev = t
 }
 console.log(`  primeira abertura (fria): ${fmt(timeline(results[0]).at(-1)[1])}`)
+// sem o boot do Electron, que varia muito entre aberturas e esconde mudanças no app
+const app = (x) => { const d = x.marks.find((m) => m.label === 'renderer').data; return d.frame - d.nav.domContentLoadedEventEnd }
+console.log(`  DOMContentLoaded → grafo pintado (mediana): ${fmt(median(results.map(app)))}`)
 
 // --- Última abertura em detalhe
 const last = results.at(-1)

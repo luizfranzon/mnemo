@@ -403,17 +403,21 @@ impl Mnemo {
             .enumerate()
             .map(|(i, e)| NamedRef { name: format!("stash@{{{i}}}: {}", e.message), sha: e.sha })
             .collect();
-        let submodule_output = git.exec(&GitCmd::new(["submodule", "status"]).also_ok(1))?;
-        let submodules = submodule_output
-            .text()
-            .lines()
-            .filter_map(|line| {
-                let content = line.trim_start_matches([' ', '-', '+', 'U']);
-                let (sha, rest) = content.split_once(' ')?;
-                let name = rest.split(" (").next()?.to_string();
-                Some(NamedRef { name, sha: sha.into() })
-            })
-            .collect();
+        // sem `.gitmodules` não há submódulo: poupa o comando git mais lento da listagem (o grafo também passa aqui)
+        let submodules = if session.workdir().join(".gitmodules").exists() {
+            git.exec(&GitCmd::new(["submodule", "status"]).also_ok(1))?
+                .text()
+                .lines()
+                .filter_map(|line| {
+                    let content = line.trim_start_matches([' ', '-', '+', 'U']);
+                    let (sha, rest) = content.split_once(' ')?;
+                    let name = rest.split(" (").next()?.to_string();
+                    Some(NamedRef { name, sha: sha.into() })
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         Ok(RefListing { local, remotes, worktrees, stashes, tags, submodules })
     }
 

@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { core, errorCode, errorMessage } from '../bridge'
-import type { DiffSource, DiscardPreview, FileChange, ForcePushPreview, ResetPreview, HeadInfo, OperationKind, PullMode, RepoPrefs, RepositoryInfo, ToolbarInfo, UndoRedoState } from '../bridge/types'
+import type { DiffSource, DiscardPreview, FileChange, ForcePushPreview, GraphPage, ResetPreview, HeadInfo, OperationKind, PullMode, RepoPrefs, RepositoryInfo, ToolbarInfo, UndoRedoState } from '../bridge/types'
 import { toolbarAvailability } from '../components/toolbarModel'
+import { graphVisibility, selectVisibility, useVisibility } from './visibility'
 
 export interface Tab {
   /** Diretório de trabalho: a identidade da Aba (o mesmo diretório nunca abre duas vezes). */
@@ -490,7 +491,29 @@ function refreshHead(path: string): Promise<void> {
   return run
 }
 
+/** Commits por página do grafo. */
+export const GRAPH_PAGE = 200
+type GraphArgs = ReturnType<typeof graphVisibility>
+// 1ª página pedida ao abrir a Aba, em paralelo à montagem da UI. Vale uma vez e por pouco tempo: nunca serve dado velho.
+let graphPrefetch: { key: string; at: number; page: Promise<GraphPage> } | null = null
+const graphKey = (path: string, args: GraphArgs) => JSON.stringify([norm(path), args])
+
+function prefetchGraph(path: string) {
+  const args = graphVisibility(selectVisibility(path)(useVisibility.getState()), get().prefs.dateOrder)
+  const page = core.graphPage(path, null, GRAPH_PAGE, args)
+  page.catch(() => {}) // o erro chega a quem consumir
+  graphPrefetch = { key: graphKey(path, args), at: Date.now(), page }
+}
+
+/** 1ª página do grafo: a pedida ao abrir a Aba, se for destes argumentos e recente; senão pede agora. */
+export function firstGraphPage(path: string, args: GraphArgs): Promise<GraphPage> {
+  const hit = graphPrefetch && graphPrefetch.key === graphKey(path, args) && Date.now() - graphPrefetch.at < 5000 ? graphPrefetch.page : null
+  graphPrefetch = null
+  return hit ?? core.graphPage(path, null, GRAPH_PAGE, args)
+}
+
 function adoptRepository(info: RepositoryInfo) {
+  if (!get().tabs.some((t) => same(t.path, info.path))) prefetchGraph(info.path)
   set((s) => {
     const exists = s.tabs.some((t) => same(t.path, info.path))
     const authors = s.tabs.find((t) => same(t.path, info.path))?.authors ?? []

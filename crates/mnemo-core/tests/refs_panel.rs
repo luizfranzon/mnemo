@@ -188,3 +188,16 @@ fn autores_vem_um_por_email_com_o_nome_mais_recente_e_em_ordem_alfabetica() {
     assert_eq!(names, sorted);
     assert!(names.contains(&"Zé"));
 }
+
+#[test]
+fn painel_lista_submodulos_do_gitmodules_e_nenhum_sem_ele() {
+    let repo = TestRepo::new();
+    let path = repo.path().to_string_lossy().into_owned();
+    assert!(repo.core.list_refs(&path).expect("refs").submodules.is_empty());
+    let sub_src = tempfile::tempdir().expect("tempdir");
+    support::init_repo(sub_src.path());
+    support::run_git(sub_src.path(), &["commit", "-q", "--allow-empty", "-m", "s"]);
+    repo.git(&["-c", "protocol.file.allow=always", "submodule", "add", "-q", &sub_src.path().to_string_lossy(), "sub"]);
+    let refs = repo.core.list_refs(&path).expect("refs com submódulo");
+    assert!(refs.submodules.iter().any(|s| s.name == "sub"));
+}

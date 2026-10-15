@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { core } from '../bridge'
 import type { GraphCommit, GraphPage } from '../bridge/types'
-import { actions, useApp } from '../store/app'
+import { actions, firstGraphPage, GRAPH_PAGE, useApp } from '../store/app'
 import { graphVisibility, selectVisibility, updateVisibility, useVisibility } from '../store/visibility'
 import { AuthorFilter } from './AuthorFilter'
 import { Avatar, initials, useGravatar } from './avatar'
@@ -20,7 +20,6 @@ import {
   type ColId, type GraphLayout,
 } from './graphColumns'
 
-const PAGE = 200
 const dateFmt = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
 const formatDate = (ts: number) => dateFmt.format(new Date(ts * 1000)).replace(', ', ' - ')
 const fullDate = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeStyle: 'short' })
@@ -217,7 +216,7 @@ export function Graph({ path }: { path: string }) {
     }
     setReloading(same)
     setLoading(true)
-    void core.graphPage(path, null, PAGE, graphVisibility(vis, dateOrder)).then((next) => {
+    void firstGraphPage(path, graphVisibility(vis, dateOrder)).then((next) => {
       if (generation.current !== current) return
       pageRef.current = next
       loadedPath.current = path
@@ -237,7 +236,7 @@ export function Graph({ path }: { path: string }) {
     busy.current = true
     setLoading(true)
     const current = generation.current
-    void core.graphPage(path, currentPage.next, PAGE, graphVisibility(vis, dateOrder)).then((next) => {
+    void core.graphPage(path, currentPage.next, GRAPH_PAGE, graphVisibility(vis, dateOrder)).then((next) => {
       if (generation.current !== current) return
       const merged = { commits: [...currentPage.commits, ...next.commits], next: next.next, wip: next.wip }
       pageRef.current = merged
