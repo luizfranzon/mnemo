@@ -2,7 +2,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { Segmented, FILE_VIEWS } from './Segmented'
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { core } from '../bridge'
-import type { FileChange, WipStatus } from '../bridge/types'
+import type { ConflictFile, FileChange, WipStatus } from '../bridge/types'
 import { actions, selectActiveTab, selectWipRevision, useApp } from '../store/app'
 import { fileRows, type TreeRow } from './fileTree'
 import { Menu } from './Menu'
@@ -28,6 +28,7 @@ export function WipPanel({ path }: { path: string }) {
   const branch = useApp((s) => { const head = selectActiveTab(s)?.head; return head?.kind === 'branch' ? head.name : 'HEAD' })
   const opened = useApp((s) => (s.diff && s.diff.source.kind !== 'commit' ? `${s.diff.source.kind === 'staged' ? 's' : 'u'}:${s.diff.file.path}` : null))
   const [status, setStatus] = useState<WipStatus>({ unstaged: [], staged: [] })
+  const [conflicts, setConflicts] = useState<ConflictFile[]>([])
   const [view, setView] = useState<'path' | 'tree'>('path')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -43,6 +44,7 @@ export function WipPanel({ path }: { path: string }) {
   useEffect(() => {
     let active = true
     void core.wipStatus(path).then((next) => active && setStatus(next), (err) => active && actions.reportError(err))
+    void core.conflictList(path).then((next) => active && setConflicts(next), (err) => active && actions.reportError(err))
     return () => { active = false }
   }, [path, revision])
 
@@ -107,6 +109,14 @@ export function WipPanel({ path }: { path: string }) {
       <button className="wip-icon" aria-label="Ordenar arquivos"><Svg><path d="M7 4v16M3 16l4 4 4-4M14 6h7M14 12h5M14 18h3" /></Svg></button>
       {selected.size > 1 && <span className="wip-picked">{plural(selected.size, 'selecionado', 'selecionados')} · botão direito para agir</span>}
     </div>
+    {conflicts.length > 0 && <div className="wip-conflicts">
+      <h3>Conflitos <span>{conflicts.length}</span>
+        <button title="Marca todos como resolvidos com o conteúdo atual do disco" onClick={() => stage(conflicts.map((c) => c.path), true)}>Marcar todos resolvidos</button></h3>
+      {conflicts.map((c) => <div key={c.path} className="conflict-file" title={c.path} onClick={() => actions.openConflict(path, c.path)}>
+        <span>{c.path}</span>
+        <button title="Marcar como resolvido" onClick={(e) => { e.stopPropagation(); stage([c.path], true) }}>Resolvido</button>
+      </div>)}
+    </div>}
     <div className="wip-files" ref={scroller}>
       <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
         {virtual.getVirtualItems().map((item) => {

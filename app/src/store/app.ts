@@ -36,6 +36,8 @@ interface AppState {
   wipRevision: Record<string, number>
   /** Diff aberto no centro (o grafo fica montado por baixo). */
   diff: DiffTarget | null
+  /** Editor de conflito aberto no centro (mesmo lugar do diff). */
+  conflict: { path: string; file: string } | null
   /** Operação em curso, por diretório (a toolbar mostra o texto). */
   running: Record<string, string>
   toasts: Toast[]
@@ -73,6 +75,7 @@ export const useApp = create<AppState>(() => ({
   graphRevision: {},
   wipRevision: {},
   diff: null,
+  conflict: null,
   running: {},
   toasts: [],
   error: null,
@@ -195,11 +198,13 @@ export const actions = {
   },
 
   focusTab(path: string) {
-    set({ activePath: path, selectedSha: null, diff: null })
+    set({ activePath: path, selectedSha: null, diff: null, conflict: null })
   },
   selectCommit(sha: string) { set((s) => ({ selectedSha: sha, diff: s.selectedSha === sha ? s.diff : null })) },
-  openDiff(diff: DiffTarget) { set({ diff }) },
+  openDiff(diff: DiffTarget) { set({ diff, conflict: null }) },
   closeDiff() { set({ diff: null }) },
+  openConflict(path: string, file: string) { set({ conflict: { path, file }, diff: null }) },
+  closeConflict() { set({ conflict: null }) },
   /** Preparar/tirar/ignorar mudaram o WIP: quem mostra o WIP relê. */
   wipChanged(path: string) { set((s) => ({ wipRevision: { ...s.wipRevision, [norm(path)]: (s.wipRevision[norm(path)] ?? 0) + 1 } })) },
   setAuthorFilter(path: string, authors: string[]) { patchTab(path, { authors }) },
@@ -447,3 +452,4 @@ export const runningLabel = (s: AppState, path: string) => s.running[norm(path)]
 export const selectWipRevision = (path: string) => (s: AppState) => (s.graphRevision[norm(path)] ?? 0) + (s.wipRevision[norm(path)] ?? 0)
 /** Diff aberto nesta Aba (o de outra Aba não aparece aqui). */
 export const selectDiff = (path: string) => (s: AppState) => (s.diff && same(s.diff.path, path) ? s.diff : null)
+export const selectConflict = (path: string) => (s: AppState) => (s.conflict && same(s.conflict.path, path) ? s.conflict : null)

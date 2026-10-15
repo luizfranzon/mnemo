@@ -157,3 +157,11 @@ export interface FileDiff {
   encodingId: string; guessed: boolean; stageable: boolean
   added: number; removed: number; hunks: DiffHunk[]; lines: DiffLine[]
 }
+
+export interface ConflictFile { path: string; kind: 'both' | 'bothAdded' | 'deletedByUs' | 'deletedByThem' | 'addedByUs' | 'addedByThem' | 'bothDeleted'; binary: boolean }
+export type ConflictSegment =
+  | { kind: 'text'; lines: string[] }
+  /** `auto`: Atual e Entrando só diferem em espaço em branco. */
+  | { kind: 'conflict'; ours: string[]; theirs: string[]; base: string[]; auto: boolean }
+export interface ConflictDoc { path: string; segments: ConflictSegment[]; finalNewline: boolean }
+export type ConflictChoice = 'base' | 'ours' | 'theirs' | 'delete'

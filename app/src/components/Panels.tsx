@@ -2,8 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as Reac
 import { dragWidth, loadLayout, PANEL, RAIL, saveLayout, type Layout, type Side } from './panelLayout'
 import { CommitPanel } from './CommitPanel'
 import { WipPanel } from './WipPanel'
-import { selectDiff, useApp } from '../store/app'
+import { selectConflict, selectDiff, useApp } from '../store/app'
 import { DiffView } from './DiffView'
+import { ConflictEditor } from './ConflictEditor'
 import { RefPanel } from './RefPanel'
 import { TOGGLE_PANEL } from './windowMenus'
 
@@ -13,7 +14,8 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
   const root = useRef<HTMLDivElement>(null)
   const wip = useApp((s) => s.selectedSha === 'wip')
   // com o diff aberto o painel de refs vira rail sem mexer no layout salvo; expandir vale até o diff fechar
-  const diffOpen = useApp((s) => selectDiff(path)(s) !== null)
+  const conflictOpen = useApp((s) => selectConflict(path)(s) !== null)
+  const diffOpen = useApp((s) => selectDiff(path)(s) !== null) || conflictOpen
   const [peek, setPeek] = useState(false)
   useEffect(() => { if (!diffOpen) setPeek(false) }, [diffOpen])
   const leftOpen = diffOpen ? peek : layout.leftOpen
@@ -47,7 +49,7 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
           collapse={() => (diffOpen ? setPeek(false) : update((l) => ({ ...l, leftOpen: false })))} />
         <Divider side="left" layout={layout} root={root} update={update} />
       </aside>
-      <main className="panel-center">{children}{diffOpen && <DiffView path={path} />}</main>
+      <main className="panel-center">{children}{conflictOpen ? <ConflictEditor path={path} /> : diffOpen && <DiffView path={path} />}</main>
       {layout.rightOpen && (
         <aside className="panel panel-right" aria-label="Detalhes">
           <Divider side="right" layout={layout} root={root} update={update} />

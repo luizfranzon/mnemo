@@ -481,3 +481,26 @@ button.diff-gutter[aria-pressed="true"] { background: var(--accent-primary); col
 .stash-apply-row { position: absolute; top: 0; left: 0; width: 100%; display: flex; align-items: center; gap: 4px; font-size: 12.5px; }
 .stash-apply-row label { display: flex; align-items: center; gap: 6px; margin: 0; white-space: nowrap; }
 .stash-apply-row .stash-apply-chevron { width: 20px; height: 20px; padding: 0; border: 0; background: transparent; }
+
+.conflict-body { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px; font: 12px/20px var(--font-mono, monospace); }
+.conflict-text { white-space: pre; color: var(--text-muted); }
+.conflict-chunk { margin: 8px 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.conflict-chunk.current { border-color: var(--warning-border); }
+.conflict-chunk.done { opacity: .75; }
+.conflict-bar { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--surface-1); font-family: inherit; }
+.conflict-bar button { height: 24px; padding: 0 8px; font-size: 11.5px; }
+.conflict-sides { display: grid; grid-template-columns: 1fr 1fr; }
+.conflict-side { min-width: 0; padding: 4px 8px; white-space: pre; overflow-x: auto; }
+.conflict-side.ours { background: color-mix(in srgb, var(--info, #7FB0F0) 10%, transparent); }
+.conflict-side.theirs { background: color-mix(in srgb, #7FDC95 10%, transparent); }
+.conflict-side h4 { margin: 0 0 2px; font: 600 11px var(--font-ui, inherit); color: var(--text-muted); }
+.conflict-side label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.conflict-result { flex: none; height: 38%; display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+.conflict-result textarea { flex: 1; min-height: 0; resize: none; border: 0; padding: 8px 12px; font: 12px/20px var(--font-mono, monospace); background: var(--bg); color: var(--text); }
+.conflict-choices { padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+.wip-conflicts .conflict-file { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; font-size: 12px; cursor: pointer; }
+.wip-conflicts .conflict-file:hover { background: var(--hover); }
+.wip-conflicts .conflict-file > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wip-conflicts .conflict-file button { height: 22px; padding: 0 6px; font-size: 11px; }
+.wip-conflicts h3 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 12px; font-size: 12px; color: var(--warning-text, #eac17a); }
+.wip-conflicts h3 button { margin-left: auto; height: 22px; padding: 0 6px; font-size: 11px; }

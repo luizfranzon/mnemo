@@ -1,6 +1,6 @@
 // Único módulo da UI que conhece como falar com o backend. Mesmo formato do `@tauri-apps/api`:
 // na migração para o Tauri, só este arquivo troca. Nenhum componente importa `electron`.
-import type { AuthorInfo, BranchInfo, CoreError, CoreEvent, DiffSource, DiscardPreview, ExecuteResult, EncodingInfo, FileChange, FileDiff, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepositoryInfo, ToolbarInfo, UndoRedoState, WindowAction, WipStatus } from './types'
+import type { AuthorInfo, ConflictChoice, ConflictDoc, ConflictFile, BranchInfo, CoreError, CoreEvent, DiffSource, DiscardPreview, ExecuteResult, EncodingInfo, FileChange, FileDiff, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepositoryInfo, ToolbarInfo, UndoRedoState, WindowAction, WipStatus } from './types'
 
 interface Transport {
   invoke(cmd: string, args: Record<string, unknown>): Promise<unknown>
@@ -55,6 +55,13 @@ export const core = {
   listEncodings: (path: string) => invoke<EncodingInfo[]>('list_encodings', { path }),
   /** Prepara (ou tira) só estas linhas `[trecho, linha no trecho]`; mexe só no index. Não é Operação. */
   stageLines: (path: string, file: string, unstage: boolean, lines: [number, number][]) => invoke<null>('stage_lines', { path, file, unstage, lines }),
+  conflictList: (path: string) => invoke<ConflictFile[]>('conflict_list', { path }),
+  conflictFile: (path: string, file: string) => invoke<ConflictDoc>('conflict_file', { path, file }),
+  /** Grava o resultado e marca o arquivo como resolvido (`git add`). */
+  conflictSave: (path: string, file: string, content: string) => invoke<null>('conflict_save', { path, file, content }),
+  conflictTake: (path: string, file: string, choice: ConflictChoice) => invoke<null>('conflict_take', { path, file, choice }),
+  conflictReopen: (path: string, files: string[]) => invoke<null>('conflict_reopen', { path, files }),
+  conflictMergetool: (path: string, file: string) => invoke<null>('conflict_mergetool', { path, file }),
   stashFiles: (path: string, index: number) => invoke<FileChange[]>('stash_files', { path, index }),
   /** Acrescenta um padrão ao `.gitignore` da raiz. */
   ignore: (path: string, pattern: string) => invoke<null>('ignore', { path, pattern }),
