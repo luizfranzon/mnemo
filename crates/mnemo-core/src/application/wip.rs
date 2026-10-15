@@ -21,6 +21,10 @@ pub fn status(git: &RepoGit) -> Result<WipStatus> {
             continue;
         }
         let (x, y) = (entry[0] as char, entry[1] as char);
+        // arquivos não mesclados vêm de `conflict::list`
+        if x == 'U' || y == 'U' || (x == y && matches!(x, 'A' | 'D')) {
+            continue;
+        }
         let path = String::from_utf8_lossy(&entry[3..]).into_owned();
         let old = (matches!(x, 'R' | 'C') || matches!(y, 'R' | 'C')).then(|| entries.next().map(|o| String::from_utf8_lossy(o).into_owned())).flatten();
         let file = |code: char, old_path: Option<String>| FileChange {

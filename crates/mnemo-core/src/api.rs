@@ -622,7 +622,7 @@ impl Mnemo {
             let all = args.get("all").and_then(Value::as_bool).unwrap_or(false);
             return out(self.commit_detail(&path, sha, all)?);
         }
-        if matches!(cmd, "wip_status" | "stage" | "unstage" | "file_diff" | "stage_lines" | "stash_files" | "ignore") {
+        if matches!(cmd, "wip_status" | "stage" | "unstage" | "file_diff" | "stage_lines" | "stash_files" | "ignore" | "conflict_list" | "conflict_file" | "conflict_save" | "conflict_take" | "conflict_reopen" | "conflict_mergetool") {
             let session = self.session_for(Path::new(&path))?;
             let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
             let text = |k: &str| args.get(k).and_then(Value::as_str).ok_or_else(|| CoreError::invalid(format!("{k} ausente")));
@@ -647,6 +647,25 @@ impl Mnemo {
                         .ok_or_else(|| CoreError::invalid(format!("stash@{{{index}}} não existe")))?;
                     let files = crate::application::wip::stash_files(&git, &entry.sha)?;
                     return out(files.into_iter().map(|(f, _)| f).collect::<Vec<_>>());
+                }
+                "conflict_list" => return out(crate::application::conflict::list(&git)?),
+                "conflict_file" => return out(crate::application::conflict::file(&git, text("file")?)?),
+                "conflict_save" => {
+                    crate::application::conflict::save(&git, text("file")?, text("content")?)?;
+                    return Ok(Value::Null);
+                }
+                "conflict_take" => {
+                    crate::application::conflict::take(&git, text("file")?, text("choice")?)?;
+                    return Ok(Value::Null);
+                }
+                "conflict_reopen" => {
+                    let files: Vec<String> = parse(&json!(args.get("files").cloned().unwrap_or(json!([]))))?;
+                    crate::application::conflict::reopen(&git, &files)?;
+                    return Ok(Value::Null);
+                }
+                "conflict_mergetool" => {
+                    crate::application::conflict::mergetool(&git, text("file")?)?;
+                    return Ok(Value::Null);
                 }
                 "ignore" => {
                     crate::application::wip::ignore(&git, text("pattern")?)?;
