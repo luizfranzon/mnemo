@@ -29,7 +29,7 @@ export interface ToolbarInfo {
   lastFetchEpoch: number | null
   stashCount: number
   pullMode: PullMode
-  progress: { kind: string; step: number | null; total: number | null } | null
+  progress: { kind: string; step: number | null; total: number | null; message: string | null } | null
 }
 
 export interface BranchInfo {

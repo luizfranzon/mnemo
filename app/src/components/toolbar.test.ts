@@ -54,7 +54,7 @@ test('sem upstream mantém o padrão Pull, permite Fetch e explica o bloqueio', 
 })
 
 test('conflito permite Fetch; execução bloqueia também Fetch e explica o motivo', () => {
-  const toolbar = { ...tab.toolbar, progress: { kind: 'Rebase', step: 3, total: 7 } }
+  const toolbar = { ...tab.toolbar, progress: { kind: 'Rebase', step: 3, total: 7, message: null } }
   const waiting = toolbarAvailability(tab.head, toolbar)
   assert.equal(waiting.mutation, 'Conclua ou aborte o merge/rebase')
   assert.equal(waiting.pull, 'Conclua ou aborte o merge/rebase')

@@ -70,6 +70,8 @@ pub struct ProgressInfo {
     pub kind: String,
     pub step: Option<u32>,
     pub total: Option<u32>,
+    /// Primeira linha do MERGE_MSG; só no merge parado.
+    pub message: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -219,7 +221,7 @@ impl Mnemo {
         let counts = git.ahead_behind()?;
         let progress = git.in_progress().map(|kind| {
             let steps = git.progress_steps();
-            ProgressInfo { kind: kind.name().into(), step: steps.map(|s| s.0), total: steps.map(|s| s.1) }
+            ProgressInfo { kind: kind.name().into(), step: steps.map(|s| s.0), total: steps.map(|s| s.1), message: git.merge_message() }
         });
         Ok(ToolbarInfo {
             remotes: git.remotes()?,
@@ -700,7 +702,7 @@ impl Mnemo {
             "refresh_external" => out(s.refresh_external()?),
             "is_busy" => out(json!({ "busy": s.is_busy(), "label": s.running_label() })),
             "abort_in_progress" => out(s.abort_in_progress()?),
-            "continue_in_progress" => out(s.continue_in_progress()?),
+            "continue_in_progress" => out(s.continue_in_progress(args.get("message").and_then(Value::as_str))?),
             "skip_in_progress" => out(s.skip_in_progress()?),
             "discard_preview" => {
                 let paths: Vec<String> = parse(&json!(args.get("paths").cloned().unwrap_or(json!([]))))?;

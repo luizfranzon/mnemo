@@ -82,13 +82,16 @@ export function WipPanel({ path }: { path: string }) {
   const toggleDir = (key: string) => setCollapsed((old) => { const next = new Set(old); if (next.has(key)) next.delete(key); else next.add(key); return next })
 
   const changed = new Set([...unstaged, ...staged].map((f) => f.path)).size
-  const merging = useApp((s) => s.tabs.find((t) => t.path === path)?.toolbar.progress?.kind)
-  // Em merge/rebase parado, o commit é o "Continuar" do git (mensagem do próprio merge); `commit` comum é recusado pelo core.
+  const progress = useApp((s) => s.tabs.find((t) => t.path === path)?.toolbar.progress)
+  const merging = progress?.kind
+  const mergeMessage = progress?.message
+  useEffect(() => { if (mergeMessage) setSummary((old) => old || mergeMessage) }, [mergeMessage])
+  // Em merge/rebase parado, o commit é o "Continuar" do git; `commit` comum é recusado pelo core. O resumo vem do MERGE_MSG.
   const why = merging ? null : !staged.length && !amend ? 'Prepare arquivos para commitar' : !summary.trim() && !amend ? 'Escreva um resumo' : null
   const commit = () => {
     if (why) return
-    if (merging) return void actions.progressAction(path, 'continue')
     const message = description.trim() ? `${summary.trim()}\n\n${description.trim()}` : summary.trim()
+    if (merging) { void actions.progressAction(path, 'continue', message || undefined); setSummary(''); setDescription(''); return }
     void actions.execute(path, { type: 'commit', message, amend, allowEmpty: false })
     setSummary(''); setDescription(''); setAmend(false)
   }

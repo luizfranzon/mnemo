@@ -2,7 +2,7 @@
 
 use super::git::{failure, ProgressKind, RepoGit};
 use super::handlers::{progress_command, ExecCtx, HandlerOutcome, HandlerSet};
-use super::ports::{CoreEvent, EventSink, EvictionHook, GitPort, HistoryStore, PendingOperation, StoredSession};
+use super::ports::{CoreEvent, GitCmd, EventSink, EvictionHook, GitPort, HistoryStore, PendingOperation, StoredSession};
 use super::queue::TurnQueue;
 use super::restore::{apply_refs, apply_tree_diff, replace_wip, restore_stash_stack};
 use super::snapshot::{self, DiscardPreview, ResetPreview};
@@ -168,25 +168,29 @@ impl RepoSession {
         })
     }
 
-    pub fn continue_in_progress(&self) -> Result<ExecuteResult> {
-        self.advance_in_progress("continue", "Continuando…")
+    /// `message` só vale para merge: conclui com `commit -m` em vez de `merge --continue`.
+    pub fn continue_in_progress(&self, message: Option<&str>) -> Result<ExecuteResult> {
+        self.advance_in_progress("continue", "Continuando…", message)
     }
 
     pub fn skip_in_progress(&self) -> Result<ExecuteResult> {
         if self.git.in_progress() != Some(crate::application::git::ProgressKind::Rebase) {
             return Err(CoreError::invalid("Pular só está disponível durante rebase"));
         }
-        self.advance_in_progress("skip", "Pulando…")
+        self.advance_in_progress("skip", "Pulando…", None)
     }
 
-    fn advance_in_progress(&self, action: &str, label: &str) -> Result<ExecuteResult> {
+    fn advance_in_progress(&self, action: &str, label: &str, message: Option<&str>) -> Result<ExecuteResult> {
         self.in_turn(label, || {
             let kind = match self.progress_or_err() {
                 Ok(k) => k,
                 // concluído fora enquanto a UI ainda mostrava o conflito
                 Err(e) => return self.adopt_finished_locked()?.ok_or(e),
             };
-            let cmd = progress_command(kind, action);
+            let cmd = match message.map(str::trim).filter(|m| !m.is_empty()) {
+                Some(m) if kind == ProgressKind::Merge && action == "continue" => GitCmd::new(["commit", "-m", m]).also_ok(1).env("GIT_EDITOR", "true"),
+                _ => progress_command(kind, action),
+            };
             let out = self.git.exec(&cmd)?;
             if out.code != 0 {
                 return match self.git.in_progress() {

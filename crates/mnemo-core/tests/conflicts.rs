@@ -78,7 +78,7 @@ fn salvar_grava_o_resultado_e_marca_como_resolvido() {
     call(&repo, "conflict_save", json!({ "file": "a.txt", "content": ten(&[(2, "main feat")]) })).unwrap();
     assert_eq!(repo.read("a.txt"), ten(&[(2, "main feat")]));
     assert!(call(&repo, "conflict_list", json!({})).unwrap().as_array().unwrap().is_empty());
-    let r = repo.session().continue_in_progress().unwrap();
+    let r = repo.session().continue_in_progress(None).unwrap();
     assert!(matches!(r, ExecuteResult::Completed { .. }), "{r:?}");
     assert_eq!(repo.git(&["show", "HEAD:a.txt"]), ten(&[(2, "main feat")]).trim_end());
 }
@@ -196,7 +196,7 @@ fn rebase_em_conflito_lista_arquivo_e_continua_depois_de_salvar() {
     assert_eq!(c["ours"], json!(["main"]));
     assert_eq!(c["theirs"], json!(["feat"]));
     call(&repo, "conflict_save", json!({ "file": "a.txt", "content": ten(&[(2, "ok")]) })).unwrap();
-    let r = repo.session().continue_in_progress().unwrap();
+    let r = repo.session().continue_in_progress(None).unwrap();
     assert!(matches!(r, ExecuteResult::Completed { .. }), "{r:?}");
 }
 
@@ -241,8 +241,16 @@ fn devolve_commit_e_branch_dos_dois_lados_no_merge() {
 }
 
 #[test]
-fn merge_em_conflito_grava_mensagem_merge_com_a_branch() {
+fn merge_em_conflito_grava_mensagem_merge_branch_na_atual() {
     let repo = conflicted(&ten(&[(2, "main")]), &ten(&[(2, "feat")]));
     let msg = std::fs::read_to_string(repo.path().join(".git/MERGE_MSG")).unwrap();
-    assert!(msg.starts_with("Merge com feature"), "{msg}");
+    assert!(msg.starts_with("Merge feature na main"), "{msg}");
+}
+
+#[test]
+fn continuar_merge_com_mensagem_usa_a_mensagem_no_commit() {
+    let repo = conflicted(&ten(&[(2, "main")]), &ten(&[(2, "feat")]));
+    call(&repo, "conflict_save", json!({ "file": "a.txt", "content": ten(&[(2, "main feat")]) })).unwrap();
+    repo.session().continue_in_progress(Some("Mensagem editada")).unwrap();
+    assert_eq!(repo.git(&["log", "-1", "--format=%s"]), "Mensagem editada");
 }

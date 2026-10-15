@@ -267,6 +267,12 @@ impl RepoGit {
         self.run(["config", "--local", "mnemo.pullMode", mode])
     }
 
+    /// Primeira linha do MERGE_MSG (existe só com merge parado).
+    pub fn merge_message(&self) -> Option<String> {
+        let text = std::fs::read_to_string(self.git_dir().ok()?.join("MERGE_MSG")).ok()?;
+        text.lines().next().map(str::to_string).filter(|l| !l.is_empty())
+    }
+
     pub fn progress_steps(&self) -> Option<(u32, u32)> {
         let dir = self.git_dir().ok()?;
         for (folder, current, total) in [("rebase-merge", "msgnum", "end"), ("rebase-apply", "next", "last")] {
