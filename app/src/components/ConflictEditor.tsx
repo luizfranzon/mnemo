@@ -8,6 +8,7 @@ import {
   type Pick, type PaneRow, type Side, type State,
 } from './conflictModel'
 import { highlight } from './diffModel'
+import { selectSide } from './selectSide'
 import { ResultEditor, type ResultHandle } from './ResultEditor'
 
 const ROW = 20
@@ -149,7 +150,7 @@ export function ConflictEditor({ path }: { path: string }) {
             <span>{NAME[side]}{labelOf(doc[`${side}Label`])}</span>
           </div>)}
         </div>
-        <div className="diff-scroll split" ref={scroller}>
+        <div className="diff-scroll split" ref={scroller} onPointerDown={selectSide}>
           <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
             {virtual.getVirtualItems().map((item) => {
               const r = rows[item.index]!

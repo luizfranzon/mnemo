@@ -448,7 +448,9 @@ button.diff-gutter:hover:not(:disabled) { background: var(--hover); border: 0; }
 button.diff-gutter[aria-pressed="true"] { background: var(--accent-primary); color: var(--accent-text); }
 .diff-num { display: inline-block; width: 44px; padding-right: 10px; text-align: right; }
 .diff-mark { display: inline-block; width: 16px; }
-.diff-code { white-space: pre; padding-right: 16px; }
+.diff-code { white-space: pre; padding-right: 16px; user-select: text; cursor: text; }
+.diff-code::selection, .diff-code *::selection { background: color-mix(in srgb, var(--accent) 38%, transparent); color: inherit; }
+.diff-scroll[data-sel="left"] :is(.diff-half.right, .conflict-half.theirs) .diff-code, .diff-scroll[data-sel="right"] :is(.diff-half.left, .conflict-half.ours) .diff-code { user-select: none; }
 .diff-eol { margin-left: 4px; color: var(--text-subtle); }
 .diff-hunk { display: flex; align-items: center; gap: 10px; height: 28px; padding: 0 12px; background: var(--surface-1); border-block: 1px solid var(--border-subtle); color: var(--text-muted); font-size: 11.5px; }
 .diff-hunk button { height: 22px; padding: 0 8px; font: 12px var(--font-ui); }

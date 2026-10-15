@@ -1,5 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { EncodingPicker } from './EncodingPicker'
+import { selectSide } from './selectSide'
 import { Segmented } from './Segmented'
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { core } from '../bridge'
@@ -165,7 +166,7 @@ export function DiffView({ path }: { path: string }) {
         : diff.tooLarge ? <div className="diff-message">Diff grande demais para mostrar (mais de 16 MB).</div>
           : !rows.length ? <div className="diff-message">{diff.oldPath ? `Renomeado de ${diff.oldPath}, sem mudança de conteúdo.` : 'Sem mudanças de texto neste arquivo.'}</div>
             : <div className="diff-body">
-              <div className={`diff-scroll ${layout}`} ref={scroller} onScroll={onScroll}>
+              <div className={`diff-scroll ${layout}`} ref={scroller} onScroll={onScroll} onPointerDown={selectSide}>
                 <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
                   {virtual.getVirtualItems().map((item) => <div key={item.key} className="diff-row" style={{ transform: `translateY(${item.start}px)`, height: item.size }}>
                     {row(rows[item.index]!)}</div>)}
