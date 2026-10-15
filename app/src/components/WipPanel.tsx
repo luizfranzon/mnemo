@@ -39,6 +39,7 @@ export function WipPanel({ path }: { path: string }) {
   const [summary, setSummary] = useState('')
   const [description, setDescription] = useState('')
   const [amend, setAmend] = useState(false)
+  const [busy, setBusy] = useState(false) // hooks podem demorar: trava o botão e mostra o carregando
   const scroller = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -89,14 +90,17 @@ export function WipPanel({ path }: { path: string }) {
   // Em merge/rebase parado, o commit é o "Continuar" do git; `commit` comum é recusado pelo core. O resumo vem do MERGE_MSG.
   const why = merging ? null : !staged.length && !amend ? 'Prepare arquivos para commitar' : !summary.trim() && !amend ? 'Escreva um resumo' : null
   const commit = () => {
-    if (why) return
+    if (why || busy) return
     const message = description.trim() ? `${summary.trim()}\n\n${description.trim()}` : summary.trim()
     // O texto só some quando deu certo: erro (ex.: hook) não pode custar a mensagem escrita.
     const done = merging ? actions.progressAction(path, 'continue', message || undefined) : actions.execute(path, { type: 'commit', message, amend, allowEmpty: false })
-    void done.then((ok) => { if (ok) { setSummary(''); setDescription(''); setAmend(false) } })
+    setBusy(true)
+    void done.then((ok) => { if (ok) { setSummary(''); setDescription(''); setAmend(false) } }).finally(() => setBusy(false))
   }
   const stash = () => {
-    void actions.execute(path, { type: 'stashCreate', message: summary.trim() || null, includeUntracked: true })
+    if (busy) return
+    setBusy(true)
+    void actions.execute(path, { type: 'stashCreate', message: summary.trim() || null, includeUntracked: true }).finally(() => setBusy(false))
     setSummary('')
   }
 
@@ -195,11 +199,11 @@ export function WipPanel({ path }: { path: string }) {
         <Svg size={12}><path d="M9 6l6 6-6 6" /></Svg>Opções<span>· assinar: não · hooks: sim · push depois: não</span></button>}
       <div className="wip-buttons">
         {tab === 'commit'
-          ? <button className="wip-commit" disabled={!!why} title={why ?? undefined} onClick={commit}>
-              {why ?? (merging ? `Concluir ${merging.toLowerCase()}` : staged.length ? `Commitar ${plural(staged.length, 'arquivo', 'arquivos')} em ${branch}` : `Emendar o último commit em ${branch}`)}
-              {!why && <kbd>Ctrl Enter</kbd>}</button>
-          : <button className="wip-commit" disabled={!changed} title={changed ? undefined : 'Não há mudanças para guardar'} onClick={stash}>
-              Guardar {plural(changed, 'arquivo', 'arquivos')} no stash<kbd>Ctrl Enter</kbd></button>}
+          ? <button className="wip-commit" disabled={!!why || busy} aria-busy={busy} title={why ?? undefined} onClick={commit}>
+              {busy ? <><span className="spin" aria-hidden="true">⟳</span>{merging ? 'Concluindo…' : 'Commitando…'}</> : why ?? (merging ? `Concluir ${merging.toLowerCase()}` : staged.length ? `Commitar ${plural(staged.length, 'arquivo', 'arquivos')} em ${branch}` : `Emendar o último commit em ${branch}`)}
+              {!why && !busy && <kbd>Ctrl Enter</kbd>}</button>
+          : <button className="wip-commit" disabled={!changed || busy} aria-busy={busy} title={changed ? undefined : 'Não há mudanças para guardar'} onClick={stash}>
+              {busy ? <><span className="spin" aria-hidden="true">⟳</span>Guardando…</> : <>Guardar {plural(changed, 'arquivo', 'arquivos')} no stash<kbd>Ctrl Enter</kbd></>}</button>}
       </div>
       {tab === 'commit' && unstaged.length > 0 && staged.length > 0 &&
         <p>{unstaged.length === 1 ? '1 arquivo não preparado fica' : `${unstaged.length} arquivos não preparados ficam`} de fora deste commit.</p>}
