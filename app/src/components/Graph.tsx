@@ -32,7 +32,7 @@ function CommitSvg({ row, width, geo, compact }: { row: GraphCommit; width: numb
   const photo = useGravatar(row.email)
   return <svg width={width} height={ROW} viewBox={`0 0 ${width} ${ROW}`} aria-label={`Grafo de ${row.sha.slice(0, 7)}`}>
     <rect className="lane-band" x={x} y="1" width="4000" height={ROW - 2} fill={row.color} />
-    {row.refs.length > 0 && <path d={`M0 14 H${x}`} stroke={row.color} strokeOpacity={row.head ? 0.9 : 0.55} strokeWidth={row.head ? 2.5 : 1} />}
+    {row.refs.length > 0 && <path d={`M0 14 H${x}`} stroke={row.head ? `color-mix(in srgb, ${row.color} 55%, black)` : row.color} strokeOpacity={row.head ? 1 : 0.55} strokeWidth={row.head ? 3 : 1} />}
     {row.segments.map((segment, index) => <path key={`${segment.kind}:${segment.fromLane}:${segment.toLane}:${index}`}
       d={segmentPath(segment, geo)} fill="none" stroke={segment.color} strokeWidth="2" />)}
     {row.head && <circle cx={x} cy="14" r={compact ? 8 : 12} fill="none" stroke="#5b8def" strokeWidth="2" />}
@@ -382,7 +382,7 @@ export function Graph({ path }: { path: string }) {
   const cell = (id: ColId, commit: GraphCommit | null | undefined, wip: boolean) => {
     switch (id) {
       case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} on={pillHandlers} />}{commit && commit.refs.length > 0 &&
-        <span className={`graph-ref-connector${commit.head ? ' current' : ''}`} style={{ borderColor: commit.color }} />}
+        <span className={`graph-ref-connector${commit.head ? ' current' : ''}`} style={{ borderColor: commit.head ? `color-mix(in srgb, ${commit.color} 55%, black)` : commit.color }} />}
         {commit?.ghost && !commit.refs.length && <span className="graph-pill graph-ghost" style={{ '--pill': commit.color } as CSSProperties} aria-hidden="true">
           {commit.ghost.current && <RefIcon name="check" size={11} />}<span className="graph-pill-name">{commit.ghost.name}</span><RefIcon name={commit.ghost.remote ? 'cloud' : 'laptop'} size={11} /></span>}</div>
       case 'graph': return <div key={id} className="graph-cell">
