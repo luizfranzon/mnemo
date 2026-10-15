@@ -4,4 +4,5 @@ import type { PointerEvent } from 'react'
 export function selectSide(e: PointerEvent<HTMLElement>) {
   const half = (e.target as HTMLElement).closest('.diff-half, .conflict-half')
   if (half) e.currentTarget.dataset.sel = half.classList.contains('left') || half.classList.contains('ours') ? 'left' : 'right'
+  else delete e.currentTarget.dataset.sel
 }
