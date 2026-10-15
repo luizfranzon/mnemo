@@ -89,7 +89,7 @@ function pillsOf(refs: GraphCommit['refs']): Pill[] {
     else if (ref.kind === 'local') {
       const remote = ref.upstream && refs.some((r) => r.kind === 'remote' && r.name === ref.upstream) ? ref.upstream : null
       pills.push({ key: `local:${ref.name}`, label: ref.name, title: remote ? `${ref.name}\n${remote}` : ref.name, kind: 'branch', local: ref.name, remote, current: ref.current })
-    } else if (!tracked.has(ref.name)) pills.push({ key: `remote:${ref.name}`, label: ref.name, title: ref.name, kind: 'branch', local: null, remote: ref.name, current: false })
+    } else if (!tracked.has(ref.name)) pills.push({ key: `remote:${ref.name}`, label: ref.name.replace(/^origin\//, ''), title: ref.name, kind: 'branch', local: null, remote: ref.name, current: false })
   }
   return pills.sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label))
 }
