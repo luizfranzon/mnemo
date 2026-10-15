@@ -24,7 +24,10 @@ export function useBranchActions(path: string) {
     if (t.kind === 'local') {
       if (!t.ref.current) void actions.checkoutRef(path, { type: 'checkout', target: t.ref.name })
     } else if (t.local) {
-      void actions.checkoutRef(path, { type: 'checkout', target: t.local.name }, t.local.upstream === `${t.ref.remote}/${t.ref.name}` ? (t.local.behind ?? 0) : 0)
+      const tracks = t.local.upstream === `${t.ref.remote}/${t.ref.name}`
+      // remota da branch atual: só avança a local até ela
+      if (tracks && t.local.current) void actions.execute(path, { type: 'pull', strategy: 'ffOnly' })
+      else void actions.checkoutRef(path, { type: 'checkout', target: t.local.name }, tracks ? (t.local.behind ?? 0) : 0)
     } else void actions.checkoutRef(path, { type: 'checkoutRemote', remote: t.ref.remote, branch: t.ref.name })
   }
   const entries = (t: BranchTarget, remoteUrl: string | null) => {
