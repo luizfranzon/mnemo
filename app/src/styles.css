@@ -360,7 +360,7 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .wip-amend input { accent-color: #5B8DEF; margin: 0; padding: 0; }
 .wip-box { display: flex; flex-direction: column; background: #0E0E0F; border: 1px solid #5B8DEF; border-radius: 8px; box-shadow: 0 0 0 2px #22325A; }
 .wip-summary { display: flex; align-items: center; gap: 8px; padding: 8px 12px 6px; border-bottom: 1px solid #1F1F21; }
-.wip-summary input { flex: 1; min-width: 0; padding: 0; background: transparent; border: 0; color: #E8E6E3; font-size: 13.5px; }
+.wip-summary input { flex: 1; min-width: 0; padding: 0; background: transparent; border: 0; outline: none; color: #E8E6E3; font-size: 13.5px; }
 .wip-count { font-family: var(--font-mono); font-size: 11px; color: #8A877F; }
 .wip-box textarea { resize: none; background: transparent; border: 0; outline: none; padding: 8px 12px; color: #C9C6C0; font: inherit; font-size: 13px; line-height: 1.5; }
 .wip-panel .wip-options { justify-content: flex-start; gap: 6px; height: 26px; color: #9C9992; font-size: 12px; }
