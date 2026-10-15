@@ -85,3 +85,21 @@ Alteração de HEAD ou refs feita fora do Mnemo (terminal, outro app), detectada
 **Log de diagnóstico**:
 Arquivos de texto, um por dia, na pasta de dados do app, para depurar o que rodou e o que falhou. Registra as Operações, os comandos git executados (com credenciais de URL mascaradas) e os erros inesperados com stacktrace. É descartável: os de mais de 7 dias são apagados, e apagar a pasta não afeta nada. Não tem relação com o Histórico de Operações.
 _Avoid_: log (sozinho, confunde com Histórico de Operações)
+
+### Conflitos
+
+**Atual** (A) e **Entrando** (B):
+Os dois lados de um arquivo em conflito, mostrados lado a lado, somente leitura. Atual é o lado onde o usuário está (HEAD); Entrando é o que chega (a branch do merge, ou o commit aplicado no rebase e no cherry-pick). Cada cabeçalho nomeia o commit e a branch do lado.
+_Avoid_: ours/theirs, local/remoto, esquerda/direita
+
+**Trecho**:
+Região do arquivo em que Atual e Entrando divergem. O resto do arquivo é texto comum, igual nos dois lados.
+_Avoid_: hunk, bloco (hunk é do diff; Trecho é do conflito)
+
+**Resultado**:
+O texto final do arquivo, editável. É montado com as linhas que o usuário pega de cada lado, na ordem em que as pega; editar à mão trava as escolhas até um Reset. Um Trecho sem escolha mostra a base e a cor de pendente.
+_Avoid_: Output, saída
+
+**Pegar linha**:
+Escolher uma linha de Atual ou Entrando para entrar no Resultado. Vale por linha, por Trecho ou pelo lado inteiro do arquivo.
+_Avoid_: aceitar, aplicar
