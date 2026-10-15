@@ -157,3 +157,45 @@ fn ferramenta_externa_sem_configuracao_da_erro_claro() {
     let e = call(&repo, "conflict_mergetool", json!({ "file": "a.txt" })).unwrap_err();
     assert!(e.to_string().contains("ferramenta de merge"), "{e}");
 }
+
+#[test]
+fn gravar_com_marcadores_nao_marca_o_arquivo_como_resolvido() {
+    let repo = conflicted(&ten(&[(2, "main")]), &ten(&[(2, "feat")]));
+    call(&repo, "conflict_save", json!({ "file": "a.txt", "content": "<<<<<<< x\n", "resolve": false })).unwrap();
+    assert_eq!(repo.read("a.txt"), "<<<<<<< x\n");
+    assert_eq!(call(&repo, "conflict_list", json!({})).unwrap().as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn devolve_trechos_de_arquivo_com_fim_de_linha_crlf() {
+    let crlf = |edit: &str| ten(&[(2, edit)]).replace('\n', "\r\n");
+    let repo = conflicted(&crlf("main"), &crlf("feat"));
+    let doc = call(&repo, "conflict_file", json!({ "file": "a.txt" })).unwrap();
+    let c = doc["segments"].as_array().unwrap().iter().find(|s| s["kind"] == "conflict").unwrap().clone();
+    assert_eq!(c["ours"], json!(["main\r"]));
+    assert_eq!(c["theirs"], json!(["feat\r"]));
+}
+
+#[test]
+fn rebase_em_conflito_lista_arquivo_e_continua_depois_de_salvar() {
+    let repo = TestRepo::new();
+    repo.write("a.txt", &ten(&[]));
+    repo.commit_all("base");
+    repo.git(&["checkout", "-q", "-b", "feature"]);
+    repo.write("a.txt", &ten(&[(2, "feat")]));
+    repo.commit_all("feature");
+    repo.git(&["checkout", "-q", "main"]);
+    repo.write("a.txt", &ten(&[(2, "main")]));
+    repo.commit_all("main");
+    repo.git(&["checkout", "-q", "feature"]);
+    let r = repo.exec(OperationKind::Rebase { onto: "main".into() });
+    assert!(matches!(r, ExecuteResult::Conflict { .. }));
+    let doc = call(&repo, "conflict_file", json!({ "file": "a.txt" })).unwrap();
+    let c = doc["segments"].as_array().unwrap().iter().find(|s| s["kind"] == "conflict").unwrap().clone();
+    // no rebase o Atual é a base do rebase (main) e o Entrando é o commit reaplicado
+    assert_eq!(c["ours"], json!(["main"]));
+    assert_eq!(c["theirs"], json!(["feat"]));
+    call(&repo, "conflict_save", json!({ "file": "a.txt", "content": ten(&[(2, "ok")]) })).unwrap();
+    let r = repo.session().continue_in_progress().unwrap();
+    assert!(matches!(r, ExecuteResult::Completed { .. }), "{r:?}");
+}

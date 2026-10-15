@@ -98,7 +98,9 @@ pub fn file(git: &RepoGit, file: &str) -> Result<ConflictDoc> {
     if ![&base, &ours, &theirs].into_iter().all(|b| is_text(b)) {
         return Err(CoreError::invalid(format!("{file} é binário: use um dos lados")));
     }
-    let dir = git.git_dir()?.join(format!("mnemo-conflict-{}", std::process::id()));
+    static CALLS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let n = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = git.git_dir()?.join(format!("mnemo-conflict-{}-{n}", std::process::id()));
     std::fs::create_dir_all(&dir)?;
     let merged = (|| -> Result<Vec<u8>> {
         for (name, data) in [("ours", &ours), ("base", &base), ("theirs", &theirs)] {
@@ -108,7 +110,7 @@ pub fn file(git: &RepoGit, file: &str) -> Result<ConflictDoc> {
             "merge-file", "-p", "--diff3", "--zdiff3", &format!("--marker-size={MARKER}"),
             "-L", "ours", "-L", "base", "-L", "theirs",
         ])
-        .also_ok(255);
+        ;
         cmd.args.extend(["ours", "base", "theirs"].map(|n| dir.join(n).to_string_lossy().into_owned()));
         for n in 1..=127 {
             cmd = cmd.also_ok(n);
@@ -131,7 +133,7 @@ fn parse(merged: &str) -> Vec<Segment> {
     let mut text: Vec<String> = Vec::new();
     // 0 = fora, 1 = atual, 2 = base, 3 = entrando
     let (mut state, mut ours, mut base, mut theirs) = (0, Vec::new(), Vec::new(), Vec::new());
-    let marker = |l: &str, m: &str| l == m || l.strip_prefix(m).is_some_and(|r| r.starts_with(' '));
+    let marker = |l: &str, m: &str| l.trim_end_matches('\r') == m || l.strip_prefix(m).is_some_and(|r| r.starts_with(' '));
     for line in body.split('\n') {
         match state {
             0 if marker(line, &open) => {
@@ -142,7 +144,7 @@ fn parse(merged: &str) -> Vec<Segment> {
             }
             0 => text.push(line.to_string()),
             1 if marker(line, &mid) => state = 2,
-            2 if line == sep => state = 3,
+            2 if line.trim_end_matches('\r') == sep => state = 3,
             3 if marker(line, &close) => {
                 let auto = squash(&ours.join("\n")) == squash(&theirs.join("\n"));
                 segments.push(Segment::Conflict {
@@ -164,11 +166,14 @@ fn parse(merged: &str) -> Vec<Segment> {
     segments
 }
 
-/// Grava o resultado e marca o arquivo como resolvido.
-pub fn save(git: &RepoGit, file: &str, content: &str) -> Result<()> {
+/// Grava o resultado. `resolve`: também marca o arquivo como resolvido (`false` grava com marcadores e deixa o conflito aberto).
+pub fn save(git: &RepoGit, file: &str, content: &str, resolve: bool) -> Result<()> {
     stages_of(git, file)?;
     std::fs::write(git.workdir().join(file), content)?;
-    git.run(["add", "--", file])
+    if resolve {
+        git.run(["add", "--", file])?;
+    }
+    Ok(())
 }
 
 /// `choice`: base, ours (Atual), theirs (Entrando) ou delete. Um lado que apagou o arquivo não tem versão para manter.

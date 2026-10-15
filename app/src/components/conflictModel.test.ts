@@ -26,7 +26,7 @@ test('escolher os dois lados junta Atual e depois Entrando', () => {
   assert.equal(output(doc, picks), '1\nmain\nx\nfeat\n3\na  b\n')
 })
 
-test('aceitar só algumas linhas', () => {
+test('escolher só algumas linhas do Atual deixa só elas no resultado', () => {
   const picks = initialPicks(doc)
   picks[0] = { ours: [false, true], theirs: [false], touched: true }
   assert.equal(output(doc, picks), '1\nx\n3\na  b\n')

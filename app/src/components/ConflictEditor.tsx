@@ -59,7 +59,7 @@ export function ConflictEditor({ path }: { path: string }) {
   const take = (choice: ConflictChoice) => void core.conflictTake(path, file, choice).then(done, fail)
   const save = (markers: boolean) => {
     if (!doc) return
-    void core.conflictSave(path, file, manual ?? output(doc, picks, markers)).then(done, fail)
+    void core.conflictSave(path, file, manual ?? output(doc, picks, markers), !markers).then(done, fail)
   }
   const chunks = doc ? conflictsOf(doc) : []
   const pending = unresolved(picks)

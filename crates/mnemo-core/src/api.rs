@@ -651,7 +651,8 @@ impl Mnemo {
                 "conflict_list" => return out(crate::application::conflict::list(&git)?),
                 "conflict_file" => return out(crate::application::conflict::file(&git, text("file")?)?),
                 "conflict_save" => {
-                    crate::application::conflict::save(&git, text("file")?, text("content")?)?;
+                    let resolve = args.get("resolve").and_then(Value::as_bool).unwrap_or(true);
+                    crate::application::conflict::save(&git, text("file")?, text("content")?, resolve)?;
                     return Ok(Value::Null);
                 }
                 "conflict_take" => {

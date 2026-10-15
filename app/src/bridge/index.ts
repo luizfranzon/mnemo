@@ -57,8 +57,8 @@ export const core = {
   stageLines: (path: string, file: string, unstage: boolean, lines: [number, number][]) => invoke<null>('stage_lines', { path, file, unstage, lines }),
   conflictList: (path: string) => invoke<ConflictFile[]>('conflict_list', { path }),
   conflictFile: (path: string, file: string) => invoke<ConflictDoc>('conflict_file', { path, file }),
-  /** Grava o resultado e marca o arquivo como resolvido (`git add`). */
-  conflictSave: (path: string, file: string, content: string) => invoke<null>('conflict_save', { path, file, content }),
+  /** Grava o resultado; `resolve` marca como resolvido (`git add`). Com marcadores, `false`. */
+  conflictSave: (path: string, file: string, content: string, resolve = true) => invoke<null>('conflict_save', { path, file, content, resolve }),
   conflictTake: (path: string, file: string, choice: ConflictChoice) => invoke<null>('conflict_take', { path, file, choice }),
   conflictReopen: (path: string, files: string[]) => invoke<null>('conflict_reopen', { path, files }),
   conflictMergetool: (path: string, file: string) => invoke<null>('conflict_mergetool', { path, file }),
