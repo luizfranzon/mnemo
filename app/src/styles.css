@@ -167,7 +167,7 @@ input:focus { border-color: var(--accent); }
 @keyframes graph-fade { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .graph-veil, .graph-rows { animation: none; } }
 .graph-list { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; position: relative; }
-.graph-row { position: absolute; top: 0; left: 0; width: 100%; align-items: center; cursor: pointer; font-family: var(--font-mono); font-size: 12.5px; }
+.graph-row { position: absolute; top: 0; left: 0; width: 100%; align-items: center; cursor: pointer; font-family: var(--font-ui); font-size: 12.5px; }
 /* Gap de 2px entre as linhas: fundo, faixa da lane e borda ficam 1px para dentro; as linhas do grafo seguem contínuas */
 .graph-row { background: linear-gradient(var(--row-bg, transparent), var(--row-bg, transparent)) 0 1px / 100% calc(100% - 2px) no-repeat; }
 .graph-row:hover { --row-bg: rgba(91, 141, 239, .09); }
@@ -184,12 +184,12 @@ input:focus { border-color: var(--accent); }
 .graph-row .graph-refs { padding-left: 13px; padding-right: 0; }
 .graph-ref-connector { flex: 1; min-width: 4px; border-top: 1px solid; opacity: .55; }
 .graph-pills { display: flex; align-items: center; gap: 3px; overflow: hidden; }
-.graph-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border: 1px solid var(--pill, var(--border-strong)); border-radius: 7px; background: color-mix(in srgb, var(--pill, var(--surface-2)) 16%, var(--bg)); color: var(--text); font: 12px var(--font-mono); white-space: nowrap; }
+.graph-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border: 1px solid var(--pill, var(--border-strong)); border-radius: 7px; background: color-mix(in srgb, var(--pill, var(--surface-2)) 16%, var(--bg)); color: var(--text); font: 12px var(--font-ui); white-space: nowrap; }
 .graph-pill-name { white-space: nowrap; }
 .graph-pill .ref-icon { flex: none; color: var(--text); }
 .graph-pills { min-width: 0; }
 .graph-pills > .graph-pill { flex: none; }
-.graph-pill-more { flex: none; padding: 2px 6px; border: 1px solid var(--pill); border-radius: 7px; background: color-mix(in srgb, var(--pill) 16%, var(--bg)); color: var(--text); font: 12px var(--font-mono); line-height: 1.3; cursor: default; }
+.graph-pill-more { flex: none; padding: 2px 6px; border: 1px solid var(--pill); border-radius: 7px; background: color-mix(in srgb, var(--pill) 16%, var(--bg)); color: var(--text); font: 12px var(--font-ui); line-height: 1.3; cursor: default; }
 .graph-pill-list { position: fixed; z-index: 40; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding-top: 4px; }
 .graph-pill-list .graph-pill { box-shadow: 0 4px 12px rgba(0, 0, 0, .4); }
 .graph-message { color: var(--text); font-size: 12px; }
@@ -202,7 +202,7 @@ input:focus { border-color: var(--accent); }
 .wip-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: 999px; font-size: 12px; }
 .wip-chip.changed { background: color-mix(in srgb, #e0a43a 20%, var(--bg)); color: #e0a43a; }
 .wip-chip.added { background: color-mix(in srgb, #7fdc95 18%, var(--bg)); color: #7fdc95; }
-.graph-sha { color: var(--text-muted); font-family: var(--font-mono); font-size: 10px; }
+.graph-sha { color: var(--text-muted); font-size: 10px; }
 .graph-empty, .graph-loading { padding: 12px; color: var(--text-muted); }
 .detached-banner { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: var(--warning-bg); color: var(--warning-text); border-bottom: 1px solid var(--warning-border); }
 .detached-banner button { padding: 2px 6px; color: inherit; }
