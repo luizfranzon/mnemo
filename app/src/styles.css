@@ -13,6 +13,16 @@ button.primary:hover:not(:disabled) { background: var(--accent-primary-hover); }
 input { font: inherit; color: var(--text); background: var(--control); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; outline: none; }
 input:focus { border-color: var(--accent); }
 input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 14px; padding: 0; margin: 0; accent-color: var(--accent); }
+.radio-group { display: flex; flex-direction: column; gap: 10px; }
+.radio { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--text); }
+.radio-help { display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
+.radio input { appearance: none; width: 16px; height: 16px; margin: 1px 0 0; padding: 0; border-radius: 50%; display: inline-grid; place-content: center; transition: background-color .12s, border-color .12s; }
+.radio input::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-text); transform: scale(0); transition: transform .12s; }
+.radio input:hover { border-color: var(--text-subtle); }
+.radio input:checked { background: var(--accent-primary); border-color: var(--accent-primary); }
+.radio input:checked::before { transform: scale(1); }
+.radio input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.radio input:disabled { opacity: .45; }
 .muted { color: var(--text-muted); }
 .warning { color: var(--warning-text); }
 .center { height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; }

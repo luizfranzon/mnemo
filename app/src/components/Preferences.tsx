@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { actions, useApp } from '../store/app'
+import { RadioGroup } from './RadioGroup'
 
 /** Só entram seções com ajuste real; as demais do mockup chegam com as features (docs/01-features.md § 12). */
 export function Preferences() {
@@ -32,14 +33,12 @@ function Screen() {
           </label>
           <p className="help">Sem foto do Gravatar e sem nenhum request: o hash do email de cada Autor não é enviado a gravatar.com.</p>
           <h2>Ordem dos commits</h2>
-          <label className="field">
-            <input type="radio" name="order" checked={!dateOrder} onChange={() => actions.setPref('dateOrder', false)} />
-            Agrupada por branch (topológica)
-          </label>
-          <label className="field">
-            <input type="radio" name="order" checked={dateOrder} onChange={() => actions.setPref('dateOrder', true)} />
-            Por data, intercalando branches
-          </label>
+          <RadioGroup name="order" label="Ordem dos commits" value={dateOrder ? 'date' : 'topo'}
+            onChange={(v) => actions.setPref('dateOrder', v === 'date')}
+            options={[
+              { value: 'topo', label: 'Agrupada por branch (topológica)' },
+              { value: 'date', label: 'Por data, intercalando branches' },
+            ]} />
           <p className="help">A topológica deixa cada branch compacta e com menos cruzamento de linhas. Por data, um commit recente de uma branch pode aparecer acima de merges mais antigos de outras.</p>
         </div>
       </main>
