@@ -47,12 +47,64 @@ pub enum Segment {
     Conflict { ours: Vec<String>, theirs: Vec<String>, base: Vec<String>, auto: bool },
 }
 
+/// Commit e ref de um lado do conflito, para o cabeçalho do editor.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SideLabel {
+    pub sha: String,
+    pub name: Option<String>,
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConflictDoc {
     pub path: String,
     pub segments: Vec<Segment>,
     pub final_newline: bool,
+    /// `None` fora de merge/rebase/cherry-pick/revert (ex.: stash apply).
+    pub ours_label: Option<SideLabel>,
+    pub theirs_label: Option<SideLabel>,
+}
+
+/// Algum ref que aponta para `sha` (branch local antes de remota antes de tag).
+fn ref_at(git: &RepoGit, sha: &str) -> Option<String> {
+    let cmd = GitCmd::new(["for-each-ref", "--count=1", "--format=%(refname:short)", "--points-at", sha, "refs/heads", "refs/remotes", "refs/tags"]);
+    git.exec(&cmd).ok().map(|o| o.text()).filter(|n| !n.is_empty())
+}
+
+/// Atual é o HEAD; Entrando é o que chega (MERGE_HEAD, o commit do rebase, CHERRY_PICK_HEAD, REVERT_HEAD).
+fn side_labels(git: &RepoGit) -> (Option<SideLabel>, Option<SideLabel>) {
+    use crate::application::git::ProgressKind::*;
+    let (Some(kind), Ok(dir)) = (git.in_progress(), git.git_dir()) else { return (None, None) };
+    let read = |n: &str| std::fs::read_to_string(dir.join(n)).ok().and_then(|s| s.lines().next().map(|l| l.trim().to_string())).filter(|s| !s.is_empty());
+    let label = |sha: String, name: Option<String>| SideLabel { sha: crate::domain::repo_state::short_sha(&sha).to_string(), name };
+    let ours = git.head_sha().map(|sha| {
+        let branch = git.exec(&GitCmd::new(["symbolic-ref", "-q", "--short", "HEAD"]).also_ok(1)).ok().filter(|o| o.code == 0).map(|o| o.text());
+        let name = branch.or_else(|| ref_at(git, &sha));
+        label(sha, name)
+    });
+    let theirs = match kind {
+        Merge => read("MERGE_HEAD"),
+        CherryPick => read("CHERRY_PICK_HEAD"),
+        Revert => read("REVERT_HEAD"),
+        Rebase => read("rebase-merge/stopped-sha").or_else(|| read("REBASE_HEAD")),
+    }
+    .map(|sha| {
+        let rebased = matches!(kind, Rebase).then(|| read("rebase-merge/head-name").or_else(|| read("rebase-apply/head-name"))).flatten();
+        let name = rebased.map(|r| r.strip_prefix("refs/heads/").unwrap_or(&r).to_string()).or_else(|| ref_at(git, &sha));
+        label(sha, name)
+    });
+    (ours, theirs)
+}
+
+/// O texto tem um par de marcadores de conflito (`<<<<<<<` e depois `>>>>>>>`, no início de linha).
+pub fn has_markers(text: &str) -> bool {
+    let at = |l: &str, c: char| {
+        let m = c.to_string().repeat(7);
+        l.strip_prefix(m.as_str()).is_some_and(|r| r.is_empty() || r.starts_with([' ', '\r']))
+    };
+    let mut lines = text.lines();
+    lines.any(|l| at(l, '<')) && lines.any(|l| at(l, '>'))
 }
 
 /// Blobs dos estágios 1 (base), 2 (atual) e 3 (entrando) de cada arquivo não mesclado.
@@ -142,7 +194,8 @@ pub fn file(git: &RepoGit, file: &str) -> Result<ConflictDoc> {
     let _ = std::fs::remove_dir_all(&dir);
     let merged = String::from_utf8_lossy(&merged?).into_owned();
     let final_newline = merged.ends_with('\n');
-    Ok(ConflictDoc { path: file.to_string(), segments: parse(&merged), final_newline })
+    let (ours_label, theirs_label) = side_labels(git);
+    Ok(ConflictDoc { path: file.to_string(), segments: parse(&merged), final_newline, ours_label, theirs_label })
 }
 
 fn parse(merged: &str) -> Vec<Segment> {
@@ -191,6 +244,9 @@ fn parse(merged: &str) -> Vec<Segment> {
 /// Grava o resultado. `resolve`: também marca o arquivo como resolvido (`false` grava com marcadores e deixa o conflito aberto).
 pub fn save(git: &RepoGit, file: &str, content: &str, resolve: bool) -> Result<()> {
     stages_of(git, file)?;
+    if resolve && has_markers(content) {
+        return Err(CoreError::invalid(format!("marcadores de conflito em {file}")));
+    }
     std::fs::write(git.workdir().join(file), content)?;
     if resolve {
         git.run(["add", "--", file])?;
@@ -227,4 +283,13 @@ pub fn mergetool(git: &RepoGit, file: &str) -> Result<()> {
         return Err(CoreError::invalid("Nenhuma ferramenta de merge configurada (merge.tool)"));
     }
     git.run(["-c", "mergetool.keepBackup=false", "mergetool", "--no-prompt", "--", file])
+}
+
+/// Arquivos em conflito dentro de `paths` (vazio = todos; um caminho também vale como pasta) que ainda têm marcadores.
+pub fn with_markers(git: &RepoGit, paths: &[String]) -> Result<Vec<String>> {
+    let inside = |f: &str| paths.is_empty() || paths.iter().any(|p| f == p || f.strip_prefix(p.as_str()).is_some_and(|r| r.starts_with('/')));
+    Ok(unmerged(git)?
+        .into_keys()
+        .filter(|f| inside(f) && std::fs::read(git.workdir().join(f)).is_ok_and(|b| has_markers(&String::from_utf8_lossy(&b))))
+        .collect())
 }

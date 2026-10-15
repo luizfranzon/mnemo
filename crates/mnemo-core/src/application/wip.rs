@@ -57,16 +57,22 @@ pub fn status(git: &RepoGit) -> Result<WipStatus> {
     Ok(WipStatus { unstaged, staged })
 }
 
-/// `paths` vazio = todos.
+/// `paths` vazio = todos. Arquivo em conflito que ainda tem marcadores não é marcado como resolvido:
+/// os demais são preparados e o erro nomeia os que ficaram de fora.
 pub fn stage(git: &RepoGit, paths: &[String], on: bool) -> Result<()> {
+    let bad = if on { crate::application::conflict::with_markers(git, paths)? } else { Vec::new() };
     let mut args: Vec<String> = if on { vec!["add".into(), "-A".into()] } else { vec!["reset".into(), "-q".into()] };
     args.push("--".into());
-    if paths.is_empty() {
-        args.push(".".into());
-    } else {
-        args.extend(paths.iter().cloned());
+    let targets: Vec<String> = if paths.is_empty() { vec![".".into()] } else { paths.iter().filter(|p| !bad.contains(p)).cloned().collect() };
+    if !targets.is_empty() {
+        args.extend(targets);
+        args.extend(bad.iter().map(|f| format!(":(exclude,literal){f}")));
+        git.run(args)?;
     }
-    git.run(args)
+    if bad.is_empty() {
+        return Ok(());
+    }
+    Err(crate::domain::error::CoreError::invalid(format!("marcadores de conflito em: {}", bad.join(", "))))
 }
 
 /// Acrescenta `pattern` ao `.gitignore` da raiz (se ainda não estiver lá). Não é Operação: é uma edição de arquivo.

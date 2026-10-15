@@ -199,3 +199,43 @@ fn rebase_em_conflito_lista_arquivo_e_continua_depois_de_salvar() {
     let r = repo.session().continue_in_progress().unwrap();
     assert!(matches!(r, ExecuteResult::Completed { .. }), "{r:?}");
 }
+
+const MARKED: &str = "um\n<<<<<<< Atual\nmain\n=======\nfeat\n>>>>>>> Entrando\n";
+
+#[test]
+fn salvar_resolvendo_com_marcadores_e_recusado() {
+    let repo = conflicted(&ten(&[(2, "main")]), &ten(&[(2, "feat")]));
+    let e = call(&repo, "conflict_save", json!({ "file": "a.txt", "content": MARKED })).unwrap_err();
+    assert!(e.to_string().contains("marcadores"), "{e}");
+    assert_eq!(call(&repo, "conflict_list", json!({})).unwrap().as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn marcar_resolvido_arquivo_com_marcadores_falha_e_nao_prepara() {
+    let repo = conflicted(&ten(&[(2, "main")]), &ten(&[(2, "feat")]));
+    call(&repo, "conflict_save", json!({ "file": "a.txt", "content": MARKED, "resolve": false })).unwrap();
+    for paths in [json!(["a.txt"]), json!([])] {
+        let e = call(&repo, "stage", json!({ "paths": paths })).unwrap_err();
+        assert!(e.to_string().contains("a.txt"), "{e}");
+        assert_eq!(call(&repo, "conflict_list", json!({})).unwrap().as_array().unwrap().len(), 1);
+    }
+}
+
+#[test]
+fn marcar_todos_prepara_os_limpos_e_recusa_so_os_com_marcadores() {
+    let repo = conflicted(&ten(&[(2, "main")]), &ten(&[(2, "feat")]));
+    call(&repo, "conflict_save", json!({ "file": "a.txt", "content": MARKED, "resolve": false })).unwrap();
+    repo.write("novo.txt", "x\n");
+    assert!(call(&repo, "stage", json!({ "paths": [] })).is_err());
+    assert!(repo.git(&["diff", "--cached", "--name-only"]).contains("novo.txt"));
+    assert_eq!(call(&repo, "conflict_list", json!({})).unwrap().as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn devolve_commit_e_branch_dos_dois_lados_no_merge() {
+    let repo = conflicted(&ten(&[(2, "main")]), &ten(&[(2, "feat")]));
+    let doc = call(&repo, "conflict_file", json!({ "file": "a.txt" })).unwrap();
+    assert_eq!(doc["oursLabel"]["name"], "main");
+    assert_eq!(doc["theirsLabel"]["name"], "feature");
+    assert_eq!(doc["theirsLabel"]["sha"].as_str().unwrap().len(), 7);
+}
