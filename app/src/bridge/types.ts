@@ -63,7 +63,7 @@ export interface GraphCommit {
   lane: number; color: string; laneCount: number; segments: GraphSegment[]
   refs: { name: string; kind: 'local' | 'remote' | 'tag'; current: boolean; upstream: string | null }[]; head: boolean
   /** Branch da pill fantasma (hover/seleção); só em commit sem pill própria. */
-  ghost: { name: string; remote: boolean } | null
+  ghost: { name: string; remote: boolean; current: boolean } | null
 }
 export interface GraphVisibilityArg { hidden: string[]; solo: string | null; smart: boolean }
 export interface GraphPage { commits: GraphCommit[]; next: GraphCursor | null; wip: { changed: number; untracked: number } }

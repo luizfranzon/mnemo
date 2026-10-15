@@ -45,21 +45,25 @@ export function saveGraphLayout(path: string, layout: GraphLayout) {
 }
 
 export const visibleColumns = (l: GraphLayout) => l.order.filter((id) => !l.hidden.includes(id))
-export const columnWidth = (l: GraphLayout, id: ColId) => Math.max(COLUMNS[id].min, l.widths[id] ?? COLUMNS[id].def)
+/** `graphMax`: a coluna Grafo nunca passa da largura do conteúdo (onde a faixa da lane termina). */
+export const columnWidth = (l: GraphLayout, id: ColId, graphMax = Infinity) => {
+  const w = l.widths[id] ?? COLUMNS[id].def
+  return Math.max(COLUMNS[id].min, id === 'graph' ? Math.min(w, graphMax) : w)
+}
 
 /** Larguras são preferidas: com pouco espaço as colunas encolhem até o mínimo antes de a Mensagem passar de 200px.
  * `override`: largura provisória de uma coluna durante o arrasto. */
-export function gridTemplate(l: GraphLayout, override?: { id: ColId; width: number }) {
+export function gridTemplate(l: GraphLayout, override?: { id: ColId; width: number }, graphMax = Infinity) {
   return visibleColumns(l)
-    .map((id) => (id === 'message' ? `minmax(${COLUMNS.message.min}px, 1fr)` : `minmax(${COLUMNS[id].min}px, ${override?.id === id ? override.width : columnWidth(l, id)}px)`))
+    .map((id) => (id === 'message' ? `minmax(${COLUMNS.message.min}px, 1fr)` : `minmax(${COLUMNS[id].min}px, ${override?.id === id ? override.width : columnWidth(l, id, graphMax)}px)`))
     .join(' ')
 }
 
 /** Largura do arrasto: o que sobra para a Mensagem nunca fica abaixo do mínimo. `room` = largura total da grade. */
-export function dragColumnWidth(l: GraphLayout, id: ColId, raw: number, room: number) {
-  const others = visibleColumns(l).reduce((sum, c) => sum + (c === id || c === 'message' ? 0 : columnWidth(l, c)), 0)
+export function dragColumnWidth(l: GraphLayout, id: ColId, raw: number, room: number, graphMax = Infinity) {
+  const others = visibleColumns(l).reduce((sum, c) => sum + (c === id || c === 'message' ? 0 : columnWidth(l, c, graphMax)), 0)
   const { min } = COLUMNS[id]
-  return Math.round(Math.max(min, Math.min(raw, room - others - COLUMNS.message.min)))
+  return Math.round(Math.max(min, Math.min(raw, room - others - COLUMNS.message.min, id === 'graph' ? graphMax : Infinity)))
 }
 
 /** Sobe/desce uma coluna na ordem completa. */

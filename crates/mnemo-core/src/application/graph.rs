@@ -20,6 +20,9 @@ pub struct ActiveLane {
 pub struct GhostRef {
     pub name: String,
     pub remote: bool,
+    /// É a branch atual: a pill leva o ✓, como a pill real.
+    #[serde(default)]
+    pub current: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -148,7 +151,7 @@ impl GraphCursor {
             .iter()
             .filter(|r| r.kind != "tag")
             .min_by_key(|r| (!r.current, r.kind == "remote"))
-            .map(|r| GhostRef { name: r.name.clone(), remote: r.kind == "remote" });
+            .map(|r| GhostRef { name: r.name.clone(), remote: r.kind == "remote", current: r.current });
         let in_head = head_sha == Some(input.sha.as_str()) || self.head_line.remove(&input.sha);
         if in_head {
             self.head_line.extend(input.parents.iter().cloned());
@@ -157,7 +160,7 @@ impl GraphCursor {
         let ghost = if !refs.is_empty() {
             None
         } else if let (true, Some(name)) = (in_head, current) {
-            Some(GhostRef { name: name.to_string(), remote: false })
+            Some(GhostRef { name: name.to_string(), remote: false, current: true })
         } else {
             tip.clone()
         };

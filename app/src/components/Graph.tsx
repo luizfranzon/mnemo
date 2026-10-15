@@ -148,7 +148,7 @@ export function Graph({ path }: { path: string }) {
     return next
   })
   // reaplica a cada render: o arrasto escreveu direto no DOM, e o React não sabe disso
-  useLayoutEffect(() => { root.current?.style.setProperty('--graph-cols', gridTemplate(layout)) })
+  useLayoutEffect(() => { root.current?.style.setProperty('--graph-cols', gridTemplate(layout, undefined, contentWidth)) })
   // Branch/Tag + Grafo vizinhas rolam juntas na horizontal; as demais colunas ficam fixas
   const refsAt = cols.indexOf('refs'), graphAt = cols.indexOf('graph')
   const pane = refsAt >= 0 && Math.abs(refsAt - graphAt) === 1 ? { start: Math.min(refsAt, graphAt), refsFirst: refsAt < graphAt } : null
@@ -238,13 +238,13 @@ export function Graph({ path }: { path: string }) {
     const handle = e.currentTarget
     handle.setPointerCapture(e.pointerId)
     handle.classList.add('dragging')
-    const start = columnWidth(layout, id)
+    const start = columnWidth(layout, id, contentWidth)
     const startX = e.clientX
     const sign = cols.indexOf(id) < cols.indexOf('message') ? 1 : -1 // à direita da Mensagem, arrastar para a esquerda alarga
     let width = start
     const onMove = (ev: PointerEvent) => {
-      width = dragColumnWidth(layout, id, start + sign * (ev.clientX - startX), room())
-      box.style.setProperty('--graph-cols', gridTemplate(layout, { id, width }))
+      width = dragColumnWidth(layout, id, start + sign * (ev.clientX - startX), room(), contentWidth)
+      box.style.setProperty('--graph-cols', gridTemplate(layout, { id, width }, contentWidth))
     }
     handle.addEventListener('pointermove', onMove)
     handle.addEventListener('lostpointercapture', () => {
@@ -265,7 +265,7 @@ export function Graph({ path }: { path: string }) {
       : id === 'description' ? c.description : id === 'author' ? c.author : id === 'date' ? formatDate(c.timestamp) : c.sha.slice(0, 7)
     const extra = id === 'refs' ? 44 : id === 'author' && layout.compact ? 36 : 16
     const wanted = id === 'graph' ? contentWidth : Math.max(0, ...commits.map((c) => ctx.measureText(text(c)).width)) + extra
-    update((l) => ({ ...l, widths: { ...l.widths, [id]: dragColumnWidth(l, id, Math.ceil(wanted), room()) } }))
+    update((l) => ({ ...l, widths: { ...l.widths, [id]: dragColumnWidth(l, id, Math.ceil(wanted), room(), contentWidth) } }))
   }
 
   useEffect(() => {
@@ -349,7 +349,7 @@ export function Graph({ path }: { path: string }) {
       case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} on={pillHandlers} />}{commit && commit.refs.length > 0 &&
         <span className="graph-ref-connector" style={{ borderColor: commit.color }} />}
         {commit?.ghost && !commit.refs.length && <span className="graph-pill graph-ghost" style={{ '--pill': commit.color } as CSSProperties} aria-hidden="true">
-          <span className="graph-pill-name">{commit.ghost.name}</span><RefIcon name={commit.ghost.remote ? 'cloud' : 'laptop'} size={11} /></span>}</div>
+          {commit.ghost.current && <RefIcon name="check" size={11} />}<span className="graph-pill-name">{commit.ghost.name}</span><RefIcon name={commit.ghost.remote ? 'cloud' : 'laptop'} size={11} /></span>}</div>
       case 'graph': return <div key={id} className="graph-cell">
         <div className="graph-canvas" style={{ width: contentWidth }}>
           {commit ? <CommitSvg row={commit} width={contentWidth} geo={geo} compact={layout.compact} /> : <svg width={contentWidth} height={ROW}>
