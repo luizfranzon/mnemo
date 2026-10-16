@@ -56,6 +56,9 @@ function CommitSvg({ row, width, geo, compact, wipLink, wipColor, wipX }: { row:
 const NO_COMMITS: GraphCommit[] = []
 let pillCtx: CanvasRenderingContext2D | null | undefined
 /** Largura da maior pill que a coluna mostra (a primeira de cada commit + o chip `+N`, e a fantasma), mais o respiro da célula. */
+/** Seleção de commit fora da página carrega mais páginas só até aqui: tip oculto/distante não pode carregar o histórico inteiro. */
+const JUMP_LIMIT = 2000
+
 function refsMinWidth(commits: GraphCommit[]): number {
   pillCtx ??= document.createElement('canvas').getContext('2d')
   if (!pillCtx) return 0
@@ -266,7 +269,7 @@ export function Graph({ path }: { path: string }) {
     if (target === 'wip') { if (top) virtual.scrollToIndex(0); pendingSelection.current = null; return }
     const index = page.commits.findIndex((commit) => commit.sha === target)
     if (index >= 0) { virtual.scrollToIndex(index + top, { align: 'auto' }); pendingSelection.current = null }
-    else if (page.next) loadMore()
+    else if (page.next && page.commits.length < JUMP_LIMIT) loadMore()
     else pendingSelection.current = null
   }, [selectedSha, page, top])
 
