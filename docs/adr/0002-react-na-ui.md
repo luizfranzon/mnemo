@@ -4,6 +4,6 @@ A UI é React 19 + TypeScript + Vite, com React Compiler, Zustand (estado com se
 
 ## Considered Options
 
-- **Svelte 5**: templates próximos aos mockups `.dc.html` e reatividade fina, mas ecossistema menor.
+- **Svelte 5**: templates próximos ao HTML e reatividade fina, mas ecossistema menor.
 - **SolidJS**: o melhor desempenho bruto, mas ecossistema pequeno e pegadinhas de reatividade (desestruturar props).
 - **Angular**: o autor já domina, mas é pouco usado em apps desktop e traz mais cerimônia.

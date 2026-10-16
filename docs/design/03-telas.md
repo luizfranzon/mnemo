@@ -15,33 +15,33 @@ Telas sem repositório (Repositórios, Launchpad, Preferências) usam TopBar sem
 
 | # | Tela | Arquivo | Mostra |
 |---|---|---|---|
-| 1 | Grafo + detalhes do commit | `Main.dc.html` | grafo normal, commit selecionado, arquivos do commit |
-| 2 | WIP: staging e commit | `WIP.dc.html` | nó WIP selecionado, preparar/tirar, área de commit |
-| 3 | Diff + menu do arquivo | `Diff.dc.html` | painel esquerdo recolhido em rail, diff lado a lado com syntax highlight, menu do arquivo aberto |
-| 4 | Menu da branch | `MenuBranch.dc.html` | clique direito em `t34951` no painel |
-| 5 | Menu do commit | `MenuCommit.dc.html` | clique direito num commit, submenu Reset aberto |
-| 6 | Notificações + toast | `Notificacoes.dc.html` | popover do sino agrupado por repo, toast com Desfazer |
-| 7 | Paleta de comandos | `Paleta.dc.html` | `Ctrl+P` com busca "hom" |
-| 7b | Colunas e grafo compacto | `GraphColunas.dc.html` | popover da engrenagem do grafo, grafo em modo compacto |
-| 8 | Repositórios | `Repositorios.dc.html` | nova aba: favoritos, abertos, encontrados, seleção em lote |
-| 9 | Clonar | `Clonar.dc.html` | modal sobre a tela 8 |
-| 10 | Launchpad | `Launchpad.dc.html` | WIPs de todos os repos + issues |
-| 11 | Preferências: Geral | `PrefGeral.dc.html` | |
-| 12 | Preferências: Aparência | `PrefAparencia.dc.html` | tema, densidade, datas com prévia, colunas |
-| 13 | Preferências do repo: Commit | `PrefCommit.dc.html` | badges "deste repo"/"global", modelo de mensagem |
-| 14 | Resolução de conflito | `Conflito.dc.html` | faixa âmbar, Atual x Entrando, Resultado |
-| 15 | Rebase interativo | `Rebase.dc.html` | interativo: troca pick/squash/drop e o resumo muda |
+| 1 | Grafo + detalhes do commit | mockup removido | grafo normal, commit selecionado, arquivos do commit |
+| 2 | WIP: staging e commit | mockup removido | nó WIP selecionado, preparar/tirar, área de commit |
+| 3 | Diff + menu do arquivo | mockup removido | painel esquerdo recolhido em rail, diff lado a lado com syntax highlight, menu do arquivo aberto |
+| 4 | Menu da branch | mockup removido | clique direito em `t34951` no painel |
+| 5 | Menu do commit | mockup removido | clique direito num commit, submenu Reset aberto |
+| 6 | Notificações + toast | mockup removido | popover do sino agrupado por repo, toast com Desfazer |
+| 7 | Paleta de comandos | mockup removido | `Ctrl+P` com busca "hom" |
+| 7b | Colunas e grafo compacto | mockup removido | popover da engrenagem do grafo, grafo em modo compacto |
+| 8 | Repositórios | mockup removido | nova aba: favoritos, abertos, encontrados, seleção em lote |
+| 9 | Clonar | mockup removido | modal sobre a tela 8 |
+| 10 | Launchpad | mockup removido | WIPs de todos os repos + issues |
+| 11 | Preferências: Geral | mockup removido | |
+| 12 | Preferências: Aparência | mockup removido | tema, densidade, datas com prévia, colunas |
+| 13 | Preferências do repo: Commit | mockup removido | badges "deste repo"/"global", modelo de mensagem |
+| 14 | Resolução de conflito | mockup removido | faixa âmbar, Atual x Entrando, Resultado |
+| 15 | Rebase interativo | mockup removido | interativo: troca pick/squash/drop e o resumo muda |
 
 ## Componentes compartilhados
 
 | Componente | Arquivo | Props |
 |---|---|---|
-| Barra superior | `TopBar.dc.html` | `tab`, `toolbar`, `repo`, `sub`, `branch`, `behind`, `ahead` |
-| Barra de status | `StatusBar.dc.html` | `message` |
-| Painel de refs | `LeftPanel.dc.html` | `current`, `focus` |
-| Grafo | `Graph.dc.html` | `selected` (índice da linha), `compact` |
-| Menu das preferências | `PrefSidebar.dc.html` | `active` |
-| Checkbox | `Checkbox.dc.html` | estados de referência |
+| Barra superior | mockup removido | `tab`, `toolbar`, `repo`, `sub`, `branch`, `behind`, `ahead` |
+| Barra de status | mockup removido | `message` |
+| Painel de refs | mockup removido | `current`, `focus` |
+| Grafo | mockup removido | `selected` (índice da linha), `compact` |
+| Menu das preferências | mockup removido | `active` |
+| Checkbox | mockup removido | estados de referência |
 
 ## Dados de exemplo
 
