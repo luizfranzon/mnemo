@@ -9,6 +9,7 @@ import { useUndoShortcuts } from './useUndoShortcuts'
 
 export function App() {
   const phase = useApp((s) => s.git.phase)
+  const autoFetchMinutes = useApp((s) => s.prefs.autoFetchMinutes)
 
   useEffect(() => {
     void actions.checkGit().then(() => actions.openInitialPaths())
@@ -18,6 +19,12 @@ export function App() {
     const off = onCoreEvent(actions.applyCoreEvent)
     return () => { window.removeEventListener('focus', refresh); off() }
   }, [])
+
+  useEffect(() => {
+    if (!autoFetchMinutes) return
+    const id = window.setInterval(() => void actions.autoFetchAll(), autoFetchMinutes * 60_000)
+    return () => window.clearInterval(id)
+  }, [autoFetchMinutes])
 
   useUndoShortcuts()
 

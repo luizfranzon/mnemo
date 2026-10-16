@@ -77,6 +77,7 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .toolbar .repo-name { min-width: 0; max-width: 130px; overflow: hidden; text-overflow: ellipsis; color: var(--text-secondary); font-size: 12px; }
 .toolbar .crumb { color: var(--text-subtle); }
 .toolbar .branch-button { max-width: 155px; overflow: hidden; text-overflow: ellipsis; border: 1px solid var(--border); background: var(--surface-2); font-family: var(--font-mono); }
+.toolbar .fetch-error { color: var(--warning, #d29922); }
 .toolbar .muted, .toolbar .fetch-time, .toolbar .stash-count { color: var(--text-muted); }
 .sync-count { display: flex; gap: 6px; padding: 0 3px; font-family: var(--font-mono); font-size: 12px; }
 .behind { color: #8fb2ff; }

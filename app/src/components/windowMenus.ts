@@ -125,6 +125,7 @@ export function windowMenus({ tab, tabs, running, textFocus }: MenuContext): { l
         soon('Rebase'),
         soon('Cherry-pick'),
         '-',
+        { label: 'Manutenção', reason: noRepo ?? busy, run: () => void actions.runMaintenance(path) },
         soon('Ajustes do repositório'),
       ],
     },

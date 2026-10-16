@@ -44,7 +44,7 @@ function Screen() {
   )
 }
 
-function Check({ pref, label, help }: { pref: keyof Prefs; label: string; help?: ReactNode }) {
+function Check({ pref, label, help }: { pref: { [K in keyof Prefs]: Prefs[K] extends boolean ? K : never }[keyof Prefs]; label: string; help?: ReactNode }) {
   const value = useApp((s) => s.prefs[pref])
   return <>
     <label className="field">
@@ -55,11 +55,27 @@ function Check({ pref, label, help }: { pref: keyof Prefs; label: string; help?:
   </>
 }
 
+const AUTO_FETCH_OPTIONS = [0, 1, 5, 10, 30]
+
+function AutoFetch() {
+  const minutes = useApp((s) => s.prefs.autoFetchMinutes)
+  return <>
+    <label className="field">
+      Auto-fetch
+      <select value={minutes} onChange={(e) => actions.setPref('autoFetchMinutes', Number(e.target.value))}>
+        {AUTO_FETCH_OPTIONS.map((m) => <option key={m} value={m}>{m ? `a cada ${m} min` : 'Desligado'}</option>)}
+      </select>
+    </label>
+    <p className="help">Busca os remotos das abas abertas em segundo plano. Pula quando há uma Operação em andamento.</p>
+  </>
+}
+
 function General() {
   return <div>
     <h1>Geral</h1>
     <Check pref="rememberTabs" label="Lembrar abas" help="Ao abrir o Mnemo, reabre os repositórios que estavam abertos." />
     <Check pref="prune" label="Auto-prune no fetch" help="Remove as branches remotas que já foram apagadas no remoto (git fetch --prune)." />
+    <AutoFetch />
     <Check pref="doubleClickCheckout" label="Duplo clique faz checkout" help="Vale para as branches do grafo e do painel de refs." />
   </div>
 }

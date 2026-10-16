@@ -200,3 +200,25 @@ fn pull_mode_falls_back_to_global_and_preserves_git_pull_settings() {
     assert_eq!(detached.toolbar.pull_mode, "ffOnly");
     assert_eq!((detached.toolbar.ahead, detached.toolbar.behind), (None, None));
 }
+
+#[test]
+fn auto_fetch_updates_remote_refs_without_recording_history() {
+    let repo = TestRepo::new();
+    let remote = repo.with_remote();
+    let sha = repo.head();
+    run_git(remote.path(), &["update-ref", "refs/heads/nova", &sha]);
+    let session = repo.session();
+
+    assert!(session.auto_fetch(true).expect("resultado esperado no cenário"));
+    assert!(repo.git(&["branch", "-r"]).contains("origin/nova"));
+    assert!(!session.undo_state().undo.enabled);
+    assert!(!session.auto_fetch(true).expect("resultado esperado no cenário"));
+}
+
+#[test]
+fn maintenance_runs_without_recording_history() {
+    let repo = TestRepo::new();
+    let session = repo.session();
+    session.maintenance().expect("resultado esperado no cenário");
+    assert!(!session.undo_state().undo.enabled);
+}
