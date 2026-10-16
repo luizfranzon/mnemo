@@ -382,7 +382,9 @@ export function Graph({ path }: { path: string }) {
     },
   }
   const branch = head?.kind === 'branch' ? head.name : head?.sha ?? 'HEAD'
-  const headColor = commits.find((c) => c.head)?.color ?? '#5b8def'
+  const headCommit = commits.find((c) => c.head)
+  const headColor = headCommit?.color ?? '#5b8def'
+  const wipX = geo.first + (headCommit?.lane ?? 0) * geo.lane // o WIP fica na lane do HEAD
   const cell = (id: ColId, commit: GraphCommit | null | undefined, wip: boolean) => {
     switch (id) {
       case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} on={pillHandlers} highlight={vis.highlight} />}{commit && commit.refs.length > 0 &&
@@ -392,8 +394,8 @@ export function Graph({ path }: { path: string }) {
       case 'graph': return <div key={id} className="graph-cell">
         <div className="graph-canvas" style={{ width: contentWidth }}>
           {commit ? <CommitSvg row={commit} width={contentWidth} geo={geo} compact={layout.compact} /> : <svg width={contentWidth} height={ROW}>
-            <rect className="lane-band wip" x={geo.first} y="1" width="4000" height={ROW - 2} fill={headColor} />
-            <circle cx={geo.first} cy="14" r={layout.compact ? 5 : 10} fill="var(--surface-2)" stroke={headColor} strokeWidth="2" strokeDasharray="3 3" />
+            <rect className="lane-band wip" x={wipX} y="1" width="4000" height={ROW - 2} fill={headColor} />
+            <circle cx={wipX} cy="14" r={layout.compact ? 5 : 10} fill="var(--surface-2)" stroke={headColor} strokeWidth="2" strokeDasharray="3 3" />
           </svg>}
         </div>
       </div>
