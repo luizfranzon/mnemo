@@ -492,9 +492,6 @@ impl Mnemo {
         }
         for group in &refs.remotes {
             for remote in group.branches.iter().chain(group.folders.iter().flat_map(|folder| folder.branches.iter())) {
-                if !remote.local_exists {
-                    continue;
-                }
                 let refname = format!("refs/remotes/{}/{}", remote.remote, remote.name);
                 if !visibility.shows(&refname, &smart_set) {
                     continue;
