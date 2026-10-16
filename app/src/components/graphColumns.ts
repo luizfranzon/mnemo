@@ -80,7 +80,7 @@ export function moveColumn(order: ColId[], id: ColId, dir: -1 | 1): ColId[] {
 }
 
 /** Geometria do nó: o modo compacto estreita as lanes e troca o avatar por um ponto. */
-export const geometry = (compact: boolean) => (compact ? { lane: 10, first: 8 } : { lane: 16, first: 12 })
+export const geometry = (compact: boolean) => (compact ? { lane: 14, first: 8 } : { lane: 24, first: 12 })
 
 /** Altura da linha e y do centro do nó. */
 export const ROW = 28
