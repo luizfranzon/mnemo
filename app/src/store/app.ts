@@ -13,6 +13,8 @@ export interface Tab {
   toolbar: ToolbarInfo
   /** Emails (minúsculos) do filtro de Autores do grafo; vazio = sem filtro. Vive só enquanto a aba está aberta. */
   authors: string[]
+  /** Erro do último auto-fetch; `null`/ausente = deu certo. */
+  autoFetchError?: string | null
 }
 
 export interface Toast {
@@ -84,14 +86,16 @@ export interface Prefs {
   doubleClickCheckout: boolean
   /** Pill fantasma da branch ao passar o mouse ou selecionar um commit sem ref. */
   ghostRefs: boolean
+  /** Minutos entre fetches automáticos das abas abertas; 0 desliga. */
+  autoFetchMinutes: number
 }
-export const DEFAULT_PREFS: Prefs = { gravatar: true, dateOrder: false, rememberTabs: true, prune: true, doubleClickCheckout: true, ghostRefs: true }
+export const DEFAULT_PREFS: Prefs = { gravatar: true, dateOrder: false, rememberTabs: true, prune: true, doubleClickCheckout: true, ghostRefs: true, autoFetchMinutes: 5 }
 const PREFS_KEY = 'mnemo.prefs'
-/** Só aceita booleano salvo; o resto (chave ausente, lixo) fica no padrão. */
+/** Só aceita valor salvo do mesmo tipo do padrão; o resto (chave ausente, lixo) fica no padrão. */
 export function loadPrefs(): Prefs {
   try {
     const saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') as Record<string, unknown>
-    return Object.fromEntries(Object.entries(DEFAULT_PREFS).map(([k, v]) => [k, typeof saved[k] === 'boolean' ? saved[k] : v])) as unknown as Prefs
+    return Object.fromEntries(Object.entries(DEFAULT_PREFS).map(([k, v]) => [k, typeof saved[k] === typeof v ? saved[k] : v])) as unknown as Prefs
   } catch { return DEFAULT_PREFS }
 }
 
@@ -449,6 +453,25 @@ export const actions = {
   },
 
   clearError() {
+  },
+
+  /** Fetch periódico das abas abertas. Silencioso: erro de rede não vira toast, só o indicador da toolbar. */
+  async autoFetchAll() {
+    await Promise.all(get().tabs.map(async ({ path }) => {
+      try {
+        const changed = await core.autoFetch(path, get().prefs.prune)
+        if (changed) set((s) => ({ graphRevision: { ...s.graphRevision, [norm(path)]: (s.graphRevision[norm(path)] ?? 0) + 1 } }))
+        patchTab(path, { autoFetchError: null })
+        await refreshHead(path)
+      } catch (err) { patchTab(path, { autoFetchError: errorMessage(err) }) }
+    }))
+  },
+
+  async runMaintenance(path: string) {
+    try {
+      await core.maintenance(path)
+      pushToast({ text: 'Manutenção concluída' })
+    } catch (err) { fail(err, () => actions.runMaintenance(path)) }
   },
 
   /** Janela voltou ao foco: relê todas as abas, que podem ter mudado fora (VS Code, terminal). */

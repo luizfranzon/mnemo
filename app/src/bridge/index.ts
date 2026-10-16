@@ -83,6 +83,9 @@ export const core = {
   redo: (path: string) => invoke<UndoRedoState>('redo', { path }),
   syncExternal: (path: string) => invoke<UndoRedoState>('sync_external', { path }),
   /** Adota merge concluído fora e confere Mudança externa; devolve o merge adotado, se houve. */
+  /** `true` quando alguma ref remota mudou; `false` também quando pulou por haver Operação em curso. */
+  autoFetch: (path: string, prune: boolean) => invoke<boolean>('auto_fetch', { path, prune }),
+  maintenance: (path: string) => invoke<null>('maintenance', { path }),
   refreshExternal: (path: string) => invoke<ExecuteResult | null>('refresh_external', { path }),
   /** Arquivo do repositório fora do app: editor (`$VISUAL`/`$EDITOR`/code), programa padrão ou pasta. */
   openFile: (workdir: string, file: string, how: 'editor' | 'default' | 'folder') => invoke<null>('open_file', { workdir, file, how }),

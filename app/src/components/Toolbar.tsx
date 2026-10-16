@@ -17,15 +17,15 @@ function relativeFetch(epoch: number | null, now: number): string {
 }
 
 // O relógio só atualiza este controle, não a toolbar inteira.
-function FetchButton({ epoch, reason, label, run }: { epoch: number | null; reason?: string; label?: string; run: () => void }) {
+function FetchButton({ epoch, reason, label, error, run }: { epoch: number | null; reason?: string; label?: string; error?: string | null; run: () => void }) {
   const [now, setNow] = useState(Date.now())
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 60_000)
     return () => window.clearInterval(id)
   }, [])
   return <button className="fetch-time" disabled={!!reason} onClick={run}
-    title={reason ?? `Último fetch ${relativeFetch(epoch, now)}. Buscar todos os remotos agora`}>
-    {label ? <Spinner label={label} /> : <><Icon name="refresh" size={14} /> {relativeFetch(epoch, now)}</>}
+    title={reason ?? `${error ? `Auto-fetch falhou: ${error}\n` : ''}Último fetch ${relativeFetch(epoch, now)}. Buscar todos os remotos agora`}>
+    {label ? <Spinner label={label} /> : <><Icon name="refresh" size={14} /> {relativeFetch(epoch, now)}{error && <span className="fetch-error" aria-label="Auto-fetch falhou"> ⚠</span>}</>}
   </button>
 }
 
@@ -43,6 +43,7 @@ export function Toolbar() {
   const head = useApp((s) => selectActiveTab(s)?.head)
   const undo = useApp((s) => selectActiveTab(s)?.undo)
   const toolbar = useApp((s) => selectActiveTab(s)?.toolbar)
+  const autoFetchError = useApp((s) => selectActiveTab(s)?.autoFetchError)
   const running = useApp((s) => (s.activePath ? runningLabel(s, s.activePath) : undefined))
   const [open, setOpen] = useState<OpenMenu | null>(null)
   const [pending, setPending] = useState<{ path: string; control: Control; label: string } | null>(null)
@@ -105,7 +106,7 @@ export function Toolbar() {
       <span className="sync-count" title={head.kind === 'branch' && head.upstream ? `Em relação a ${head.upstream}` : 'Sem upstream'}>
         <span className="behind"><Icon name="arrowDown" size={12} strokeWidth={2.2} />{toolbar.behind ?? '–'}</span><span className="ahead"><Icon name="arrowUp" size={12} strokeWidth={2.2} />{toolbar.ahead ?? '–'}</span>
       </span>
-      <FetchButton epoch={toolbar.lastFetchEpoch} reason={reason.fetch} label={spinLabel('fetch')} run={fetching} />
+      <FetchButton epoch={toolbar.lastFetchEpoch} reason={reason.fetch} label={spinLabel('fetch')} error={autoFetchError} run={fetching} />
       <span className="toolbar-divider" />
       <button disabled={!undo.undo.enabled || !!executing} title={reason.busy ?? (undo.undo.enabled ? `Desfazer: ${undo.undo.label} (Ctrl+Z)` : undo.undo.reason ?? '')}
         onClick={() => void run('undo', 'Desfazendo…', () => actions.undo(path))}>{spinLabel('undo') ? <Spinner label={spinLabel('undo')!} /> : <><Icon name="undo" size={16} /> Desfazer</>}</button>
