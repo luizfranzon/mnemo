@@ -61,7 +61,7 @@ fn cursor_eh_pequeno_e_serializavel() {
 }
 
 #[test]
-fn tag_anotada_aparece_no_commit_e_remota_sem_local_fica_oculta() {
+fn tag_anotada_aparece_no_commit_e_remota_sem_local_tambem_aparece() {
     let repo = TestRepo::new();
     let _remote = repo.with_remote();
     repo.git(&["tag", "-a", "v1", "-m", "versão um"]);
@@ -72,7 +72,7 @@ fn tag_anotada_aparece_no_commit_e_remota_sem_local_fica_oculta() {
     repo.git(&["switch", "-q", "main"]);
     repo.git(&["branch", "-D", "so-remota"]);
     let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 2000, &GraphVisibility::default()).expect("grafo");
-    assert!(!page.commits.iter().any(|commit| commit.sha == remote_sha));
+    assert!(page.commits.iter().any(|commit| commit.sha == remote_sha && commit.refs.iter().any(|r| r.name == "origin/so-remota")));
     assert!(page
         .commits
         .iter()

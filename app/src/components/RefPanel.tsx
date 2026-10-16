@@ -201,7 +201,7 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
                   title={row.type === 'remote' ? `${row.ref.remote}/${row.ref.name}` : row.type === 'local' ? row.ref.name : row.name}
                   onClick={() => {
                     setSelected(row.key)
-                    if (row.type === 'local' || (row.type === 'remote' && row.ref.localExists)) actions.selectCommit(row.ref.sha)
+                    if (row.type === 'local' || row.type === 'remote') actions.selectCommit(row.ref.sha)
                     else if (row.type === 'plain' && row.section === 'tags' && row.sha) actions.selectCommit(row.sha)
                   }} onDoubleClick={() => { if (doubleClickCheckout) checkout(row) }}>
                   <span className="refs-symbol"><Icon name={row.type === 'local' && row.ref.current ? 'check' : row.type === 'plain' ? ICON[row.section] : 'branch'} /></span>
