@@ -281,3 +281,30 @@ fn destaque_preserva_lanes_entre_paginas() {
     let lanes = |commits: &[mnemo_core::application::graph::GraphCommit]| commits.iter().map(|c| c.lane).collect::<Vec<_>>();
     assert_eq!([lanes(&first.commits), lanes(&second.commits)].concat(), lanes(&all.commits));
 }
+
+#[test]
+fn precedencia_das_lanes_e_destaque_depois_branch_atual_depois_o_resto() {
+    let repo = TestRepo::new();
+    repo.git(&["switch", "-q", "-c", "outra"]);
+    repo.write("outra.txt", "outra");
+    repo.commit_all("da outra");
+    repo.git(&["switch", "-q", "-c", "atual", "main"]);
+    repo.write("atual.txt", "atual");
+    repo.commit_all("da atual");
+    repo.git(&["switch", "-q", "main"]);
+    repo.write("main.txt", "main");
+    repo.commit_all("da main");
+    repo.git(&["switch", "-q", "atual"]);
+    let path = repo.path().to_string_lossy();
+    let lane = |visibility: &GraphVisibility, subject: &str| {
+        let page = repo.core.graph_page(&path, None, 50, visibility).expect("grafo");
+        page.commits.iter().find(|c| c.subject == subject).expect("commit").lane
+    };
+    let sem_destaque = GraphVisibility::default();
+    assert_eq!(lane(&sem_destaque, "da atual"), 0, "sem destaque a branch atual fica na lane 0");
+    assert!(lane(&sem_destaque, "da outra") >= 1);
+    let destaque = GraphVisibility { highlight: Some("refs/heads/main".into()), ..Default::default() };
+    assert_eq!(lane(&destaque, "da main"), 0);
+    assert_eq!(lane(&destaque, "da atual"), 1, "a branch atual vem logo depois do destaque");
+    assert!(lane(&destaque, "da outra") >= 2);
+}

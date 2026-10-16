@@ -26,7 +26,8 @@ const fullDate = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeStyle
 type Geo = ReturnType<typeof geometry>
 
 
-function CommitSvg({ row, width, geo, compact }: { row: GraphCommit; width: number; geo: Geo; compact: boolean }) {
+/** Linha tracejada do WIP até o HEAD: atravessa as linhas entre os dois ('through') e termina no centro do HEAD ('end'). */
+function CommitSvg({ row, width, geo, compact, wipLink, wipColor, wipX }: { row: GraphCommit; width: number; geo: Geo; compact: boolean; wipLink: 'through' | 'end' | null; wipColor: string; wipX: number }) {
   const x = geo.first + row.lane * geo.lane
   const photo = useGravatar(row.email)
   return <svg width={width} height={ROW} viewBox={`0 0 ${width} ${ROW}`} aria-label={`Grafo de ${row.sha.slice(0, 7)}`}>
@@ -34,6 +35,7 @@ function CommitSvg({ row, width, geo, compact }: { row: GraphCommit; width: numb
     {row.refs.length > 0 && <path d={`M0 14 H${x}`} stroke={row.head ? `color-mix(in srgb, ${row.color} 55%, black)` : row.color} strokeOpacity={row.head ? 1 : 0.55} strokeWidth={row.head ? 2 : 1} />}
     {row.segments.map((segment, index) => <path key={`${segment.kind}:${segment.fromLane}:${segment.toLane}:${index}`}
       d={segmentPath(segment, geo)} fill="none" stroke={segment.color} strokeWidth="2" />)}
+    {wipLink && <path d={`M${wipX} 0 V${wipLink === 'end' ? 14 : 28}`} fill="none" stroke={wipColor} strokeWidth="2" strokeDasharray="3 3" />}
     {row.head && <circle cx={x} cy="14" r={compact ? 8 : 12} fill="none" stroke="#5b8def" strokeWidth="2" />}
     {compact
       ? row.parents.length > 1
@@ -384,6 +386,8 @@ export function Graph({ path }: { path: string }) {
   const branch = head?.kind === 'branch' ? head.name : head?.sha ?? 'HEAD'
   const headCommit = commits.find((c) => c.head)
   const headColor = headCommit?.color ?? '#5b8def'
+  const wipSpan = new Set<string>()
+  if (top) for (const c of commits) { wipSpan.add(c.sha); if (c.head) break }
   const wipX = geo.first + (headCommit?.lane ?? 0) * geo.lane // o WIP fica na lane do HEAD
   const cell = (id: ColId, commit: GraphCommit | null | undefined, wip: boolean) => {
     switch (id) {
@@ -393,8 +397,9 @@ export function Graph({ path }: { path: string }) {
           {commit.ghost.current && <Icon name="check" size={15} />}<span className="graph-pill-name">{commit.ghost.name}</span><Icon name={commit.ghost.remote ? 'cloud' : 'laptop'} size={11} /></span>}</div>
       case 'graph': return <div key={id} className="graph-cell">
         <div className="graph-canvas" style={{ width: contentWidth }}>
-          {commit ? <CommitSvg row={commit} width={contentWidth} geo={geo} compact={layout.compact} /> : <svg width={contentWidth} height={ROW}>
+          {commit ? <CommitSvg row={commit} width={contentWidth} geo={geo} compact={layout.compact} wipLink={wipSpan.has(commit.sha) ? (commit.head ? 'end' : 'through') : null} wipColor={headColor} wipX={wipX} /> : <svg width={contentWidth} height={ROW}>
             <rect className="lane-band wip" x={wipX} y="1" width="4000" height={ROW - 2} fill={headColor} />
+            <path d={`M${wipX} ${14 + (layout.compact ? 5 : 10)} V28`} fill="none" stroke={headColor} strokeWidth="2" strokeDasharray="3 3" />
             <circle cx={wipX} cy="14" r={layout.compact ? 5 : 10} fill="var(--surface-2)" stroke={headColor} strokeWidth="2" strokeDasharray="3 3" />
           </svg>}
         </div>

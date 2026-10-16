@@ -523,7 +523,13 @@ impl Mnemo {
         if head_sha.is_some() && head_visible {
             revs.push("HEAD".into());
         }
-        let highlight_sha = highlight_tip(visibility, &refs, &smart_set);
+        // Precedência das lanes: branch em destaque, branch atual, o resto. A mesma ponta não entra duas vezes.
+        let mut priority: Vec<String> = highlight_tip(visibility, &refs, &smart_set).into_iter().collect();
+        if let Some(head) = head_sha.as_ref().filter(|_| head_visible) {
+            if !priority.contains(head) {
+                priority.push(head.clone());
+            }
+        }
         let wip = graph_wip(&git)?;
         if revs.is_empty() {
             return Ok(GraphPage { commits: Vec::new(), next: None, wip });
@@ -565,7 +571,7 @@ impl Mnemo {
             .take(limit)
             .map(|input| {
                 let labels = by_sha.get(&input.sha).cloned().unwrap_or_default();
-                cursor.layout(input, labels, head_sha.as_deref(), current_name, highlight_sha.as_deref())
+                cursor.layout(input, labels, head_sha.as_deref(), current_name, &priority)
             })
             .collect();
         Ok(GraphPage { commits, next: has_more.then_some(cursor), wip })

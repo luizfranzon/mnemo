@@ -34,12 +34,10 @@ pub struct GraphCursor {
     /// Commits esperados na ancestralidade do HEAD (pais dos já vistos); só a fronteira, não o histórico.
     #[serde(default)]
     pub head_line: HashSet<String>,
-    /// Há Branch em destaque: a lane 0 é só dela e as outras linhas nascem da lane 1 em diante.
+    /// Próximo commit esperado em cada linha prioritária (a lane i é só dela): destaque, depois a branch atual.
+    /// As outras linhas nascem a partir da lane `chains.len()`. `None` = a linha já terminou ou se juntou a outra.
     #[serde(default)]
-    pub reserve: bool,
-    /// Próximo commit esperado na primeira-parent chain da Branch em destaque.
-    #[serde(default)]
-    pub chain: Option<String>,
+    pub chains: Vec<Option<String>>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -139,12 +137,19 @@ pub struct CommitInput {
 
 impl GraphCursor {
     /// Avança exatamente um commit em ordem topológica. Lanes já emitidas nunca mudam.
-    /// `highlight_tip` é a ponta da Branch em destaque; a chain dela (1º pai de cada commit) ocupa a lane 0.
-    pub fn layout(&mut self, input: CommitInput, refs: Vec<GraphRef>, head_sha: Option<&str>, current: Option<&str>, highlight_tip: Option<&str>) -> GraphCommit {
-        self.reserve = highlight_tip.is_some();
-        let on_chain = self.reserve && (highlight_tip == Some(input.sha.as_str()) || self.chain.as_deref() == Some(input.sha.as_str()));
-        if on_chain {
-            self.chain = input.parents.first().cloned();
+    /// `priority` são as pontas das linhas prioritárias, da maior para a menor (destaque, branch atual); a chain
+    /// de cada uma (1º pai de cada commit) ocupa a lane com o índice dela. Só vale na 1ª chamada do cursor.
+    pub fn layout(&mut self, input: CommitInput, refs: Vec<GraphRef>, head_sha: Option<&str>, current: Option<&str>, priority: &[String]) -> GraphCommit {
+        if self.offset == 0 && self.chains.is_empty() {
+            self.chains = priority.iter().cloned().map(Some).collect();
+        }
+        // Commit de mais de uma chain fica na de maior prioridade; as outras se juntam a ela e terminam.
+        let mut on_chain = None;
+        for (i, next) in self.chains.iter_mut().enumerate() {
+            if next.as_deref() == Some(input.sha.as_str()) {
+                on_chain.get_or_insert(i);
+                *next = if on_chain == Some(i) { input.parents.first().cloned() } else { None };
+            }
         }
         let old_count = self.lanes.len();
         let matching: Vec<usize> = self
@@ -153,7 +158,7 @@ impl GraphCursor {
             .enumerate()
             .filter_map(|(i, lane)| lane.as_ref().filter(|lane| lane.sha == input.sha).map(|_| i))
             .collect();
-        let lane = if on_chain { 0 } else { matching.first().copied().unwrap_or_else(|| self.free_lane()) };
+        let lane = if let Some(i) = on_chain { i } else { matching.first().copied().unwrap_or_else(|| self.free_lane()) };
         let color_source = self.lanes.get(lane).and_then(Option::as_ref).or_else(|| matching.first().and_then(|&i| self.lanes[i].as_ref()));
         let color_index = if let Some(active) = color_source {
             active.color
@@ -260,7 +265,7 @@ impl GraphCursor {
     }
 
     fn free_lane(&self) -> usize {
-        let first = usize::from(self.reserve);
+        let first = self.chains.len();
         (first..self.lanes.len()).find(|&i| self.lanes[i].is_none()).unwrap_or(self.lanes.len().max(first))
     }
 }

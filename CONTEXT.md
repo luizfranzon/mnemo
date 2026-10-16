@@ -17,7 +17,7 @@ _Avoid_: fixado, pinned
 ### Histórico
 
 **Lane**:
-Coluna vertical do grafo onde corre uma linha de desenvolvimento. Cada lane tem uma cor fixa, tirada da sequência de cores do grafo.
+Coluna vertical do grafo onde corre uma linha de desenvolvimento. Cada lane tem uma cor fixa, tirada da sequência de cores do grafo. As lanes mais à esquerda seguem uma precedência: Branch em destaque, branch atual, as outras. O WIP fica na lane do HEAD e liga a ele por uma linha tracejada.
 _Avoid_: trilha, coluna (coluna é do cabeçalho da tabela do grafo)
 
 **Pill**:
