@@ -845,6 +845,8 @@ impl Mnemo {
             "undo_state" => out(s.undo_state()),
             "sync_external" => out(s.sync_external()?),
             "refresh_external" => out(s.refresh_external()?),
+            "auto_fetch" => out(s.auto_fetch(args.get("prune").and_then(Value::as_bool).unwrap_or(true))?),
+            "maintenance" => out(s.maintenance()?),
             "is_busy" => out(json!({ "busy": s.is_busy(), "label": s.running_label() })),
             "abort_in_progress" => out(s.abort_in_progress()?),
             "continue_in_progress" => out(s.continue_in_progress(

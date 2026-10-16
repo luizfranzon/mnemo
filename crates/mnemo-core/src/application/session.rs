@@ -120,6 +120,25 @@ impl RepoSession {
         Ok(self.undo_state())
     }
 
+    /// Fetch periódico em segundo plano: pula se houver Operação rodando ou esperando.
+    /// Não entra no Histórico nem na toolbar. `true` quando alguma ref remota mudou.
+    pub fn auto_fetch(&self, prune: bool) -> Result<bool> {
+        let Some(_turn) = self.queue.try_enter() else { return Ok(false) };
+        let refs = || self.git.text(["for-each-ref", "--format=%(objectname) %(refname)", "refs/remotes"]);
+        let before = refs()?;
+        let flag = if prune { "--prune" } else { "--no-prune" };
+        self.git.exec(&GitCmd::new(["fetch", flag, "--all"]).timeout(super::NETWORK_TIMEOUT))?;
+        Ok(refs()? != before)
+    }
+
+    /// `git maintenance run` (gc, commit-graph…). Não é Operação: não entra no Histórico nem se desfaz.
+    pub fn maintenance(&self) -> Result<()> {
+        self.in_turn("Fazendo manutenção…", || {
+            self.git.exec(&GitCmd::new(["maintenance", "run"]).timeout(super::NETWORK_TIMEOUT))?;
+            Ok(())
+        })
+    }
+
     /// Ao voltar o foco: adota merge concluído fora e confere Mudança externa. `Some` quando adotou.
     pub fn refresh_external(&self) -> Result<Option<ExecuteResult>> {
         let Some(_turn) = self.queue.try_enter() else { return Ok(None) };

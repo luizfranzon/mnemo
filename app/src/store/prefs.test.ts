@@ -40,7 +40,7 @@ beforeEach(() => {
 
 test('loadPrefs usa o padrão sem nada salvo', () => {
   assert.deepEqual(loadPrefs(), DEFAULT_PREFS)
-  assert.deepEqual(DEFAULT_PREFS, { gravatar: true, dateOrder: false, rememberTabs: true, prune: true, doubleClickCheckout: true, ghostRefs: true })
+  assert.deepEqual(DEFAULT_PREFS, { gravatar: true, dateOrder: false, rememberTabs: true, prune: true, doubleClickCheckout: true, ghostRefs: true, autoFetchMinutes: 5 })
 })
 
 test('loadPrefs lê os booleanos salvos e ignora valores que não são booleanos', () => {
@@ -119,4 +119,14 @@ test('commitOptions vira o padrão das Opções de commit', () => {
   assert.deepEqual(commitOptions(undefined), { sign: false, hooks: true, pushAfter: false })
   assert.deepEqual(commitOptions({ pushAfterCommit: true, skipHooks: true, signCommits: true }), { sign: true, hooks: false, pushAfter: true })
   assert.deepEqual(commitOptions({ pushAfterCommit: false, skipHooks: false, signCommits: false }), { sign: false, hooks: true, pushAfter: false })
+})
+
+test('autoFetchAll busca cada aba com o Auto-prune e guarda o erro na aba que falhou', async () => {
+  const calls = fakeCore({ auto_fetch: (a) => { if (a.path === '/b') throw { message: 'sem rede' }; return false } })
+  await actions.openRepository('/a')
+  await actions.openRepository('/b')
+  await actions.autoFetchAll()
+  assert.deepEqual(calls.filter((c) => c.cmd === 'auto_fetch').map((c) => c.args), [{ path: '/a', prune: true }, { path: '/b', prune: true }])
+  const errors = useApp.getState().tabs.map((t) => t.autoFetchError ?? null)
+  assert.deepEqual(errors, [null, 'sem rede'])
 })
