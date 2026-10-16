@@ -10,7 +10,7 @@ const ctx = (over: Partial<BranchMenuContext> = {}): BranchMenuContext => ({
   remoteUrl: 'git@github.com:acme/app.git',
   execute: (k) => calls.push(k), checkout: () => calls.push('checkout'), pull: () => {}, push: () => {}, newBranch: () => {},
   resetHard: () => {}, dialog: (d) => calls.push(d), copy: (t) => calls.push(t),
-  view: { hidden: false, solo: false, pinned: false }, toggleView: (w) => calls.push(w), ...over,
+  view: { hidden: false, solo: false, highlight: false }, toggleView: (w) => calls.push(w), ...over,
 })
 const local = { name: 'feat', sha: 'abcdef1234', current: false, upstream: 'origin/feat', ahead: 2, behind: 0 }
 const find = (items: MenuEntry[], start: string) => items.find((i) => i !== '-' && i.label.startsWith(start)) as Exclude<MenuEntry, '-'>
@@ -51,12 +51,12 @@ test('upstream com barra no nome da branch usa o remoto configurado', () => {
   assert.deepEqual(splitUpstream('origin/feature/x', ['origin']), { remote: 'origin', branch: 'feature/x' })
 })
 
-test('Ocultar, Solo e Fixar alternam e o rótulo acompanha o estado', () => {
+test('Ocultar, Solo e Destacar alternam e o rótulo acompanha o estado', () => {
   const items = branchMenu({ kind: 'local', ref: local }, ctx())
   find(items, 'Ocultar no grafo').run!()
   find(items, 'Solo').run!()
-  find(items, 'Fixar à esquerda').run!()
-  assert.deepEqual(calls.slice(-3), ['hidden', 'solo', 'pinned'])
-  const on = branchMenu({ kind: 'local', ref: local }, ctx({ view: { hidden: true, solo: true, pinned: true } }))
-  for (const l of ['Mostrar no grafo', 'Sair do Solo', 'Desafixar da esquerda']) assert.ok(find(on, l), l)
+  find(items, 'Destacar no grafo').run!()
+  assert.deepEqual(calls.slice(-3), ['hidden', 'solo', 'highlight'])
+  const on = branchMenu({ kind: 'local', ref: local }, ctx({ view: { hidden: true, solo: true, highlight: true } }))
+  for (const l of ['Mostrar no grafo', 'Sair do Solo', 'Remover destaque']) assert.ok(find(on, l), l)
 })

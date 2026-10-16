@@ -523,6 +523,7 @@ impl Mnemo {
         if head_sha.is_some() && head_visible {
             revs.push("HEAD".into());
         }
+        let highlight_sha = highlight_tip(visibility, &refs, &smart_set);
         let wip = graph_wip(&git)?;
         if revs.is_empty() {
             return Ok(GraphPage { commits: Vec::new(), next: None, wip });
@@ -564,7 +565,7 @@ impl Mnemo {
             .take(limit)
             .map(|input| {
                 let labels = by_sha.get(&input.sha).cloned().unwrap_or_default();
-                cursor.layout(input, labels, head_sha.as_deref(), current_name)
+                cursor.layout(input, labels, head_sha.as_deref(), current_name, highlight_sha.as_deref())
             })
             .collect();
         Ok(GraphPage { commits, next: has_more.then_some(cursor), wip })
@@ -858,6 +859,21 @@ fn parse_worktrees(raw: &str) -> Vec<WorktreeRef> {
 }
 
 /// Branch atual, a base (main/master/develop/trunk), o upstream da atual e tudo que já foi mergeado em alguma delas.
+/// Ponta da Branch em destaque, se ela aparece. Remota que a local rastreia vale pela ponta da local.
+fn highlight_tip(visibility: &GraphVisibility, refs: &RefListing, smart_set: &HashSet<String>) -> Option<String> {
+    let name = visibility.highlight.as_deref()?;
+    if !visibility.shows(name, smart_set) {
+        return None;
+    }
+    if let Some(local) = name.strip_prefix("refs/heads/") {
+        return refs.local.iter().find(|b| b.name == local).map(|b| b.sha.clone());
+    }
+    let remote_name = name.strip_prefix("refs/remotes/")?;
+    let tracking = refs.local.iter().find(|b| b.upstream.as_deref() == Some(remote_name));
+    let remote = refs.remotes.iter().flat_map(|g| g.branches.iter().chain(g.folders.iter().flat_map(|f| f.branches.iter()))).find(|r| format!("{}/{}", r.remote, r.name) == remote_name);
+    tracking.map(|b| b.sha.clone()).or_else(|| remote.filter(|r| r.local_exists).map(|r| r.sha.clone()))
+}
+
 fn smart_refs(git: &RepoGit, refs: &RefListing) -> HashSet<String> {
     let mut set = HashSet::new();
     let mut roots = vec!["HEAD".to_string()];

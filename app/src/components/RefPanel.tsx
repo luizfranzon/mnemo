@@ -11,7 +11,7 @@ import { Icon, type IconName } from './Icon'
 import { StashApplyDialog } from './StashApplyDialog'
 import { useBranchActions } from './useBranchActions'
 
-type Section = 'pinned' | 'local' | 'remotes' | 'worktrees' | 'stashes' | 'tags' | 'submodules'
+type Section = 'local' | 'remotes' | 'worktrees' | 'stashes' | 'tags' | 'submodules'
 type Row =
   | { type: 'section'; key: string; section: Section; label: string; count: number }
   | { type: 'folder'; key: string; name: string; count: number; depth: number }
@@ -20,33 +20,21 @@ type Row =
   | { type: 'plain'; key: string; section: Section; name: string; sha?: string; depth: number }
 
 const LABEL: Record<Section, string> = {
-  pinned: 'Fixadas', local: 'Local', remotes: 'Remotos', worktrees: 'Worktrees', stashes: 'Stashes', tags: 'Tags', submodules: 'Submódulos',
+  local: 'Local', remotes: 'Remotos', worktrees: 'Worktrees', stashes: 'Stashes', tags: 'Tags', submodules: 'Submódulos',
 }
 const ICON: Record<Section, IconName> = {
-  pinned: 'pin', local: 'laptop', remotes: 'cloud', worktrees: 'worktrees', stashes: 'stashes', tags: 'tags', submodules: 'submodules',
+  local: 'laptop', remotes: 'cloud', worktrees: 'worktrees', stashes: 'stashes', tags: 'tags', submodules: 'submodules',
 }
 const SECTION_HEIGHT = 36
 const ROW_HEIGHT = 30
-
-/** Refs fixadas à esquerda que ainda existem, na ordem em que foram fixadas. */
-function pinnedRows(refs: RefListing, pinned: string[]): Row[] {
-  const remotes = refs.remotes.flatMap((group) => [...group.branches, ...group.folders.flatMap((f) => f.branches)])
-  return pinned.flatMap((name): Row[] => {
-    const local = refs.local.find((b) => localRef(b.name) === name)
-    if (local) return [{ type: 'local', key: `pin:${name}`, ref: local, depth: 1 }]
-    const remote = remotes.find((r) => remoteRef(r.remote, r.name) === name)
-    return remote ? [{ type: 'remote', key: `pin:${name}`, ref: remote, depth: 1 }] : []
-  })
-}
 
 /** Ref completa de uma linha de branch (a chave da visibilidade); linhas sem branch nunca chegam aqui. */
 function refName(row: Row): string {
   return row.type === 'local' ? localRef(row.ref.name) : row.type === 'remote' ? remoteRef(row.ref.remote, row.ref.name) : row.key
 }
 
-function counts(refs: RefListing, pinned: number): Record<Section, number> {
+function counts(refs: RefListing): Record<Section, number> {
   return {
-    pinned,
     local: refs.local.length,
     remotes: refs.remotes.reduce((sum, group) => sum + group.branches.length + group.folders.reduce((n, f) => n + f.branches.length, 0), 0),
     worktrees: refs.worktrees.length,
@@ -56,11 +44,11 @@ function counts(refs: RefListing, pinned: number): Record<Section, number> {
   }
 }
 
-function visibleRows(refs: RefListing, collapsed: Set<string>, query: string, pinned: Row[]): Row[] {
+function visibleRows(refs: RefListing, collapsed: Set<string>, query: string): Row[] {
   const q = query.trim().toLocaleLowerCase()
   const include = (name: string) => !q || name.toLocaleLowerCase().includes(q)
   const result: Row[] = []
-  const count = counts(refs, pinned.length)
+  const count = counts(refs)
   const section = (key: Section, add: () => void) => {
     if (!count[key]) return
     const start = result.length
@@ -68,9 +56,6 @@ function visibleRows(refs: RefListing, collapsed: Set<string>, query: string, pi
     if (!collapsed.has(key) || q) add()
     if (q && result.length === start + 1) result.pop()
   }
-  section('pinned', () => pinned.forEach((row) => {
-    if ((row.type === 'local' || row.type === 'remote') && include(row.type === 'local' ? row.ref.name : `${row.ref.remote}/${row.ref.name}`)) result.push(row)
-  }))
   section('local', () => refs.local.forEach((ref) => {
     if (include(ref.name)) result.push({ type: 'local', key: `refs/heads/${ref.name}`, ref, depth: 1 })
   }))
@@ -154,9 +139,8 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
     return next
   })
   const vis = useVisibility(selectVisibility(path))
-  const pinned = refs ? pinnedRows(refs, vis.pinned) : []
-  const rows = refs && !rail ? visibleRows(refs, collapsed, query, pinned) : []
-  const sectionCounts = refs ? counts(refs, pinned.length) : null
+  const rows = refs && !rail ? visibleRows(refs, collapsed, query) : []
+  const sectionCounts = refs ? counts(refs) : null
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current,
     estimateSize: (index) => rows[index]?.type === 'section' ? SECTION_HEIGHT : ROW_HEIGHT, overscan: 10, getItemKey: (index) => rows[index]!.key })
   const checkout = (row: Row) => {
@@ -222,6 +206,7 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
                   }} onDoubleClick={() => { if (doubleClickCheckout) checkout(row) }}>
                   <span className="refs-symbol"><Icon name={row.type === 'local' && row.ref.current ? 'check' : row.type === 'plain' ? ICON[row.section] : 'branch'} /></span>
                   <span className="refs-label">{row.type === 'remote' ? row.ref.name.split('/').at(-1) : row.type === 'local' ? row.ref.name : row.name}</span>
+                  {(row.type === 'local' || row.type === 'remote') && vis.highlight === refName(row) && <span className="refs-highlight" title="Branch em destaque"><Icon name="highlight" size={12} /></span>}
                   {row.type === 'local' && row.ref.upstream && <span className="refs-tracking" title={`Upstream: ${row.ref.upstream}`}>
                     {!!row.ref.behind && <span><Icon name="arrowDown" size={11} strokeWidth={2.2} />{row.ref.behind}</span>}{!!row.ref.ahead && <span><Icon name="arrowUp" size={11} strokeWidth={2.2} />{row.ref.ahead}</span>}</span>}
                 </button>}

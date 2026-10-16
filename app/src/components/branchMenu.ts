@@ -24,8 +24,8 @@ export interface BranchMenuContext {
   dialog(d: BranchDialog): void
   copy(text: string): void
   /** Estado atual desta branch no grafo e como alterná-lo. */
-  view: { hidden: boolean; solo: boolean; pinned: boolean }
-  toggleView(what: 'hidden' | 'solo' | 'pinned'): void
+  view: { hidden: boolean; solo: boolean; highlight: boolean }
+  toggleView(what: 'hidden' | 'solo' | 'highlight'): void
 }
 
 export const targetName = (t: BranchTarget) => (t.kind === 'local' ? t.ref.name : `${t.ref.remote}/${t.ref.name}`)
@@ -119,7 +119,7 @@ export function branchMenu(t: BranchTarget, c: BranchMenuContext): MenuEntry[] {
     '-',
     { label: c.view.hidden ? 'Mostrar no grafo' : 'Ocultar no grafo', run: () => c.toggleView('hidden') },
     { label: c.view.solo ? 'Sair do Solo' : 'Solo', run: () => c.toggleView('solo') },
-    { label: c.view.pinned ? 'Desafixar da esquerda' : 'Fixar à esquerda', run: () => c.toggleView('pinned') },
+    { label: c.view.highlight ? 'Remover destaque' : 'Destacar no grafo', run: () => c.toggleView('highlight') },
   )
   return items
 }

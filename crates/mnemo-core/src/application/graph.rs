@@ -34,6 +34,12 @@ pub struct GraphCursor {
     /// Commits esperados na ancestralidade do HEAD (pais dos já vistos); só a fronteira, não o histórico.
     #[serde(default)]
     pub head_line: HashSet<String>,
+    /// Há Branch em destaque: a lane 0 é só dela e as outras linhas nascem da lane 1 em diante.
+    #[serde(default)]
+    pub reserve: bool,
+    /// Próximo commit esperado na primeira-parent chain da Branch em destaque.
+    #[serde(default)]
+    pub chain: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -109,6 +115,8 @@ pub struct GraphVisibility {
     pub smart: bool,
     /// `--date-order` (intercala branches pela data, como outros clientes) em vez de `--topo-order` (agrupa por branch).
     pub date_order: bool,
+    /// Branch em destaque (ref completa): a primeira-parent chain dela fica na lane 0. Só vale se ela aparece.
+    pub highlight: Option<String>,
 }
 
 impl GraphVisibility {
@@ -131,7 +139,13 @@ pub struct CommitInput {
 
 impl GraphCursor {
     /// Avança exatamente um commit em ordem topológica. Lanes já emitidas nunca mudam.
-    pub fn layout(&mut self, input: CommitInput, refs: Vec<GraphRef>, head_sha: Option<&str>, current: Option<&str>) -> GraphCommit {
+    /// `highlight_tip` é a ponta da Branch em destaque; a chain dela (1º pai de cada commit) ocupa a lane 0.
+    pub fn layout(&mut self, input: CommitInput, refs: Vec<GraphRef>, head_sha: Option<&str>, current: Option<&str>, highlight_tip: Option<&str>) -> GraphCommit {
+        self.reserve = highlight_tip.is_some();
+        let on_chain = self.reserve && (highlight_tip == Some(input.sha.as_str()) || self.chain.as_deref() == Some(input.sha.as_str()));
+        if on_chain {
+            self.chain = input.parents.first().cloned();
+        }
         let old_count = self.lanes.len();
         let matching: Vec<usize> = self
             .lanes
@@ -139,8 +153,9 @@ impl GraphCursor {
             .enumerate()
             .filter_map(|(i, lane)| lane.as_ref().filter(|lane| lane.sha == input.sha).map(|_| i))
             .collect();
-        let lane = matching.first().copied().unwrap_or_else(|| self.free_lane());
-        let color_index = if let Some(active) = self.lanes.get(lane).and_then(Option::as_ref) {
+        let lane = if on_chain { 0 } else { matching.first().copied().unwrap_or_else(|| self.free_lane()) };
+        let color_source = self.lanes.get(lane).and_then(Option::as_ref).or_else(|| matching.first().and_then(|&i| self.lanes[i].as_ref()));
+        let color_index = if let Some(active) = color_source {
             active.color
         } else {
             let color = self.next_color;
@@ -207,7 +222,7 @@ impl GraphCursor {
                         self.next_color += 1;
                         c
                     };
-                    if slot == self.lanes.len() {
+                    while self.lanes.len() <= slot {
                         self.lanes.push(None);
                     }
                     self.lanes[slot] = Some(ActiveLane { sha: parent.clone(), color: parent_color, tip: if parent_index == 0 { tip.clone() } else { None } });
@@ -245,7 +260,8 @@ impl GraphCursor {
     }
 
     fn free_lane(&self) -> usize {
-        self.lanes.iter().position(Option::is_none).unwrap_or(self.lanes.len())
+        let first = usize::from(self.reserve);
+        (first..self.lanes.len()).find(|&i| self.lanes[i].is_none()).unwrap_or(self.lanes.len().max(first))
     }
 }
 

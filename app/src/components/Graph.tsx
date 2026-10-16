@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { core } from '../bridge'
 import type { GraphCommit, GraphPage } from '../bridge/types'
 import { actions, firstGraphPage, GRAPH_PAGE, useApp } from '../store/app'
-import { graphVisibility, selectVisibility, updateVisibility, useVisibility } from '../store/visibility'
+import { graphVisibility, localRef, selectVisibility, updateVisibility, useVisibility } from '../store/visibility'
 import { AuthorFilter } from './AuthorFilter'
 import { Avatar, initials, useGravatar } from './avatar'
 import type { BranchTarget } from './branchMenu'
@@ -98,11 +98,13 @@ interface PillHandlers {
   menu(pill: Pill, e: React.MouseEvent): void
 }
 
-function PillView({ pill, on }: { pill: Pill; on: PillHandlers }) {
-  return <span className={`graph-pill ${pill.kind}${pill.current ? ' current' : ''}`} title={pill.title}
+function PillView({ pill, on, highlight }: { pill: Pill; on: PillHandlers; highlight: string | null }) {
+  const highlighted = !!highlight && (highlight === (pill.local && localRef(pill.local)) || highlight === (pill.remote && `refs/remotes/${pill.remote}`))
+  return <span className={`graph-pill ${pill.kind}${pill.current ? ' current' : ''}`} title={highlighted ? `${pill.title}\nBranch em destaque` : pill.title}
     onDoubleClick={(e) => { if (pill.kind === 'branch') { e.stopPropagation(); on.checkout(pill) } }}
     onContextMenu={(e) => { if (pill.kind === 'branch') { e.preventDefault(); e.stopPropagation(); on.menu(pill, e) } }}>
     {pill.current && <Icon name="check" size={15} />}
+    {highlighted && <Icon name="highlight" size={12} />}
     <span className="graph-pill-name">{pill.label}</span>
     {pill.kind === 'tag' ? <Icon name="tags" size={11} /> : <>
       {pill.local && <Icon name="laptop" size={15} />}{pill.remote && <Icon name="cloud" size={15} />}</>}
@@ -110,7 +112,7 @@ function PillView({ pill, on }: { pill: Pill; on: PillHandlers }) {
 }
 
 /** Mostra só a primeira pill; as demais abrem numa lista sobreposta (portal, fora do clip da linha e sem mudar a altura dela). */
-function Pills({ refs, color, on }: { refs: GraphCommit['refs']; color: string; on: PillHandlers }) {
+function Pills({ refs, color, on, highlight }: { refs: GraphCommit['refs']; color: string; on: PillHandlers; highlight: string | null }) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
   const box = useRef<HTMLDivElement>(null)
   const pills = pillsOf(refs)
@@ -126,11 +128,11 @@ function Pills({ refs, color, on }: { refs: GraphCommit['refs']; color: string; 
   const style = { '--pill': color } as CSSProperties
   const close: PillHandlers = { checkout: (p) => { setAnchor(null); on.checkout(p) }, menu: (p, e) => { setAnchor(null); on.menu(p, e) } }
   return <div ref={box} className="graph-pills" style={style} onMouseEnter={open} onMouseLeave={() => setAnchor(null)}>
-    <PillView pill={first!} on={close} />
+    <PillView pill={first!} on={close} highlight={highlight} />
     {rest.length > 0 && <button className="graph-pill-more" aria-haspopup="true" aria-expanded={!!anchor} aria-label={`Mais ${rest.length} refs`}
       onFocus={open} onBlur={() => setAnchor(null)}>+{rest.length}</button>}
     {anchor && createPortal(<div className="graph-pill-list" style={{ ...style, left: anchor.left, top: anchor.bottom - 4 }}>
-      {rest.map((pill) => <PillView key={pill.key} pill={pill} on={close} />)}
+      {rest.map((pill) => <PillView key={pill.key} pill={pill} on={close} highlight={highlight} />)}
     </div>, document.body)}
   </div>
 }
@@ -169,7 +171,7 @@ export function Graph({ path }: { path: string }) {
   const geo = geometry(layout.compact)
   const contentWidth = geo.first * 2 + maxLanes * geo.lane
   const cols = visibleColumns(layout)
-  const refsMin = refsMinWidth(page?.commits ?? NO_COMMITS)
+  const refsMin = refsMinWidth(page?.commits ?? NO_COMMITS) + (vis.highlight ? 17 : 0) // ícone da Branch em destaque (12 + gap 5)
   const bounds = { graphMax: contentWidth, refsMin }
   const update = (fn: (l: GraphLayout) => GraphLayout) => setLayout((l) => {
     const next = fn(l)
@@ -228,7 +230,7 @@ export function Graph({ path }: { path: string }) {
       if (generation.current === current) { busy.current = false; setLoading(false); setReloading(false) }
     })
     return () => { generation.current++ }
-  }, [path, revision, vis.hidden, vis.solo, vis.smart, dateOrder])
+  }, [path, revision, vis.hidden, vis.solo, vis.smart, vis.highlight, dateOrder])
 
   const loadMore = () => {
     const currentPage = pageRef.current
@@ -383,7 +385,7 @@ export function Graph({ path }: { path: string }) {
   const headColor = commits.find((c) => c.head)?.color ?? '#5b8def'
   const cell = (id: ColId, commit: GraphCommit | null | undefined, wip: boolean) => {
     switch (id) {
-      case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} on={pillHandlers} />}{commit && commit.refs.length > 0 &&
+      case 'refs': return <div key={id} className="graph-refs">{commit && <Pills refs={commit.refs} color={commit.color} on={pillHandlers} highlight={vis.highlight} />}{commit && commit.refs.length > 0 &&
         <span className={`graph-ref-connector${commit.head ? ' current' : ''}`} style={{ borderColor: commit.head ? `color-mix(in srgb, ${commit.color} 55%, black)` : commit.color }} />}
         {ghostRefs && commit?.ghost && !commit.refs.length && <span className="graph-pill graph-ghost" style={{ '--pill': commit.color } as CSSProperties} aria-hidden="true">
           {commit.ghost.current && <Icon name="check" size={15} />}<span className="graph-pill-name">{commit.ghost.name}</span><Icon name={commit.ghost.remote ? 'cloud' : 'laptop'} size={11} /></span>}</div>

@@ -1,10 +1,10 @@
-// Visibilidade no grafo (docs/01-features.md § 3–4): Ocultar, Solo, Fixar e visibilidade inteligente.
+// Visibilidade no grafo (docs/01-features.md § 3–4): Ocultar, Solo, Branch em destaque e visibilidade inteligente.
 // Fica nos dados do app por diretório de trabalho (ADR 0005). Os nomes são refs completas (`refs/heads/x`).
 import { create } from 'zustand'
 
-export interface Visibility { hidden: string[]; solo: string | null; pinned: string[]; smart: boolean }
+export interface Visibility { hidden: string[]; solo: string | null; highlight: string | null; smart: boolean }
 
-export const EMPTY: Visibility = { hidden: [], solo: null, pinned: [], smart: false }
+export const EMPTY: Visibility = { hidden: [], solo: null, highlight: null, smart: false }
 const key = (path: string) => `mnemo.visibility:${path}`
 
 export const localRef = (name: string) => `refs/heads/${name}`
@@ -13,7 +13,7 @@ export const remoteRef = (remote: string, name: string) => `refs/remotes/${remot
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
 
 export function sanitize(raw: Partial<Visibility>): Visibility {
-  return { hidden: strings(raw.hidden), solo: typeof raw.solo === 'string' ? raw.solo : null, pinned: strings(raw.pinned), smart: raw.smart === true }
+  return { hidden: strings(raw.hidden), solo: typeof raw.solo === 'string' ? raw.solo : null, highlight: typeof raw.highlight === 'string' ? raw.highlight : null, smart: raw.smart === true }
 }
 
 const flip = (list: string[], ref: string) => (list.includes(ref) ? list.filter((r) => r !== ref) : [...list, ref])
@@ -21,10 +21,11 @@ const flip = (list: string[], ref: string) => (list.includes(ref) ? list.filter(
 /** Ocultar e Solo se excluem: o Solo mostra só uma branch, então ocultá-la não faz sentido. */
 export const toggleHidden = (v: Visibility, ref: string): Visibility => ({ ...v, hidden: flip(v.hidden, ref), solo: v.solo === ref ? null : v.solo })
 export const toggleSolo = (v: Visibility, ref: string): Visibility => ({ ...v, solo: v.solo === ref ? null : ref, hidden: v.hidden.filter((r) => r !== ref) })
-export const togglePinned = (v: Visibility, ref: string): Visibility => ({ ...v, pinned: flip(v.pinned, ref) })
+/** Uma só Branch em destaque por Aba: destacar outra troca a anterior. */
+export const toggleHighlight = (v: Visibility, ref: string): Visibility => ({ ...v, highlight: v.highlight === ref ? null : ref })
 
-/** O que o core precisa para recalcular as lanes (Fixar é só da UI). */
-export const graphVisibility = (v: Visibility, dateOrder = false) => ({ hidden: v.hidden, solo: v.solo, smart: v.smart, dateOrder })
+/** O que o core precisa para recalcular as lanes. */
+export const graphVisibility = (v: Visibility, dateOrder = false) => ({ hidden: v.hidden, solo: v.solo, smart: v.smart, dateOrder, highlight: v.highlight })
 
 const cache = new Map<string, Visibility>()
 /** Memoizado por caminho: o seletor do Zustand precisa devolver sempre a mesma referência. */

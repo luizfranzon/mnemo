@@ -243,3 +243,41 @@ fn ordem_por_data_intercala_branches_e_a_topologica_agrupa() {
     assert_eq!(subjects(true), ["m", "b2", "a2", "b1", "a1"]);
     assert_ne!(subjects(false), subjects(true));
 }
+
+#[test]
+fn branch_em_destaque_fica_na_lane_0_e_as_outras_saem_dela() {
+    let (repo, _) = repo_com_feature();
+    let path = repo.path().to_string_lossy();
+    for (highlight, other) in [("refs/heads/main", "feature"), ("refs/heads/feature", "main")] {
+        let visibility = GraphVisibility { highlight: Some(highlight.into()), ..Default::default() };
+        let page = repo.core.graph_page(&path, None, 50, &visibility).expect("grafo");
+        let lane_of = |subject: &str| page.commits.iter().find(|c| c.subject == subject).expect("commit").lane;
+        let chain = highlight.trim_start_matches("refs/heads/");
+        assert_eq!(lane_of(chain), 0, "{chain} na lane 0");
+        assert!(lane_of(other) >= 1, "{other} fora da lane 0");
+    }
+}
+
+#[test]
+fn destaque_numa_branch_oculta_ou_fora_do_solo_nao_reserva_lane() {
+    let (repo, _) = repo_com_feature();
+    let path = repo.path().to_string_lossy();
+    let hidden = GraphVisibility { hidden: vec!["refs/heads/main".into()], highlight: Some("refs/heads/main".into()), ..Default::default() };
+    let solo = GraphVisibility { solo: Some("refs/heads/feature".into()), highlight: Some("refs/heads/main".into()), ..Default::default() };
+    for visibility in [hidden, solo] {
+        let page = repo.core.graph_page(&path, None, 50, &visibility).expect("grafo");
+        assert!(page.commits.iter().all(|c| c.lane == 0 && c.lane_count == 1), "sem a branch em destaque, tudo cabe numa lane");
+    }
+}
+
+#[test]
+fn destaque_preserva_lanes_entre_paginas() {
+    let (repo, _) = repo_com_feature();
+    let path = repo.path().to_string_lossy();
+    let visibility = GraphVisibility { highlight: Some("refs/heads/main".into()), ..Default::default() };
+    let all = repo.core.graph_page(&path, None, 20, &visibility).expect("completo");
+    let first = repo.core.graph_page(&path, None, 1, &visibility).expect("primeira");
+    let second = repo.core.graph_page(&path, first.next.clone(), 20, &visibility).expect("segunda");
+    let lanes = |commits: &[mnemo_core::application::graph::GraphCommit]| commits.iter().map(|c| c.lane).collect::<Vec<_>>();
+    assert_eq!([lanes(&first.commits), lanes(&second.commits)].concat(), lanes(&all.commits));
+}

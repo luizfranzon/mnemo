@@ -337,6 +337,7 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .refs-eye { position: absolute; right: 28px; top: 4px; width: 22px; height: 22px; padding: 0; display: none; border: 0; background: var(--hover); color: var(--text-secondary); border-radius: var(--radius-sm); }
 .refs-virtual-row:hover .refs-eye, .refs-eye:focus-visible, .refs-eye.off, .refs-eye.solo { display: block; }
 .refs-eye.solo { color: var(--accent); }
+.refs-highlight { flex: none; display: inline-flex; color: var(--accent); }
 .refs-virtual-row:has(.refs-eye.off) .refs-item { opacity: .5; }
 
 /* Busca e filtro por autor (Ctrl+F): linhas que não casam ficam esmaecidas, as lanes não mudam */

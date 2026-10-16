@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { core } from '../bridge'
 import { actions, runningLabel, useApp } from '../store/app'
-import { localRef, remoteRef, selectVisibility, toggleHidden, togglePinned, toggleSolo, updateVisibility, useVisibility } from '../store/visibility'
+import { localRef, remoteRef, selectVisibility, toggleHidden, toggleHighlight, toggleSolo, updateVisibility, useVisibility } from '../store/visibility'
 import { BranchDialogs } from './BranchDialogs'
 import { branchMenu, remoteOf, type BranchDialog, type BranchTarget } from './branchMenu'
 import { Menu } from './Menu'
@@ -38,8 +38,8 @@ export function useBranchActions(path: string) {
       push: () => void actions.requestPush(path), newBranch: (start) => actions.setPalette('createBranch', start),
       resetHard: (sha) => void actions.requestResetHard(path, sha), dialog: setDialog,
       copy: (text) => void navigator.clipboard.writeText(text).catch(() => undefined),
-      view: { hidden: vis.hidden.includes(name), solo: vis.solo === name, pinned: vis.pinned.includes(name) },
-      toggleView: (what) => updateVisibility(path, (v) => ({ hidden: toggleHidden, solo: toggleSolo, pinned: togglePinned })[what](v, name)),
+      view: { hidden: vis.hidden.includes(name), solo: vis.solo === name, highlight: vis.highlight === name },
+      toggleView: (what) => updateVisibility(path, (v) => ({ hidden: toggleHidden, solo: toggleSolo, highlight: toggleHighlight })[what](v, name)),
     })
   }
   const open = async (t: BranchTarget, anchor: Rect) => {

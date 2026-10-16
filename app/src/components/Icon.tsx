@@ -7,7 +7,7 @@ import {
 
 const ICONS = {
   branch: GitBranch, check: Check, laptop: Laptop, cloud: Cloud, folder: Folder, repo: FolderGit2, search: Search, collapse: PanelLeftClose,
-  pin: Flag, worktrees: LayoutGrid, stashes: Archive, tags: Tag, submodules: Package, edit: PenLine, filter: Funnel, sliders: SlidersVertical,
+  highlight: Flag, worktrees: LayoutGrid, stashes: Archive, tags: Tag, submodules: Package, edit: PenLine, filter: Funnel, sliders: SlidersVertical,
   undo: Undo2, redo: Redo2, pull: ArrowDownToLine, push: ArrowUpFromLine, stash: Inbox, warning: TriangleAlert, chevron: ChevronRight,
   chevronDown: ChevronDown, chevronUp: ChevronUp, close: X, plus: Plus, minus: Minus, square: Square, more: EllipsisVertical, copy: Copy,
   sort: ArrowUpDown, sortDown: ArrowDownWideNarrow, refresh: RefreshCw, shown: Eye, hidden: EyeOff, radioOn: CircleDot, radioOff: Circle,

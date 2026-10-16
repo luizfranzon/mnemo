@@ -47,6 +47,10 @@ _Avoid_: filtro inteligente, modo foco
 As mudanças locais ainda não commitadas, mostradas como um nó tracejado acima do HEAD.
 _Avoid_: rascunho, pendências
 
+**Branch em destaque**:
+A única branch de um repositório que o usuário escolhe manter sempre na lane mais à esquerda possível do grafo. Não esconde as outras branches (diferente de Solo). Substitui o antigo "Fixar à esquerda".
+_Avoid_: fixar, pinned, solo
+
 **Base**:
 A branch de onde uma branch saiu. O Mnemo registra a base quando cria a branch, sempre pelo nome sem o remoto (saiu de `origin/12.x` → base `12.x`). Se a branch foi criada fora do Mnemo ou a partir de um commit solto, vale a branch padrão do repositório. O usuário pode trocar a base.
 _Avoid_: upstream (upstream é a remota que a branch rastreia), branch pai
