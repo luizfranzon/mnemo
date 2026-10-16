@@ -29,7 +29,9 @@ impl GitPort for ProcessGit {
         let line = diag::git_command(&cmd.args);
         match &result {
             Ok(out) if out.code == 0 => diag::line(&format!("{line} → código 0 ({ms}ms)")),
-            Ok(out) => diag::line(&format!("{line} → código {} ({ms}ms)\n{}", out.code, diag::mask_credentials(&out.stderr))),
+            Ok(out) => {
+                diag::line(&format!("{line} → código {} ({ms}ms)\n{}", out.code, diag::mask_credentials(&out.stderr)))
+            }
             // falha esperada (conflito, push rejeitado): linha normal com o stderr, sem stacktrace
             Err(CoreError::GitFailed { status, stderr, .. }) => {
                 diag::line(&format!("{line} → código {status} ({ms}ms)\n{}", diag::mask_credentials(stderr)))

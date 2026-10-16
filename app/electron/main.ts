@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { benchWindow, mark, now } from './bench'
+import { checkForUpdate, downloadUpdate, installUpdate, startUpdater, updateState } from './updater'
 
 mark('main: módulo carregado')
 
@@ -134,6 +135,19 @@ const appCommands: Record<string, (args: Record<string, unknown>) => Promise<unk
     }
     return null
   },
+  update_state: () => updateState(),
+  async update_check() {
+    await checkForUpdate()
+    return updateState()
+  },
+  update_download() {
+    downloadUpdate()
+    return updateState()
+  },
+  update_install() {
+    installUpdate()
+    return null
+  },
   window_action(args) {
     const run = windowActions[String(args.action)]
     if (!run) throw new Error(`ação de janela desconhecida: ${String(args.action)}`)
@@ -180,6 +194,7 @@ void app.whenReady().then(() => {
   })
   mark('main: core iniciado')
   registerIpc()
+  startUpdater((state) => send('mnemo:event', { type: 'update', ...state }))
   Menu.setApplicationMenu(null)
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())

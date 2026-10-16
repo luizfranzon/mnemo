@@ -5,12 +5,23 @@ use serde_json::json;
 use support::TestRepo;
 
 fn stash_files(repo: &TestRepo, index: usize) -> Vec<String> {
-    let v = repo.core.invoke("stash_files", json!({ "path": repo.path().to_string_lossy(), "index": index })).expect("stash_files");
-    v.as_array().unwrap().iter().map(|f| format!("{}{}", f["status"].as_str().unwrap(), f["path"].as_str().unwrap())).collect()
+    let v = repo
+        .core
+        .invoke("stash_files", json!({ "path": repo.path().to_string_lossy(), "index": index }))
+        .expect("stash_files");
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|f| format!("{}{}", f["status"].as_str().unwrap(), f["path"].as_str().unwrap()))
+        .collect()
 }
 
 fn partial(paths: &[&str]) -> OperationKind {
-    OperationKind::StashCreate { message: None, include_untracked: true, paths: paths.iter().map(|p| p.to_string()).collect() }
+    OperationKind::StashCreate {
+        message: None,
+        include_untracked: true,
+        paths: paths.iter().map(|p| p.to_string()).collect(),
+    }
 }
 
 #[test]
@@ -102,7 +113,9 @@ fn ignorar_acrescenta_ao_gitignore_sem_duplicar() {
     repo.write(".gitignore", "target/");
     repo.write("x.log", "l\n");
     let ignore = |pattern: &str| {
-        repo.core.invoke("ignore", json!({ "path": repo.path().to_string_lossy(), "pattern": pattern })).expect("ignore");
+        repo.core
+            .invoke("ignore", json!({ "path": repo.path().to_string_lossy(), "pattern": pattern }))
+            .expect("ignore");
     };
     ignore("*.log");
     ignore("*.log");

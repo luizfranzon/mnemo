@@ -12,7 +12,11 @@ fn stage(repo: &TestRepo, cmd: &str, paths: &[&str]) {
 }
 
 fn names(v: &serde_json::Value) -> Vec<String> {
-    v.as_array().unwrap().iter().map(|f| format!("{}{}", f["status"].as_str().unwrap(), f["path"].as_str().unwrap())).collect()
+    v.as_array()
+        .unwrap()
+        .iter()
+        .map(|f| format!("{}{}", f["status"].as_str().unwrap(), f["path"].as_str().unwrap()))
+        .collect()
 }
 
 #[test]

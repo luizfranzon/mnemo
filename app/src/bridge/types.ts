@@ -102,10 +102,18 @@ export type ExecuteResult =
   | { status: 'completed'; opId: number | null; label: string; undoable: boolean; warnings: string[]; state: UndoRedoState }
   | { status: 'conflict'; label: string; progress: string; state: UndoRedoState }
 
+/** Atualização do app pelo GitHub Releases (vem do processo main, não do core). */
+export type UpdateState =
+  | { status: 'none' }
+  | { status: 'available'; version: string }
+  | { status: 'downloading'; version: string; percent: number }
+  | { status: 'ready'; version: string }
+
 export type CoreEvent =
   | { type: 'operationStarted'; workdir: string; label: string }
   | { type: 'operationFinished'; workdir: string; label: string; ok: boolean }
   | { type: 'historyChanged'; workdir: string; state: UndoRedoState }
+  | ({ type: 'update' } & UpdateState)
 
 export interface DiscardPreview {
   trackedChanges: number

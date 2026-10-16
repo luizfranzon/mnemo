@@ -111,7 +111,11 @@ pub fn wide_bom(bytes: &[u8]) -> Option<&'static str> {
 pub fn decode(id: &str, bytes: &[u8]) -> String {
     let text = match id {
         "utf-16" | "utf-32" => {
-            let wide = wide_bom(bytes).filter(|w| w.starts_with(id)).unwrap_or(if id == "utf-16" { "utf-16le" } else { "utf-32le" });
+            let wide = wide_bom(bytes).filter(|w| w.starts_with(id)).unwrap_or(if id == "utf-16" {
+                "utf-16le"
+            } else {
+                "utf-32le"
+            });
             return decode(wide, bytes);
         }
         "utf-32le" => utf32(bytes, u32::from_le_bytes),
@@ -143,10 +147,7 @@ pub fn decode(id: &str, bytes: &[u8]) -> String {
 }
 
 fn utf32(bytes: &[u8], word: fn([u8; 4]) -> u32) -> String {
-    bytes
-        .chunks_exact(4)
-        .map(|c| char::from_u32(word([c[0], c[1], c[2], c[3]])).unwrap_or('\u{FFFD}'))
-        .collect()
+    bytes.chunks_exact(4).map(|c| char::from_u32(word([c[0], c[1], c[2], c[3]])).unwrap_or('\u{FFFD}')).collect()
 }
 
 /// Escolhe a codificação de um trecho de bytes sem BOM largo: UTF-8 válido fica UTF-8 (sem rodar o detector),

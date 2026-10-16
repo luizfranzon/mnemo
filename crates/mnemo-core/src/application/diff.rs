@@ -14,7 +14,11 @@ const DIFF_SIZE_LIMIT: usize = 16 * 1024 * 1024;
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum DiffSource {
     /// Commit contra o primeiro pai (raiz: árvore vazia).
-    Commit { sha: String, #[serde(default)] old_path: Option<String> },
+    Commit {
+        sha: String,
+        #[serde(default)]
+        old_path: Option<String>,
+    },
     /// Index → diretório de trabalho (inclui não rastreado).
     Unstaged,
     /// HEAD → index.
@@ -134,7 +138,8 @@ pub fn file_diff(git: &RepoGit, path: &str, source: &DiffSource, full: bool, cho
             [&new, &old].into_iter().flatten().find_map(|b| encoding::wide_bom(b))
         };
         if let Some(id) = id {
-            let (old_text, new_text) = (old.as_deref().map(|b| encoding::decode(id, b)), new.as_deref().map(|b| encoding::decode(id, b)));
+            let (old_text, new_text) =
+                (old.as_deref().map(|b| encoding::decode(id, b)), new.as_deref().map(|b| encoding::decode(id, b)));
             raw = convert_diff(git, path, old_text.as_deref().unwrap_or(""), new_text.as_deref().unwrap_or(""))?;
             converted = Some((id.to_string(), new_text.unwrap_or_default().into_bytes()));
         }
@@ -142,7 +147,8 @@ pub fn file_diff(git: &RepoGit, path: &str, source: &DiffSource, full: bool, cho
     if let Some((id, _)) = &converted {
         (enc_id, guessed) = (id.clone(), false);
     } else if choice.is_empty() || choice == encoding::GUESS {
-        let sample: Vec<u8> = raw.hunks.iter().flat_map(|h| &h.lines).flat_map(|l| l.bytes.iter().copied().chain([b'\n'])).collect();
+        let sample: Vec<u8> =
+            raw.hunks.iter().flat_map(|h| &h.lines).flat_map(|l| l.bytes.iter().copied().chain([b'\n'])).collect();
         let (id, by_detector) = encoding::guess(&sample);
         (enc_id, guessed) = (id.to_string(), by_detector);
     } else {
@@ -153,7 +159,13 @@ pub fn file_diff(git: &RepoGit, path: &str, source: &DiffSource, full: bool, cho
         (enc_id, guessed) = (choice.to_string(), false);
     }
     let stageable = converted.is_none();
-    let text = |bytes: &[u8]| if converted.is_some() { String::from_utf8_lossy(bytes).into_owned() } else { encoding::decode(&enc_id, bytes) };
+    let text = |bytes: &[u8]| {
+        if converted.is_some() {
+            String::from_utf8_lossy(bytes).into_owned()
+        } else {
+            encoding::decode(&enc_id, bytes)
+        }
+    };
     let mut lines = Vec::new();
     let mut hunks = Vec::new();
     let (mut added, mut removed) = (0, 0);
@@ -279,7 +291,13 @@ pub fn stage_lines(git: &RepoGit, path: &str, unstage: bool, selected: &[(usize,
             let picked = chosen.contains(&(h, i));
             let mark = match (line.kind, picked, unstage) {
                 (LineKind::Context, ..) => b' ',
-                (_, true, _) => if line.kind == LineKind::Add { b'+' } else { b'-' },
+                (_, true, _) => {
+                    if line.kind == LineKind::Add {
+                        b'+'
+                    } else {
+                        b'-'
+                    }
+                }
                 // não escolhida: some do lado em que não existe e vira contexto no outro
                 (LineKind::Add, false, false) | (LineKind::Del, false, true) => continue,
                 (LineKind::Add, false, true) | (LineKind::Del, false, false) => b' ',
@@ -348,9 +366,8 @@ fn load(git: &RepoGit, path: &str, source: &DiffSource, as_text: bool) -> Result
         DiffSource::Unstaged => git.exec(&diff_cmd(&[text_flag, &["--", path]].concat()))?,
         DiffSource::Staged => git.exec(&diff_cmd(&[text_flag, &["--cached", "-M", "--", path]].concat()))?,
         DiffSource::Commit { sha, old_path } => {
-            let parent = git
-                .exec(&GitCmd::new(["rev-parse", "-q", "--verify", &format!("{sha}^1")]).also_ok(1))?
-                .text();
+            let parent =
+                git.exec(&GitCmd::new(["rev-parse", "-q", "--verify", &format!("{sha}^1")]).also_ok(1))?.text();
             let base = if parent.is_empty() { EMPTY_TREE.to_string() } else { parent };
             let mut extra = vec!["-M", base.as_str(), sha.as_str(), "--", path];
             extra.splice(0..0, text_flag.iter().copied());
@@ -384,13 +401,10 @@ fn convert_diff(git: &RepoGit, path: &str, old: &str, new: &str) -> Result<RawDi
     let io = |e: std::io::Error| CoreError::internal(e.to_string());
     std::fs::create_dir_all(&dir).map_err(io)?;
     let (a, b) = (dir.join("a"), dir.join("b"));
-    let result = std::fs::write(&a, old)
-        .and_then(|_| std::fs::write(&b, new))
-        .map_err(io)
-        .and_then(|_| {
-            let (a, b) = (a.to_string_lossy(), b.to_string_lossy());
-            git.exec(&diff_cmd(&["--no-index", "--", &a, &b]).also_ok(1))
-        });
+    let result = std::fs::write(&a, old).and_then(|_| std::fs::write(&b, new)).map_err(io).and_then(|_| {
+        let (a, b) = (a.to_string_lossy(), b.to_string_lossy());
+        git.exec(&diff_cmd(&["--no-index", "--", &a, &b]).also_ok(1))
+    });
     let _ = std::fs::remove_dir_all(&dir);
     Ok(parse(&result?.stdout, path))
 }

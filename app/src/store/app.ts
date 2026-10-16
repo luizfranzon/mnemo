@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { core, errorCode, errorMessage } from '../bridge'
-import type { DiffSource, DiscardPreview, FileChange, ForcePushPreview, GraphPage, ResetPreview, HeadInfo, OperationKind, PullMode, RepoPrefs, RepositoryInfo, ToolbarInfo, UndoRedoState } from '../bridge/types'
+import type { DiffSource, DiscardPreview, FileChange, ForcePushPreview, GraphPage, ResetPreview, HeadInfo, OperationKind, PullMode, RepoPrefs, RepositoryInfo, ToolbarInfo, UndoRedoState, UpdateState } from '../bridge/types'
 import { toolbarAvailability } from '../components/toolbarModel'
 import { graphVisibility, selectVisibility, useVisibility } from './visibility'
 
@@ -47,6 +47,8 @@ interface AppState {
   /** Operação em curso, por diretório (a toolbar mostra o texto). */
   running: Record<string, string>
   toasts: Toast[]
+  /** Atualização do app (GitHub Releases): o ícone da barra de status age sobre ela. */
+  update: UpdateState
   /** Refaz a ação que falhou por `index.lock` (botão "Tentar de novo"). */
   palette: PaletteMode | null
   /** Ponto de partida da nova branch (nulo = HEAD). */
@@ -104,6 +106,7 @@ export const useApp = create<AppState>(() => ({
   conflict: null,
   running: {},
   toasts: [],
+  update: { status: 'none' },
   palette: null,
   paletteStart: null,
   checkoutPrompt: null,
@@ -155,6 +158,19 @@ function fail(err: unknown, retry?: () => Promise<void>) {
 
 export const actions = {
   reportError(err: unknown) { fail(err) },
+  async refreshUpdate() { set({ update: await core.updateState().catch(() => ({ status: 'none' as const })) }) },
+  /** Clique na versão: checa na hora; sem novidade, avisa. */
+  async checkUpdate() {
+    const next = await core.updateCheck().catch(() => null)
+    if (next) set({ update: next })
+    if (next?.status === 'none') pushToast({ text: 'Você já está na versão mais recente', info: true })
+  },
+  async downloadUpdate() { set({ update: await core.updateDownload() }) },
+  /** Reiniciar fecha o app: recusa enquanto houver Operação em curso. */
+  installUpdate() {
+    if (Object.keys(get().running).length > 0) return pushToast({ text: 'Aguarde a Operação terminar para reiniciar e atualizar', info: true })
+    void core.updateInstall()
+  },
   info(text: string) { pushToast({ text, info: true }) },
   async checkoutRef(path: string, kind: Extract<OperationKind, { type: 'checkout' | 'checkoutRemote' }>, behind = 0) {
     const target = kind.type === 'checkout' ? kind.target : kind.branch
@@ -447,6 +463,7 @@ export const actions = {
 
   /** Eventos push do core (`listen`): mantêm Desfazer/Refazer e a toolbar em dia. */
   applyCoreEvent(e: import('../bridge/types').CoreEvent) {
+    if (e.type === 'update') { const { type: _type, ...update } = e; set({ update }); return }
     if (e.type === 'historyChanged') {
       patchTab(e.workdir, { undo: e.state })
       set((s) => ({ graphRevision: { ...s.graphRevision, [norm(e.workdir)]: (s.graphRevision[norm(e.workdir)] ?? 0) + 1 } }))

@@ -480,7 +480,10 @@ fn merge_abortado_fora_some_sem_entrar_no_historico() {
     repo.exec(OperationKind::Merge { target: "feat".into() });
     repo.git(&["merge", "--abort"]);
     assert!(repo.session().refresh_external().expect("atualiza").is_none());
-    assert!(matches!(repo.session().continue_in_progress(None, false, false), Err(CoreError::NothingInProgress { .. })));
+    assert!(matches!(
+        repo.session().continue_in_progress(None, false, false),
+        Err(CoreError::NothingInProgress { .. })
+    ));
 }
 
 /// Um segundo clone publica um commit que o repositório de teste ainda não viu.
@@ -502,8 +505,14 @@ fn push_atras_da_remota_devolve_push_rejeitado() {
     let repo = TestRepo::new();
     let remote = repo.with_remote();
     remote_ahead(&repo, remote.path());
-    let err = repo.session().execute(OperationKind::Push { remote: None, branch: None, set_upstream: false, lease: None }).unwrap_err();
-    assert!(matches!(err, CoreError::PushRejected { ref branch, ref upstream } if branch == "main" && upstream == "origin/main"), "{err:?}");
+    let err = repo
+        .session()
+        .execute(OperationKind::Push { remote: None, branch: None, set_upstream: false, lease: None })
+        .unwrap_err();
+    assert!(
+        matches!(err, CoreError::PushRejected { ref branch, ref upstream } if branch == "main" && upstream == "origin/main"),
+        "{err:?}"
+    );
 }
 
 #[test]
@@ -515,8 +524,18 @@ fn force_push_com_lease_sobrescreve_so_o_que_foi_visto() {
     assert_eq!((preview.sha.as_str(), preview.lost), (seen.as_str(), 1));
     // lease velho: alguém publicou depois do que foi mostrado
     let stale = repo.rev("main~1");
-    let err = repo.session().execute(OperationKind::Push { remote: Some("origin".into()), branch: Some("main".into()), set_upstream: false, lease: Some(stale) });
+    let err = repo.session().execute(OperationKind::Push {
+        remote: Some("origin".into()),
+        branch: Some("main".into()),
+        set_upstream: false,
+        lease: Some(stale),
+    });
     assert!(err.is_err());
-    repo.exec(OperationKind::Push { remote: Some("origin".into()), branch: Some("main".into()), set_upstream: false, lease: Some(preview.sha) });
+    repo.exec(OperationKind::Push {
+        remote: Some("origin".into()),
+        branch: Some("main".into()),
+        set_upstream: false,
+        lease: Some(preview.sha),
+    });
     assert_eq!(run_git(remote.path(), &["rev-parse", "main"]), repo.head());
 }

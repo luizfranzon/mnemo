@@ -12,7 +12,10 @@ pub struct StashHandler;
 impl Handler for StashHandler {
     fn handles(&self, kind: &OperationKind) -> bool {
         use OperationKind::*;
-        matches!(kind, StashCreate { .. } | StashApply { .. } | StashPop { .. } | StashDrop { .. } | StashApplyPaths { .. })
+        matches!(
+            kind,
+            StashCreate { .. } | StashApply { .. } | StashPop { .. } | StashDrop { .. } | StashApplyPaths { .. }
+        )
     }
 
     fn run(&self, ctx: &mut ExecCtx, kind: &OperationKind) -> Result<HandlerOutcome> {
@@ -34,8 +37,11 @@ impl Handler for StashHandler {
                 // o git recusa qualquer stash com arquivo em conflito no index: avisa quais são
                 let conflicted = conflicted(git)?;
                 if !conflicted.is_empty() {
-                    let picked: Vec<String> = conflicted.iter().filter(|c| paths.is_empty() || in_paths(c, paths)).cloned().collect();
-                    return Err(CoreError::StashConflicted { paths: if picked.is_empty() { conflicted } else { picked } });
+                    let picked: Vec<String> =
+                        conflicted.iter().filter(|c| paths.is_empty() || in_paths(c, paths)).cloned().collect();
+                    return Err(CoreError::StashConflicted {
+                        paths: if picked.is_empty() { conflicted } else { picked },
+                    });
                 }
                 if !paths.is_empty() {
                     args.push("--".into());
@@ -111,7 +117,13 @@ fn apply_paths(git: &RepoGit, sha: &str, paths: &[String]) -> Result<()> {
         if list.is_empty() {
             continue;
         }
-        let mut args = vec!["--literal-pathspecs".to_string(), "restore".into(), format!("--source={source}"), "--worktree".into(), "--".into()];
+        let mut args = vec![
+            "--literal-pathspecs".to_string(),
+            "restore".into(),
+            format!("--source={source}"),
+            "--worktree".into(),
+            "--".into(),
+        ];
         args.extend(list);
         git.run(args)?;
     }
@@ -120,5 +132,10 @@ fn apply_paths(git: &RepoGit, sha: &str, paths: &[String]) -> Result<()> {
 
 fn conflicted(git: &RepoGit) -> Result<Vec<String>> {
     let out = git.exec(&GitCmd::new(["diff", "--name-only", "-z", "--diff-filter=U"]))?;
-    Ok(out.stdout.split(|b| *b == 0).filter(|p| !p.is_empty()).map(|p| String::from_utf8_lossy(p).into_owned()).collect())
+    Ok(out
+        .stdout
+        .split(|b| *b == 0)
+        .filter(|p| !p.is_empty())
+        .map(|p| String::from_utf8_lossy(p).into_owned())
+        .collect())
 }

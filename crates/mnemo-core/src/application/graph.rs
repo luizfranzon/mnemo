@@ -139,7 +139,14 @@ impl GraphCursor {
     /// Avança exatamente um commit em ordem topológica. Lanes já emitidas nunca mudam.
     /// `priority` são as pontas das linhas prioritárias, da maior para a menor (destaque, branch atual); a chain
     /// de cada uma (1º pai de cada commit) ocupa a lane com o índice dela. Só vale na 1ª chamada do cursor.
-    pub fn layout(&mut self, input: CommitInput, refs: Vec<GraphRef>, head_sha: Option<&str>, current: Option<&str>, priority: &[String]) -> GraphCommit {
+    pub fn layout(
+        &mut self,
+        input: CommitInput,
+        refs: Vec<GraphRef>,
+        head_sha: Option<&str>,
+        current: Option<&str>,
+        priority: &[String],
+    ) -> GraphCommit {
         if self.offset == 0 && self.chains.is_empty() {
             self.chains = priority.iter().cloned().map(Some).collect();
         }
@@ -158,8 +165,13 @@ impl GraphCursor {
             .enumerate()
             .filter_map(|(i, lane)| lane.as_ref().filter(|lane| lane.sha == input.sha).map(|_| i))
             .collect();
-        let lane = if let Some(i) = on_chain { i } else { matching.first().copied().unwrap_or_else(|| self.free_lane()) };
-        let color_source = self.lanes.get(lane).and_then(Option::as_ref).or_else(|| matching.first().and_then(|&i| self.lanes[i].as_ref()));
+        let lane =
+            if let Some(i) = on_chain { i } else { matching.first().copied().unwrap_or_else(|| self.free_lane()) };
+        let color_source = self
+            .lanes
+            .get(lane)
+            .and_then(Option::as_ref)
+            .or_else(|| matching.first().and_then(|&i| self.lanes[i].as_ref()));
         let color_index = if let Some(active) = color_source {
             active.color
         } else {
@@ -211,28 +223,34 @@ impl GraphCursor {
         for (parent_index, parent) in input.parents.iter().enumerate() {
             // O 1º pai segue na lane do filho mesmo que outro filho já espere esse pai:
             // as lanes só convergem na linha do pai.
-            let reuse = if parent_index == 0 && self.lanes.get(lane).is_none_or(Option::is_none) { None }
-                else { self.lanes.iter().position(|item| item.as_ref().is_some_and(|item| item.sha == *parent)) };
-            let target = reuse
-                .unwrap_or_else(|| {
-                    let slot = if parent_index == 0 && self.lanes.get(lane).is_none_or(Option::is_none) {
-                        lane
-                    } else {
-                        self.free_lane()
-                    };
-                    let parent_color = if parent_index == 0 {
-                        color_index
-                    } else {
-                        let c = self.next_color;
-                        self.next_color += 1;
-                        c
-                    };
-                    while self.lanes.len() <= slot {
-                        self.lanes.push(None);
-                    }
-                    self.lanes[slot] = Some(ActiveLane { sha: parent.clone(), color: parent_color, tip: if parent_index == 0 { tip.clone() } else { None } });
-                    slot
+            let reuse = if parent_index == 0 && self.lanes.get(lane).is_none_or(Option::is_none) {
+                None
+            } else {
+                self.lanes.iter().position(|item| item.as_ref().is_some_and(|item| item.sha == *parent))
+            };
+            let target = reuse.unwrap_or_else(|| {
+                let slot = if parent_index == 0 && self.lanes.get(lane).is_none_or(Option::is_none) {
+                    lane
+                } else {
+                    self.free_lane()
+                };
+                let parent_color = if parent_index == 0 {
+                    color_index
+                } else {
+                    let c = self.next_color;
+                    self.next_color += 1;
+                    c
+                };
+                while self.lanes.len() <= slot {
+                    self.lanes.push(None);
+                }
+                self.lanes[slot] = Some(ActiveLane {
+                    sha: parent.clone(),
+                    color: parent_color,
+                    tip: if parent_index == 0 { tip.clone() } else { None },
                 });
+                slot
+            });
             let edge_color = self.lanes[target].as_ref().map(|a| COLORS[a.color % COLORS.len()]).unwrap_or(&color);
             segments.push(GraphSegment {
                 from_lane: lane,

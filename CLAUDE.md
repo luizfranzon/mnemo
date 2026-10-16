@@ -2,7 +2,7 @@
 
 ## Ao terminar algo (regra)
 
-Sempre que terminar uma tarefa, commite (direto na `main`) e depois verifique se alguma issue ficou concluída. Se sim, feche com `gh issue close <n> --comment "..."` citando o commit. Issue só parcialmente atendida continua aberta, com um comentário do que falta.
+A `main` é protegida (ver "Fluxo de mudança" no AGENTS.md). Sempre que terminar uma tarefa, commite numa branch própria e abra a PR com `gh pr create`; o merge é do usuário. Só depois do merge, verifique se alguma issue ficou concluída. Se sim, feche com `gh issue close <n> --comment "..."` citando o commit. Issue só parcialmente atendida continua aberta, com um comentário do que falta.
 
 <!-- rtk-instructions v2 -->
 # RTK (Rust Token Killer) - Token-Optimized Commands

@@ -29,7 +29,16 @@ fn commit_desfeito_volta_a_branch_com_as_mudancas_no_stage() {
     let first = repo.head();
     repo.write("b.txt", "b");
     repo.git(&["add", "b.txt"]);
-    undo_redo_roundtrip(&repo, OperationKind::Commit { message: "novo".into(), amend: false, allow_empty: false, sign: false, no_verify: false });
+    undo_redo_roundtrip(
+        &repo,
+        OperationKind::Commit {
+            message: "novo".into(),
+            amend: false,
+            allow_empty: false,
+            sign: false,
+            no_verify: false,
+        },
+    );
 
     repo.session().undo().expect("desfaz de novo");
     assert_eq!(repo.head(), first);
@@ -43,7 +52,16 @@ fn amend_desfeito_recupera_o_commit_original() {
     let original = repo.commit_all("original");
     repo.write("b.txt", "b2");
     repo.git(&["add", "b.txt"]);
-    undo_redo_roundtrip(&repo, OperationKind::Commit { message: "emendado".into(), amend: true, allow_empty: false, sign: false, no_verify: false });
+    undo_redo_roundtrip(
+        &repo,
+        OperationKind::Commit {
+            message: "emendado".into(),
+            amend: true,
+            allow_empty: false,
+            sign: false,
+            no_verify: false,
+        },
+    );
 
     repo.session().undo().expect("desfaz");
     assert_eq!(repo.head(), original);
@@ -54,7 +72,13 @@ fn commit_inicial_de_repositorio_vazio_e_desfeito() {
     let repo = TestRepo::empty();
     repo.write("a.txt", "a");
     repo.git(&["add", "a.txt"]);
-    repo.exec(OperationKind::Commit { message: "primeiro".into(), amend: false, allow_empty: false, sign: false, no_verify: false });
+    repo.exec(OperationKind::Commit {
+        message: "primeiro".into(),
+        amend: false,
+        allow_empty: false,
+        sign: false,
+        no_verify: false,
+    });
     assert!(!repo.git(&["rev-parse", "--verify", "-q", "HEAD"]).is_empty());
     repo.session().undo().expect("desfaz");
     assert_eq!(repo.git(&["status", "--porcelain"]), "A  a.txt");
@@ -145,7 +169,21 @@ fn commit_sem_verificar_pula_hook_que_falha() {
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).unwrap();
     repo.git(&["add", "a.txt"]);
-    let r = repo.session().execute(OperationKind::Commit { message: "x".into(), amend: false, allow_empty: false, sign: false, no_verify: false });
+    let r = repo.session().execute(OperationKind::Commit {
+        message: "x".into(),
+        amend: false,
+        allow_empty: false,
+        sign: false,
+        no_verify: false,
+    });
     assert!(r.is_err());
-    repo.session().execute(OperationKind::Commit { message: "x".into(), amend: false, allow_empty: false, sign: false, no_verify: true }).unwrap();
+    repo.session()
+        .execute(OperationKind::Commit {
+            message: "x".into(),
+            amend: false,
+            allow_empty: false,
+            sign: false,
+            no_verify: true,
+        })
+        .unwrap();
 }

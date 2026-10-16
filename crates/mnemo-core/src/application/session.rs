@@ -2,7 +2,9 @@
 
 use super::git::{failure, ProgressKind, RepoGit};
 use super::handlers::{progress_command, ExecCtx, HandlerOutcome, HandlerSet};
-use super::ports::{CoreEvent, GitCmd, EventSink, EvictionHook, GitPort, HistoryStore, PendingOperation, StoredSession};
+use super::ports::{
+    CoreEvent, EventSink, EvictionHook, GitCmd, GitPort, HistoryStore, PendingOperation, StoredSession,
+};
 use super::queue::TurnQueue;
 use super::restore::{apply_refs, apply_tree_diff, replace_wip, restore_stash_stack};
 use super::snapshot::{self, DiscardPreview, ResetPreview};
@@ -180,7 +182,12 @@ impl RepoSession {
         self.advance_in_progress("skip", "Pulando…", None)
     }
 
-    fn advance_in_progress(&self, action: &str, label: &str, commit: Option<(Option<&str>, bool, bool)>) -> Result<ExecuteResult> {
+    fn advance_in_progress(
+        &self,
+        action: &str,
+        label: &str,
+        commit: Option<(Option<&str>, bool, bool)>,
+    ) -> Result<ExecuteResult> {
         self.in_turn(label, || {
             let kind = match self.progress_or_err() {
                 Ok(k) => k,
@@ -188,7 +195,11 @@ impl RepoSession {
                 Err(e) => return self.adopt_finished_locked()?.ok_or(e),
             };
             let cmd = match commit {
-                Some((message, sign, no_verify)) if kind == ProgressKind::Merge && action == "continue" && (message.is_some_and(|m| !m.trim().is_empty()) || sign || no_verify) => {
+                Some((message, sign, no_verify))
+                    if kind == ProgressKind::Merge
+                        && action == "continue"
+                        && (message.is_some_and(|m| !m.trim().is_empty()) || sign || no_verify) =>
+                {
                     let mut args = vec!["commit".to_string()];
                     match message.map(str::trim).filter(|m| !m.is_empty()) {
                         Some(m) => args.extend(["-m".into(), m.to_string()]),
@@ -292,7 +303,8 @@ impl RepoSession {
             }
             HandlerOutcome::Conflict { kind: progress, plan } => {
                 let label = kind.label();
-                let merge_head = if progress == ProgressKind::Merge { self.git.rev_parse("MERGE_HEAD").ok() } else { None };
+                let merge_head =
+                    if progress == ProgressKind::Merge { self.git.rev_parse("MERGE_HEAD").ok() } else { None };
                 self.set_pending(Some(PendingOperation { id: op_id, kind, before, plan, merge_head }));
                 let mut result = self.conflict_result(progress);
                 if let ExecuteResult::Conflict { label: l, .. } = &mut result {
@@ -508,7 +520,9 @@ impl RepoSession {
         }
         let Some(p) = lock(&self.state).stored.pending.clone() else { return Ok(None) };
         self.set_pending(None);
-        let (Some(ours), Some(theirs)) = (p.before.head_sha.as_deref(), p.merge_head.as_deref()) else { return Ok(None) };
+        let (Some(ours), Some(theirs)) = (p.before.head_sha.as_deref(), p.merge_head.as_deref()) else {
+            return Ok(None);
+        };
         let line = self.git.text(["rev-list", "--parents", "-n", "1", "HEAD"])?;
         let after = self.git.capture_state(p.kind.tracks_index())?;
         if !line.split_whitespace().skip(1).eq([ours, theirs]) || after.head_ref != p.before.head_ref {

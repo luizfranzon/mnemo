@@ -27,7 +27,10 @@ fn pick(d: &Value, texts: &[&str]) -> Vec<(u64, u64)> {
 
 fn stage_lines(repo: &TestRepo, file: &str, unstage: bool, lines: &[(u64, u64)]) {
     repo.core
-        .invoke("stage_lines", json!({ "path": repo.path().to_string_lossy(), "file": file, "unstage": unstage, "lines": lines }))
+        .invoke(
+            "stage_lines",
+            json!({ "path": repo.path().to_string_lossy(), "file": file, "unstage": unstage, "lines": lines }),
+        )
         .expect("stage_lines");
 }
 
@@ -100,7 +103,10 @@ fn sem_linha_de_mudanca_escolhida_nao_faz_nada() {
     repo.write("a.txt", "um\nA\ntres\n");
     let err = repo
         .core
-        .invoke("stage_lines", json!({ "path": repo.path().to_string_lossy(), "file": "a.txt", "unstage": false, "lines": [] }))
+        .invoke(
+            "stage_lines",
+            json!({ "path": repo.path().to_string_lossy(), "file": "a.txt", "unstage": false, "lines": [] }),
+        )
         .unwrap_err();
     assert!(matches!(err, mnemo_core::CoreError::NothingToDo { .. }), "{err:?}");
 }

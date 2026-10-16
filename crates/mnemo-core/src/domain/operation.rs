@@ -196,7 +196,9 @@ impl OperationKind {
             StashApply { index } => format!("aplicar stash@{{{index}}}"),
             StashPop { index } => format!("pop de stash@{{{index}}}"),
             StashDrop { index } => format!("excluir stash@{{{index}}}"),
-            StashApplyPaths { index, paths } if paths.len() == 1 => format!("aplicar {} de stash@{{{index}}}", paths[0]),
+            StashApplyPaths { index, paths } if paths.len() == 1 => {
+                format!("aplicar {} de stash@{{{index}}}", paths[0])
+            }
             StashApplyPaths { index, paths } => format!("aplicar {} itens de stash@{{{index}}}", paths.len()),
             Push { .. } => "push".into(),
             Fetch { .. } => "fetch".into(),

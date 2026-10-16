@@ -45,7 +45,13 @@ fn commit_sem_assinar_vence_o_commit_gpgsign_do_config() {
     repo.git(&["config", "--local", "gpg.program", "false"]); // assinar falharia
     repo.write("a.txt", "a\n");
     repo.git(&["add", "a.txt"]);
-    repo.exec(OperationKind::Commit { message: "sem assinatura".into(), amend: false, allow_empty: false, sign: false, no_verify: false });
+    repo.exec(OperationKind::Commit {
+        message: "sem assinatura".into(),
+        amend: false,
+        allow_empty: false,
+        sign: false,
+        no_verify: false,
+    });
     assert_eq!(repo.git(&["log", "-1", "--format=%s"]), "sem assinatura");
 }
 

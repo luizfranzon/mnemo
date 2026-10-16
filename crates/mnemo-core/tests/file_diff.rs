@@ -9,7 +9,10 @@ fn diff(repo: &TestRepo, file: &str, source: Value) -> Value {
 
 fn diff_full(repo: &TestRepo, file: &str, source: Value, full: bool) -> Value {
     repo.core
-        .invoke("file_diff", json!({ "path": repo.path().to_string_lossy(), "file": file, "source": source, "full": full }))
+        .invoke(
+            "file_diff",
+            json!({ "path": repo.path().to_string_lossy(), "file": file, "source": source, "full": full }),
+        )
         .expect("file_diff")
 }
 
@@ -119,7 +122,10 @@ fn arquivo_inteiro_preenche_o_que_fica_entre_os_trechos() {
     assert_eq!(l.len(), 22);
     assert_eq!(l[10], " 10 l10");
     assert!(full["lines"][10]["hunk"].is_null(), "linha entre trechos não pertence a trecho");
-    assert_eq!(full["hunks"][1]["start"], full["lines"].as_array().unwrap().iter().position(|x| x["hunk"] == 1).unwrap());
+    assert_eq!(
+        full["hunks"][1]["start"],
+        full["lines"].as_array().unwrap().iter().position(|x| x["hunk"] == 1).unwrap()
+    );
 }
 
 fn diff_enc(repo: &TestRepo, file: &str, encoding: &str) -> Value {
@@ -155,7 +161,10 @@ fn utf8_valido_nao_aciona_o_detector() {
     let repo = TestRepo::new();
     repo.write("u.txt", "ação\n");
     let d = diff_enc(&repo, "u.txt", "guess");
-    assert_eq!((d["encoding"].as_str(), d["guessed"].as_bool(), d["stageable"].as_bool()), (Some("UTF-8"), Some(false), Some(true)));
+    assert_eq!(
+        (d["encoding"].as_str(), d["guessed"].as_bool(), d["stageable"].as_bool()),
+        (Some("UTF-8"), Some(false), Some(true))
+    );
 }
 
 #[test]
@@ -165,7 +174,10 @@ fn utf16_com_bom_vira_diff_de_texto_sem_stage() {
     repo.commit_all("utf16");
     write_bytes(&repo, "w.txt", &utf16le("um\ndois\ntrês\n"));
     let d = diff_enc(&repo, "w.txt", "guess");
-    assert_eq!((d["binary"].as_bool(), d["encodingId"].as_str(), d["stageable"].as_bool()), (Some(false), Some("utf-16le"), Some(false)));
+    assert_eq!(
+        (d["binary"].as_bool(), d["encodingId"].as_str(), d["stageable"].as_bool()),
+        (Some(false), Some("utf-16le"), Some(false))
+    );
     assert_eq!(lines(&d), [" 1 um", " 2 dois", "+3 três"]);
 }
 
