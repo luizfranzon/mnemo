@@ -5,10 +5,10 @@ import { core } from '../bridge'
 import type { CommitDetail, FileChange } from '../bridge/types'
 import { actions, useApp } from '../store/app'
 import { Avatar } from './avatar'
-import { fileMenu, type CommitDialog } from './commitMenu'
+import { dirMenu, fileMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
 import { Menu } from './Menu'
-import { menuBase } from './menuBase'
+import { copyText, menuBase } from './menuBase'
 import { fileRows } from './fileTree'
 import type { MenuEntry, Rect } from './menuModel'
 import { Icon, type IconName } from './Icon'
@@ -61,6 +61,7 @@ export function CommitPanel({ path }: { path: string }) {
       open: (how) => void core.openFile(path, file.path, how).catch(actions.reportError),
     }) })
   }
+  const openDirMenu = (dir: string, anchor: Rect) => { if (sha) setMenu({ anchor, items: dirMenu(sha, dir, { copy: copyText }) }) }
   useEffect(() => {
     if (!sha) { setDetail(null); return }
     let active = true
@@ -127,6 +128,7 @@ export function CommitPanel({ path }: { path: string }) {
           if (row.type === 'dir') {
             const open = !collapsed.has(row.key)
             return <button key={row.key} className="commit-file commit-dir" style={style} aria-expanded={open}
+              onContextMenu={(e) => { e.preventDefault(); openDirMenu(row.path, { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }) }}
               onClick={() => setCollapsed((old) => { const next = new Set(old); if (open) next.add(row.key); else next.delete(row.key); return next })}>
               <span className={`refs-chevron${open ? ' open' : ''}`}><Icon name="chevron" size={14} /></span><span className="commit-name">{row.name}</span><span className="refs-count">{row.count}</span></button>
           }

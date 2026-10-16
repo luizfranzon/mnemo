@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { commitMenu, fileMenu, type CommitMenuContext, type FileMenuContext } from './commitMenu'
+import { commitMenu, dirMenu, fileMenu, type CommitMenuContext, type FileMenuContext } from './commitMenu'
 import type { MenuEntry } from './menuModel'
 
 const calls: unknown[] = []
@@ -53,5 +53,9 @@ test('menu do arquivo: restaurar (âmbar) e excluir (vermelho) abrem confirmaç�
   assert.deepEqual(calls.at(-1), { type: 'restoreFile', sha: commit.sha, file: 'src/a.ts' })
   find(items, 'Copiar caminho relativo').run!()
   assert.equal(calls.at(-1), 'src/a.ts')
+  find(items, 'Copiar comando').run!()
+  assert.equal(calls.at(-1), `git restore --source=${commit.sha} src/a.ts`)
+  find(dirMenu(commit.sha, "my dir", fctx), 'Copiar comando').run!()
+  assert.equal(calls.at(-1), `git restore --source=${commit.sha} 'my dir'`)
   assert.ok(find(fileMenu(commit.sha, { ...file, status: 'D' }, fctx), 'Restaurar').reason)
 })

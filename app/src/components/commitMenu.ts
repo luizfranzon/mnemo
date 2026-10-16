@@ -58,6 +58,17 @@ export function commitMenu(commit: { sha: string; subject: string; head: boolean
   ]
 }
 
+/** `git restore` do caminho (arquivo ou pasta) para a versão do commit; aspas só quando o caminho precisa. */
+const restoreCommand = (sha: string, path: string) =>
+  `git restore --source=${sha} ${/^[\w./@+-]+$/.test(path) ? path : `'${path.replaceAll("'", `'\\''`)}'`}`
+
+export function dirMenu(sha: string, dir: string, c: Pick<Shared, 'copy'>): MenuEntry[] {
+  return [
+    { label: dir, heading: true },
+    { label: 'Copiar comando git restore', run: () => c.copy(restoreCommand(sha, dir)) },
+  ]
+}
+
 export function fileMenu(sha: string, file: FileChange, c: FileMenuContext): MenuEntry[] {
   const mut = c.mutation
   return [
@@ -71,6 +82,7 @@ export function fileMenu(sha: string, file: FileChange, c: FileMenuContext): Men
     '-',
     { label: 'Restaurar versão deste commit', warn: true, reason: mut ?? (file.status === 'D' ? 'O arquivo foi removido neste commit' : undefined),
       run: () => c.dialog({ type: 'restoreFile', sha, file: file.path }) },
+    { label: 'Copiar comando git restore', run: () => c.copy(restoreCommand(sha, file.path)) },
     { label: 'Excluir arquivo', danger: true, reason: mut, run: () => c.dialog({ type: 'deleteFile', file: file.path }) },
   ]
 }
