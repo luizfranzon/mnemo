@@ -4,4 +4,4 @@
 - Resolver = gravar o resultado e `git add`; a faixa âmbar continua mostrando progresso e Continuar/Pular/Abortar.
 - Conflito de exclusão: escolher manter (`git add`) ou apagar (`git rm`).
 - Binário: "Usar o atual" / "Usar o que entra" (`git checkout --ours/--theirs`).
-- Apagar `.orig` depois do merge segue a preferência (#28).
+- Apagar `.orig` depois do merge segue a preferência de Aparência/Editor.

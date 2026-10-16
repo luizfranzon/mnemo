@@ -1,6 +1,6 @@
-# Toolbar do repositório (#16)
+# Toolbar do repositório
 
-Complementa os critérios da [issue #16](https://github.com/luizfranzon/mnemo/issues/16), os comportamentos de `docs/design/02-comportamentos.md` e o mockup `TopBar.dc.html`.
+Complementa os comportamentos de `docs/design/02-comportamentos.md`.
 
 ## Decisões confirmadas na entrevista
 
@@ -18,7 +18,7 @@ Complementa os critérios da [issue #16](https://github.com/luizfranzon/mnemo/is
 - Usar o componente de menu único nos dropdowns e permitir escolha do padrão Pull por radio, com navegação por teclado e fechamento por Esc/clique fora.
 - Preservar `mnemo.pullMode` local com fallback global, sem alterar as preferências de `git pull` do terminal.
 - Mostrar o aviso de HEAD destacado previsto nos comportamentos, com criação de branch a partir do commit atual; Pull e Push indisponíveis nesse estado.
-- Manter “Descartar tudo…” e “Excluir remota…” até os tickets #23 e #18. A paleta continua provisória nesta issue; sua expansão pertence à #27.
+- Manter “Descartar tudo…” e “Excluir remota…” até existirem o painel WIP e o menu da branch. A paleta continua provisória; sua expansão pertence ao ticket da paleta de comandos.
 - Manter seletores mínimos do Zustand e interações conforme as regras de render do projeto.
 
 ## Validação prevista
