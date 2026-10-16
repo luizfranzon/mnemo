@@ -1,6 +1,6 @@
 // Único módulo da UI que conhece como falar com o backend. Mesmo formato do `@tauri-apps/api`:
 // na migração para o Tauri, só este arquivo troca. Nenhum componente importa `electron`.
-import type { AuthorInfo, ConflictChoice, ConflictDoc, ConflictFile, BranchInfo, CoreError, CoreEvent, DiffSource, DiscardPreview, ExecuteResult, EncodingInfo, FileChange, FileDiff, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepoPrefs, RepositoryInfo, ForcePushPreview, ToolbarInfo, UndoRedoState, WindowAction, WipStatus } from './types'
+import type { AuthorInfo, ConflictChoice, ConflictDoc, ConflictFile, BranchInfo, CoreError, CoreEvent, DiffSource, DiscardPreview, ExecuteResult, EncodingInfo, FileChange, FileDiff, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepoPrefs, RepositoryInfo, ForcePushPreview, ToolbarInfo, UndoRedoState, UpdateState, WindowAction, WipStatus } from './types'
 
 interface Transport {
   invoke(cmd: string, args: Record<string, unknown>): Promise<unknown>
@@ -31,6 +31,10 @@ export function errorCode(err: unknown): string {
 
 /** Comandos tipados. */
 export const core = {
+  updateState: () => invoke<UpdateState>('update_state'),
+  updateCheck: () => invoke<UpdateState>('update_check'),
+  updateDownload: () => invoke<UpdateState>('update_download'),
+  updateInstall: () => invoke<null>('update_install'),
   checkGit: () => invoke<{ version: string }>('check_git'),
   initialPaths: () => invoke<string[]>('initial_paths'),
   pickFolder: () => invoke<string | null>('pick_folder'),

@@ -1,5 +1,5 @@
 import {
-  Archive, ArrowDown, ArrowDownToLine, ArrowDownWideNarrow, ArrowLeft, ArrowRight, ArrowUp, ArrowUpDown, ArrowUpFromLine, Ban, Check,
+  Archive, ArrowDown, ArrowDownToLine, Download, RotateCw, ArrowDownWideNarrow, ArrowLeft, ArrowRight, ArrowUp, ArrowUpDown, ArrowUpFromLine, Ban, Check,
   ChevronDown, ChevronRight, ChevronUp, Circle, CircleDot, Cloud, Copy, Dot, EllipsisVertical, Eye, EyeOff, Flag, Folder, FolderGit2, Funnel,
   GitBranch, GitCommitHorizontal, Inbox, Laptop, LayoutGrid, Minus, Package, PanelLeftClose, PenLine, Pencil, Plus, Redo2, RefreshCw, Search,
   SlidersVertical, Square, Tag, Trash2, TriangleAlert, Undo2, X, type LucideIcon,
@@ -12,7 +12,7 @@ const ICONS = {
   chevronDown: ChevronDown, chevronUp: ChevronUp, close: X, plus: Plus, minus: Minus, square: Square, more: EllipsisVertical, copy: Copy,
   sort: ArrowUpDown, sortDown: ArrowDownWideNarrow, refresh: RefreshCw, shown: Eye, hidden: EyeOff, radioOn: CircleDot, radioOff: Circle,
   back: ArrowLeft, arrowUp: ArrowUp, arrowDown: ArrowDown, modified: Pencil, renamed: ArrowRight, unchanged: Dot, trash: Trash2,
-  commit: GitCommitHorizontal, noEol: Ban,
+  commit: GitCommitHorizontal, noEol: Ban, download: Download, restart: RotateCw,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof ICONS

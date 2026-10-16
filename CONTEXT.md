@@ -14,6 +14,14 @@ _Avoid_: janela, projeto
 Repositório marcado pelo usuário como de interesse mesmo quando está fechado. Favoritos recebem fetch automático e notificações como se estivessem abertos.
 _Avoid_: fixado, pinned
 
+**Release**:
+Versão publicada do Mnemo na página de Releases do GitHub, com os instaladores e as notas da versão. Nasce sozinha quando uma PR que sobe a versão entra na `main`.
+_Avoid_: build, deploy (build é o que roda a cada PR e não publica nada)
+
+**Atualização**:
+Release mais nova (semver maior) que a versão instalada. A barra de status mostra o ícone de baixar; depois do download vira "Reiniciar para atualizar". O app só reinicia por escolha do usuário e nunca durante uma Operação.
+_Avoid_: upgrade, patch (patch é o arquivo do git)
+
 ### Histórico
 
 **Lane**:

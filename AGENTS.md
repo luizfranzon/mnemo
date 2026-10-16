@@ -32,7 +32,16 @@ Nada de integração com agentes de código (Claude Code, Codex etc.): sem aba A
 
 - Windows: NSIS (electron-builder), sem assinatura no MVP. `installer.nsh` oferece instalar o git via winget se faltar.
 - Linux: `.deb` (`Depends: git`) e `.rpm` (`Requires: git`). Sem AppImage, Flatpak ou Snap.
-- Atualização: electron-updater lendo GitHub Releases de um repo público só de releases (código fica privado). No Linux instala via `pkexec`.
+- Repositório público (MIT). As Releases ficam no próprio repo (ADR 0007).
+- Atualização: electron-updater lendo as Releases do repo. No Linux instala via `pkexec`.
+
+## Fluxo de mudança (regra)
+
+A `main` é protegida: só entra por PR, com o CI verde, em squash merge. Nunca dar push direto na `main`.
+
+- Uma branch por tarefa, commits pequenos, `gh pr create`. O merge é do usuário.
+- Release: subir a versão em `app/package.json` e `Cargo.toml` (iguais) e acrescentar a seção `## [x.y.z]` no `CHANGELOG.md`. O CI falha se divergirem ou faltar a seção. No merge, a Release `vx.y.z` sai sozinha se a tag ainda não existe.
+- Títulos de PR e o `CHANGELOG.md` são públicos: sem detalhes internos.
 
 ## React: evitar re-render desnecessário (regra)
 

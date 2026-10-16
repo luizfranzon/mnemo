@@ -4,3 +4,4 @@ dist/
 *.node
 dist-electron/
 native/
+release/

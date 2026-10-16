@@ -236,6 +236,10 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 
 .statusbar { display: flex; align-items: center; gap: var(--space-4); height: var(--h-statusbar); padding: 0 var(--space-3); background: var(--bg-rail); border-top: 1px solid var(--border-subtle); color: var(--text-subtle); font-size: var(--fs-overline); white-space: nowrap; }
 .spacer { flex: 1; }
+.statusbar button { display: inline-flex; align-items: center; gap: 4px; height: 100%; padding: 0 var(--space-2); border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.statusbar button:hover { color: var(--text); }
+.statusbar .statusbar-update { color: var(--accent-link); }
+.statusbar .statusbar-update:is(span) { display: inline-flex; align-items: center; gap: 4px; }
 
 .toasts { position: fixed; left: var(--space-4); bottom: calc(var(--h-statusbar) + var(--space-4)); z-index: 50; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; pointer-events: none; }
 @keyframes toast-in { from { transform: translateX(-24px); opacity: 0; } to { transform: none; opacity: 1; } }

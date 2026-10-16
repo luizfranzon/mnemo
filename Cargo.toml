@@ -4,8 +4,8 @@ members = ["crates/mnemo-core", "crates/mnemo-node"]
 
 [workspace.package]
 edition = "2021"
-version = "0.1.0"
-license = "UNLICENSED"
+version = "0.5.0"
+license = "MIT"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
