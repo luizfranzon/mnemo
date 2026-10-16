@@ -346,7 +346,15 @@ export function Graph({ path }: { path: string }) {
   const search = (text: string) => {
     setFind({ text })
     const first = hitsFor(text)[0]
-    if (first) actions.selectCommit(first.sha)
+    if (first) return actions.selectCommit(first.sha)
+    // o tip da branch pode estar numa página ainda não carregada: o efeito de seleção carrega até achar
+    const n = text.trim().toLocaleLowerCase()
+    if (!n) return
+    void core.listRefs(path).then((refs) => {
+      const remotes = refs.remotes.flatMap((g) => [...g.branches, ...g.folders.flatMap((f) => f.branches)]).map((r) => ({ name: `${r.remote}/${r.name}`, sha: r.sha }))
+      const tip = [...refs.local, ...remotes].find((r) => r.name.toLocaleLowerCase().includes(n))
+      if (tip) actions.selectCommit(tip.sha)
+    }, () => {})
   }
   const openMenu = async (commit: GraphCommit, e: React.MouseEvent) => {
     e.preventDefault()
