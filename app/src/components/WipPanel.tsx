@@ -21,7 +21,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 const point = (e: MouseEvent): Rect => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY })
 
 
-/** Painel direito com o nó WIP selecionado (WIP.dc.html): preparar, tirar, commitar; seleção múltipla e ações por pasta. */
+/** Painel direito com o nó WIP selecionado: preparar, tirar, commitar; seleção múltipla e ações por pasta. */
 export function WipPanel({ path }: { path: string }) {
   const revision = useApp(selectWipRevision(path))
   const branch = useApp((s) => { const head = selectActiveTab(s)?.head; return head?.kind === 'branch' ? head.name : 'HEAD' })

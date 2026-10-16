@@ -1,4 +1,4 @@
-// Linhas do diff já parseadas pelo core, arrumadas por layout (Diff.dc.html). Funções puras: o componente só desenha.
+// Linhas do diff já parseadas pelo core, arrumadas por layout. Funções puras: o componente só desenha.
 import type { DiffLine, FileDiff } from '../bridge/types'
 
 export type DiffLayout = 'hunks' | 'inline' | 'split'

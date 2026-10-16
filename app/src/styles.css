@@ -32,7 +32,7 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .workspace { display: flex; flex-direction: column; height: 100%; }
 .main { flex: 1; min-height: 0; }
 
-/* Barra de título (TopBar.dc.html): janela sem moldura, arrasta por aqui */
+/* Barra de título: janela sem moldura, arrasta por aqui */
 .titlebar { position: relative; display: flex; align-items: center; gap: var(--space-1); height: var(--h-titlebar); padding-left: var(--space-3); background: var(--bg-rail); border-bottom: 1px solid var(--border-subtle); -webkit-app-region: drag; user-select: none; }
 .titlebar button { -webkit-app-region: no-drag; background: transparent; border: 0; }
 .titlebar-brand { display: flex; align-items: center; gap: var(--space-2); margin-right: 10px; font-weight: 600; color: var(--text); }
@@ -59,7 +59,7 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .menu-hint { font-size: var(--fs-overline); color: var(--text-subtle); }
 .menu-sep { height: 1px; margin: var(--space-1) 6px; background: var(--border); }
 
-/* Abas (TopBar.dc.html) */
+/* Abas */
 .tabbar { display: flex; align-items: flex-end; gap: 2px; padding-left: var(--space-2); height: var(--h-tabs); background: var(--bg-rail); border-bottom: 1px solid var(--border-subtle); }
 .tab { display: flex; align-items: center; height: 33px; max-width: 220px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--text-muted); }
 .tab.active { background: var(--surface-1); color: var(--text); box-shadow: inset 0 2px 0 var(--accent); }
@@ -366,7 +366,7 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .graph-row.dim { opacity: .3; }
 .graph-chip { margin-left: 8px; padding: 0 8px; height: 20px; border-radius: 10px; font-size: var(--fs-body-sm); }
 
-/* Painel WIP (WIP.dc.html): valores do mockup */
+/* Painel WIP: valores do mockup */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; }
 .wip-panel { height: 100%; min-height: 0; display: flex; flex-direction: column; background: #121213; font-size: 13px; }
 .wip-panel button { padding: 0; border: 0; background: transparent; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
@@ -451,7 +451,7 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .prefs-main .field input { margin: 3px 0 0; accent-color: var(--accent); }
 .prefs-main .help { margin: 6px 0 0 26px; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }
 
-/* Diff do arquivo (Diff.dc.html): sobre o grafo, que continua montado por baixo */
+/* Diff do arquivo: sobre o grafo, que continua montado por baixo */
 .panel-center { position: relative; }
 .diff-view { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; background: var(--bg); }
 .diff-head { flex: none; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 10px 0 14px; background: var(--surface-1); border-bottom: 1px solid var(--border); }

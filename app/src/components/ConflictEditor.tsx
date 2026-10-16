@@ -28,7 +28,7 @@ const KIND: Record<ConflictFile['kind'], string> = {
   deletedByThem: 'modificado no Atual e apagado no que entra', addedByUs: 'adicionado no Atual', addedByThem: 'adicionado no que entra', bothDeleted: 'apagado nos dois lados',
 }
 
-/** Resolve um arquivo em conflito (Conflito.dc.html): Atual × Entrando por trecho/linha, Resultado editável. */
+/** Resolve um arquivo em conflito: Atual × Entrando por trecho/linha, Resultado editável. */
 export function ConflictEditor({ path }: { path: string }) {
   const target = useApp(selectConflict(path))
   const revision = useApp(selectWipRevision(path))

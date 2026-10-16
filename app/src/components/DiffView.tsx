@@ -23,7 +23,7 @@ const loadLayout = (): DiffLayout => {
 }
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
-/** Diff de um arquivo no centro (Diff.dc.html). No WIP, prepara/tira trecho ou linhas escolhidas. */
+/** Diff de um arquivo no centro. No WIP, prepara/tira trecho ou linhas escolhidas. */
 export function DiffView({ path }: { path: string }) {
   const target = useApp(selectDiff(path))
   const revision = useApp(selectWipRevision(path))

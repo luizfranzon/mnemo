@@ -9,7 +9,7 @@ import { Icon } from './Icon'
 
 const MENUS = ['Arquivo', 'Editar', 'Exibir', 'Repositório', 'Ajuda']
 
-/** Barra de título (TopBar.dc.html): janela sem moldura; arrasta pela barra e o duplo clique maximiza (nativo). */
+/** Barra de título: janela sem moldura; arrasta pela barra e o duplo clique maximiza (nativo). */
 export function TitleBar() {
   const name = useApp((s) => selectActiveTab(s)?.name)
   const [open, setOpen] = useState<{ label: string; anchor: Rect; items: MenuEntry[] } | null>(null)
