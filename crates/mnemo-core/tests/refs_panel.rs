@@ -159,6 +159,20 @@ fn checkout_com_stash_que_falha_recupera_o_wip() {
 }
 
 #[test]
+fn commit_on_remote_so_e_verdadeiro_depois_do_push() {
+    let repo = TestRepo::new();
+    let _remote = repo.with_remote();
+    let path = repo.path().to_string_lossy().into_owned();
+    let enviado = repo.head();
+    repo.write("novo.txt", "x");
+    let local = repo.commit_all("local");
+    assert!(repo.core.commit_on_remote(&path, &enviado).expect("remoto"));
+    assert!(!repo.core.commit_on_remote(&path, &local).expect("remoto"));
+    repo.git(&["push", "-q"]);
+    assert!(repo.core.commit_on_remote(&path, &local).expect("remoto"));
+}
+
+#[test]
 fn remote_url_devolve_a_url_do_remoto_ou_nada() {
     let repo = TestRepo::new();
     let _remote = repo.with_remote();

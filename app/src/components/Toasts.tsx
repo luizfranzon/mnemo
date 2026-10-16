@@ -7,7 +7,7 @@ export function Toasts() {
   return (
     <div className="toasts" aria-live="polite">
       {toasts.map((t) => (
-        <div className={t.error ? 'toast error' : 'toast'} key={t.id} role={t.error ? 'alert' : undefined}
+        <div className={t.error ? 'toast error' : t.info ? 'toast info' : 'toast'} key={t.id} role={t.error ? 'alert' : undefined}
           style={{ '--toast-dur': `${t.error ? 12000 : 6000}ms` } as CSSProperties}>
           <span className="toast-node" aria-hidden="true" />
           <span className="toast-text">{t.text}</span>

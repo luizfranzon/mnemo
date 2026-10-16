@@ -31,6 +31,8 @@ export interface FileMenuContext extends Shared {
   /** Caminho absoluto do arquivo no diretório de trabalho. */
   absolute: string
   open(how: 'editor' | 'default' | 'folder'): void
+  /** Copia o comando `git restore` (e avisa se o commit ainda não foi enviado ao remoto). */
+  copyRestore(text: string): void
 }
 
 export function commitMenu(commit: { sha: string; subject: string; head: boolean }, c: CommitMenuContext): MenuEntry[] {
@@ -62,10 +64,10 @@ export function commitMenu(commit: { sha: string; subject: string; head: boolean
 const restoreCommand = (sha: string, path: string) =>
   `git restore --source=${sha} ${/^[\w./@+-]+$/.test(path) ? path : `'${path.replaceAll("'", `'\\''`)}'`}`
 
-export function dirMenu(sha: string, dir: string, c: Pick<Shared, 'copy'>): MenuEntry[] {
+export function dirMenu(sha: string, dir: string, c: Pick<FileMenuContext, 'copyRestore'>): MenuEntry[] {
   return [
     { label: dir, heading: true },
-    { label: 'Copiar comando git restore', run: () => c.copy(restoreCommand(sha, dir)) },
+    { label: 'Copiar comando git restore', run: () => c.copyRestore(restoreCommand(sha, dir)) },
   ]
 }
 
@@ -82,7 +84,7 @@ export function fileMenu(sha: string, file: FileChange, c: FileMenuContext): Men
     '-',
     { label: 'Restaurar versão deste commit', warn: true, reason: mut ?? (file.status === 'D' ? 'O arquivo foi removido neste commit' : undefined),
       run: () => c.dialog({ type: 'restoreFile', sha, file: file.path }) },
-    { label: 'Copiar comando git restore', run: () => c.copy(restoreCommand(sha, file.path)) },
+    { label: 'Copiar comando git restore', run: () => c.copyRestore(restoreCommand(sha, file.path)) },
     { label: 'Excluir arquivo', danger: true, reason: mut, run: () => c.dialog({ type: 'deleteFile', file: file.path }) },
   ]
 }

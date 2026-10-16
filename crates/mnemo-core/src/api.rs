@@ -590,6 +590,13 @@ impl Mnemo {
         Ok(git.text(["config", "--get", &format!("remote.{remote}.url")]).ok().map(|u| u.trim().to_string()).filter(|u| !u.is_empty()))
     }
 
+    /// Se algum branch de rastreamento remoto contém o commit (ou seja, já foi enviado).
+    pub fn commit_on_remote(&self, path: &str, sha: &str) -> Result<bool> {
+        let session = self.session_for(Path::new(path))?;
+        let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+        Ok(!git.text(["branch", "-r", "--contains", sha])?.trim().is_empty())
+    }
+
     pub fn close_repository(&self, path: &str) {
         if let Ok(root) = self.toplevel(Path::new(path)) {
             if let Ok(mut map) = self.sessions.write() {
@@ -767,6 +774,10 @@ impl Mnemo {
         if cmd == "remote_url" {
             let remote = args.get("remote").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("remote ausente"))?;
             return out(self.remote_url(&path, remote)?);
+        }
+        if cmd == "commit_on_remote" {
+            let sha = args.get("sha").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("sha ausente"))?;
+            return out(self.commit_on_remote(&path, sha)?);
         }
         if cmd == "close_repository" {
             self.close_repository(&path);

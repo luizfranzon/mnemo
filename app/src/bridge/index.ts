@@ -69,6 +69,7 @@ export const core = {
   ignore: (path: string, pattern: string) => invoke<null>('ignore', { path, pattern }),
   commitDetail: (path: string, sha: string, all: boolean) => invoke<CommitDetail>('commit_detail', { path, sha, all }),
   pushForcePreview: (path: string) => invoke<ForcePushPreview>('push_force_preview', { path }),
+  commitOnRemote: (path: string, sha: string) => invoke<boolean>('commit_on_remote', { path, sha }),
   remoteUrl: (path: string, remote: string) => invoke<string | null>('remote_url', { path, remote }),
   execute: (path: string, kind: OperationKind) => invoke<ExecuteResult>('execute_operation', { path, kind }),
   resetPreview: (path: string, target: string) => invoke<ResetPreview>('reset_preview', { path, target }),

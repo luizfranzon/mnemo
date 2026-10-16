@@ -51,17 +51,21 @@ export function CommitPanel({ path }: { path: string }) {
   const [menu, setMenu] = useState<{ items: MenuEntry[]; anchor: Rect } | null>(null)
   const [dialog, setDialog] = useState<CommitDialog | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  const copyRestore = (cmd: string) => {
+    copyText(cmd)
+    if (sha) void core.commitOnRemote(path, sha).then((on) => { if (!on) actions.info('Este commit só existe no seu repositório local (ainda não foi enviado ao remoto). Quem receber o comando precisa que você dê push antes.') }, () => {})
+  }
   const openMenu = async (file: FileChange, anchor: Rect) => {
     if (!sha) return
     const base = await menuBase(path)
     if (!base) return
     const sep = path.includes('\\') ? '\\' : '/'
     setMenu({ anchor, items: fileMenu(sha, file, {
-      ...base, dialog: setDialog, absolute: `${path.replace(/[\\/]$/, '')}${sep}${file.path.replaceAll('/', sep)}`,
+      ...base, dialog: setDialog, copyRestore, absolute: `${path.replace(/[\\/]$/, '')}${sep}${file.path.replaceAll('/', sep)}`,
       open: (how) => void core.openFile(path, file.path, how).catch(actions.reportError),
     }) })
   }
-  const openDirMenu = (dir: string, anchor: Rect) => { if (sha) setMenu({ anchor, items: dirMenu(sha, dir, { copy: copyText }) }) }
+  const openDirMenu = (dir: string, anchor: Rect) => { if (sha) setMenu({ anchor, items: dirMenu(sha, dir, { copyRestore }) }) }
   useEffect(() => {
     if (!sha) { setDetail(null); return }
     let active = true

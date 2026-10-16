@@ -23,6 +23,8 @@ export interface Toast {
   pullPath?: string
   /** Erro: fica mais tempo e, se `retry`, oferece "Tentar de novo". */
   error?: boolean
+  /** Aviso neutro (azul). */
+  info?: boolean
   retry?: () => Promise<void>
 }
 
@@ -153,6 +155,7 @@ function fail(err: unknown, retry?: () => Promise<void>) {
 
 export const actions = {
   reportError(err: unknown) { fail(err) },
+  info(text: string) { pushToast({ text, info: true }) },
   async checkoutRef(path: string, kind: Extract<OperationKind, { type: 'checkout' | 'checkoutRemote' }>, behind = 0) {
     const target = kind.type === 'checkout' ? kind.target : kind.branch
     const remote = kind.type === 'checkoutRemote' ? kind.remote : null

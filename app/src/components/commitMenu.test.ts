@@ -44,7 +44,7 @@ test('Operação em curso desabilita tudo que muda o repositório, não o Copiar
 })
 
 test('menu do arquivo: restaurar (âmbar) e excluir (vermelho) abrem confirmação; restaurar some em arquivo removido', () => {
-  const fctx: FileMenuContext = { remoteUrl: null, absolute: 'C:\\repo\\src\\a.ts', open: (h) => calls.push(`open ${h}`), dialog: (d) => calls.push(d), copy: (t) => calls.push(t) }
+  const fctx: FileMenuContext = { remoteUrl: null, absolute: 'C:\\repo\\src\\a.ts', open: (h) => calls.push(`open ${h}`), dialog: (d) => calls.push(d), copy: (t) => calls.push(t), copyRestore: (t) => calls.push(t) }
   const file = { path: 'src/a.ts', oldPath: null, status: 'M' as const, added: 1, removed: 0 }
   const items = fileMenu(commit.sha, file, fctx)
   const restore = find(items, 'Restaurar')

@@ -242,6 +242,7 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 @keyframes toast-rail { from { transform: scaleY(1); } to { transform: scaleY(0); } }
 .toast { --tone: var(--success); --tone-text: var(--success-text); pointer-events: auto; position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; min-width: 260px; max-width: 480px; padding: 11px 38px 11px 18px; background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-menu); color: var(--text); font-size: var(--fs-body-sm); line-height: 1.45; animation: toast-in .25s ease-out; }
 .toast.error { --tone: var(--danger); --tone-text: var(--danger-text); max-width: 540px; border-color: var(--danger-border); }
+.toast.info { --tone: var(--accent); --tone-text: var(--accent-link); }
 .toast-rail { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--tone); transform-origin: top; animation: toast-rail var(--toast-dur) linear forwards; }
 .toast-node { flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 2px solid var(--tone); border-radius: var(--radius-full); background: var(--surface-3); }
 .toast.error .toast-node { background: var(--tone); }
