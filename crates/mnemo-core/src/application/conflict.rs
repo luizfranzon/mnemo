@@ -42,9 +42,16 @@ pub struct ConflictFile {
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum Segment {
-    Text { lines: Vec<String> },
+    Text {
+        lines: Vec<String>,
+    },
     /// `auto`: Atual e Entrando só diferem em espaço em branco (a UI pré-escolhe o Atual).
-    Conflict { ours: Vec<String>, theirs: Vec<String>, base: Vec<String>, auto: bool },
+    Conflict {
+        ours: Vec<String>,
+        theirs: Vec<String>,
+        base: Vec<String>,
+        auto: bool,
+    },
 }
 
 /// Commit e ref de um lado do conflito, para o cabeçalho do editor.
@@ -68,7 +75,16 @@ pub struct ConflictDoc {
 
 /// Algum ref que aponta para `sha` (branch local antes de remota antes de tag).
 fn ref_at(git: &RepoGit, sha: &str) -> Option<String> {
-    let cmd = GitCmd::new(["for-each-ref", "--count=1", "--format=%(refname:short)", "--points-at", sha, "refs/heads", "refs/remotes", "refs/tags"]);
+    let cmd = GitCmd::new([
+        "for-each-ref",
+        "--count=1",
+        "--format=%(refname:short)",
+        "--points-at",
+        sha,
+        "refs/heads",
+        "refs/remotes",
+        "refs/tags",
+    ]);
     git.exec(&cmd).ok().map(|o| o.text()).filter(|n| !n.is_empty())
 }
 
@@ -76,10 +92,22 @@ fn ref_at(git: &RepoGit, sha: &str) -> Option<String> {
 fn side_labels(git: &RepoGit) -> (Option<SideLabel>, Option<SideLabel>) {
     use crate::application::git::ProgressKind::*;
     let (Some(kind), Ok(dir)) = (git.in_progress(), git.git_dir()) else { return (None, None) };
-    let read = |n: &str| std::fs::read_to_string(dir.join(n)).ok().and_then(|s| s.lines().next().map(|l| l.trim().to_string())).filter(|s| !s.is_empty());
-    let label = |sha: String, name: Option<String>| SideLabel { sha: crate::domain::repo_state::short_sha(&sha).to_string(), name };
+    let read = |n: &str| {
+        std::fs::read_to_string(dir.join(n))
+            .ok()
+            .and_then(|s| s.lines().next().map(|l| l.trim().to_string()))
+            .filter(|s| !s.is_empty())
+    };
+    let label = |sha: String, name: Option<String>| SideLabel {
+        sha: crate::domain::repo_state::short_sha(&sha).to_string(),
+        name,
+    };
     let ours = git.head_sha().map(|sha| {
-        let branch = git.exec(&GitCmd::new(["symbolic-ref", "-q", "--short", "HEAD"]).also_ok(1)).ok().filter(|o| o.code == 0).map(|o| o.text());
+        let branch = git
+            .exec(&GitCmd::new(["symbolic-ref", "-q", "--short", "HEAD"]).also_ok(1))
+            .ok()
+            .filter(|o| o.code == 0)
+            .map(|o| o.text());
         let name = branch.or_else(|| ref_at(git, &sha));
         label(sha, name)
     });
@@ -90,8 +118,11 @@ fn side_labels(git: &RepoGit) -> (Option<SideLabel>, Option<SideLabel>) {
         Rebase => read("rebase-merge/stopped-sha").or_else(|| read("REBASE_HEAD")),
     }
     .map(|sha| {
-        let rebased = matches!(kind, Rebase).then(|| read("rebase-merge/head-name").or_else(|| read("rebase-apply/head-name"))).flatten();
-        let name = rebased.map(|r| r.strip_prefix("refs/heads/").unwrap_or(&r).to_string()).or_else(|| ref_at(git, &sha));
+        let rebased = matches!(kind, Rebase)
+            .then(|| read("rebase-merge/head-name").or_else(|| read("rebase-apply/head-name")))
+            .flatten();
+        let name =
+            rebased.map(|r| r.strip_prefix("refs/heads/").unwrap_or(&r).to_string()).or_else(|| ref_at(git, &sha));
         label(sha, name)
     });
     (ours, theirs)
@@ -181,10 +212,18 @@ pub fn file(git: &RepoGit, file: &str) -> Result<ConflictDoc> {
             std::fs::write(dir.join(name), data)?;
         }
         let mut cmd = GitCmd::new([
-            "merge-file", "-p", "--diff3", "--zdiff3", &format!("--marker-size={MARKER}"),
-            "-L", "ours", "-L", "base", "-L", "theirs",
-        ])
-        ;
+            "merge-file",
+            "-p",
+            "--diff3",
+            "--zdiff3",
+            &format!("--marker-size={MARKER}"),
+            "-L",
+            "ours",
+            "-L",
+            "base",
+            "-L",
+            "theirs",
+        ]);
         cmd.args.extend(["ours", "base", "theirs"].map(|n| dir.join(n).to_string_lossy().into_owned()));
         for n in 1..=127 {
             cmd = cmd.also_ok(n);
@@ -208,7 +247,8 @@ fn parse(merged: &str) -> Vec<Segment> {
     let mut text: Vec<String> = Vec::new();
     // 0 = fora, 1 = atual, 2 = base, 3 = entrando
     let (mut state, mut ours, mut base, mut theirs) = (0, Vec::new(), Vec::new(), Vec::new());
-    let marker = |l: &str, m: &str| l.trim_end_matches('\r') == m || l.strip_prefix(m).is_some_and(|r| r.starts_with(' '));
+    let marker =
+        |l: &str, m: &str| l.trim_end_matches('\r') == m || l.strip_prefix(m).is_some_and(|r| r.starts_with(' '));
     for line in body.split('\n') {
         match state {
             0 if marker(line, &open) => {
@@ -287,9 +327,14 @@ pub fn mergetool(git: &RepoGit, file: &str) -> Result<()> {
 
 /// Arquivos em conflito dentro de `paths` (vazio = todos; um caminho também vale como pasta) que ainda têm marcadores.
 pub fn with_markers(git: &RepoGit, paths: &[String]) -> Result<Vec<String>> {
-    let inside = |f: &str| paths.is_empty() || paths.iter().any(|p| f == p || f.strip_prefix(p.as_str()).is_some_and(|r| r.starts_with('/')));
+    let inside = |f: &str| {
+        paths.is_empty()
+            || paths.iter().any(|p| f == p || f.strip_prefix(p.as_str()).is_some_and(|r| r.starts_with('/')))
+    };
     Ok(unmerged(git)?
         .into_keys()
-        .filter(|f| inside(f) && std::fs::read(git.workdir().join(f)).is_ok_and(|b| has_markers(&String::from_utf8_lossy(&b))))
+        .filter(|f| {
+            inside(f) && std::fs::read(git.workdir().join(f)).is_ok_and(|b| has_markers(&String::from_utf8_lossy(&b)))
+        })
         .collect())
 }

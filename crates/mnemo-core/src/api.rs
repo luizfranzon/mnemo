@@ -2,7 +2,9 @@
 
 use crate::application::detail::{self, CommitDetail};
 use crate::application::git::RepoGit;
-use crate::application::graph::{refs_by_sha, CommitInput, GraphCursor, GraphPage, GraphRef, GraphVisibility, WipSummary};
+use crate::application::graph::{
+    refs_by_sha, CommitInput, GraphCursor, GraphPage, GraphRef, GraphVisibility, WipSummary,
+};
 use crate::application::handlers::HandlerSet;
 use crate::application::ports::{EventSink, GitCmd, GitPort, HistoryStore};
 use crate::application::session::{RepoSession, SessionDeps};
@@ -246,7 +248,12 @@ impl Mnemo {
         let counts = git.ahead_behind()?;
         let progress = git.in_progress().map(|kind| {
             let steps = git.progress_steps();
-            ProgressInfo { kind: kind.name().into(), step: steps.map(|s| s.0), total: steps.map(|s| s.1), message: git.merge_message() }
+            ProgressInfo {
+                kind: kind.name().into(),
+                step: steps.map(|s| s.0),
+                total: steps.map(|s| s.1),
+                message: git.merge_message(),
+            }
         });
         Ok(ToolbarInfo {
             remotes: git.remotes()?,
@@ -425,13 +432,19 @@ impl Mnemo {
     pub fn push_force_preview(&self, path: &str) -> Result<ForcePushPreview> {
         let session = self.session_for(Path::new(path))?;
         let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
-        let branch = git.text(["symbolic-ref", "--short", "HEAD"]).map_err(|_| CoreError::invalid("HEAD destacado: não há branch para o push"))?;
-        let config = |key: &str| git.text(["config", "--get", &format!("branch.{branch}.{key}")]).ok().filter(|v| !v.is_empty());
+        let branch = git
+            .text(["symbolic-ref", "--short", "HEAD"])
+            .map_err(|_| CoreError::invalid("HEAD destacado: não há branch para o push"))?;
+        let config =
+            |key: &str| git.text(["config", "--get", &format!("branch.{branch}.{key}")]).ok().filter(|v| !v.is_empty());
         let (Some(remote), Some(merge)) = (config("remote"), config("merge")) else {
             return Err(CoreError::invalid("A branch não rastreia nenhuma remota"));
         };
         let remote_branch = merge.strip_prefix("refs/heads/").unwrap_or(&merge).to_string();
-        git.exec(&GitCmd::new(["fetch", &remote, &format!("refs/heads/{remote_branch}")]).timeout(crate::application::NETWORK_TIMEOUT))?;
+        git.exec(
+            &GitCmd::new(["fetch", &remote, &format!("refs/heads/{remote_branch}")])
+                .timeout(crate::application::NETWORK_TIMEOUT),
+        )?;
         let sha = git.rev_parse("FETCH_HEAD")?;
         let lost = git.text(["rev-list", "--count", &format!("HEAD..{sha}")])?.parse().unwrap_or(0);
         Ok(ForcePushPreview { remote, branch, remote_branch, sha, lost })
@@ -487,7 +500,12 @@ impl Mnemo {
             revs.push(refname);
             labels.push((
                 branch.sha.clone(),
-                GraphRef { name: branch.name.clone(), kind: "local".into(), current: branch.current, upstream: branch.upstream.clone() },
+                GraphRef {
+                    name: branch.name.clone(),
+                    kind: "local".into(),
+                    current: branch.current,
+                    upstream: branch.upstream.clone(),
+                },
             ));
         }
         for group in &refs.remotes {
@@ -512,7 +530,10 @@ impl Mnemo {
             if visibility.solo.is_none() && !visibility.smart {
                 revs.push(format!("refs/tags/{}", tag.name));
             }
-            labels.push((tag.sha.clone(), GraphRef { name: tag.name.clone(), kind: "tag".into(), current: false, upstream: None }));
+            labels.push((
+                tag.sha.clone(),
+                GraphRef { name: tag.name.clone(), kind: "tag".into(), current: false, upstream: None },
+            ));
         }
         let current = refs.local.iter().find(|b| b.current);
         let current_name = current.map(|b| b.name.as_str());
@@ -558,7 +579,14 @@ impl Mnemo {
                 email: string(record[3]),
                 timestamp: string(record[4]).parse().unwrap_or(0),
                 subject: string(record[5]),
-                description: string(record[6]).lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or_default().chars().take(300).collect(),
+                description: string(record[6])
+                    .lines()
+                    .map(str::trim)
+                    .find(|l| !l.is_empty())
+                    .unwrap_or_default()
+                    .chars()
+                    .take(300)
+                    .collect(),
             });
         }
         let has_more = inputs.len() > limit;
@@ -584,7 +612,11 @@ impl Mnemo {
     pub fn remote_url(&self, path: &str, remote: &str) -> Result<Option<String>> {
         let session = self.session_for(Path::new(path))?;
         let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
-        Ok(git.text(["config", "--get", &format!("remote.{remote}.url")]).ok().map(|u| u.trim().to_string()).filter(|u| !u.is_empty()))
+        Ok(git
+            .text(["config", "--get", &format!("remote.{remote}.url")])
+            .ok()
+            .map(|u| u.trim().to_string())
+            .filter(|u| !u.is_empty()))
     }
 
     /// Se algum branch de rastreamento remoto contém o commit (ou seja, já foi enviado).
@@ -677,7 +709,8 @@ impl Mnemo {
         }
         if cmd == "set_repo_pref" {
             let key = args.get("key").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("key ausente"))?;
-            let value = args.get("value").and_then(Value::as_bool).ok_or_else(|| CoreError::invalid("value ausente"))?;
+            let value =
+                args.get("value").and_then(Value::as_bool).ok_or_else(|| CoreError::invalid("value ausente"))?;
             return out(self.set_repo_pref(&path, key, value)?);
         }
         if cmd == "list_branches" {
@@ -711,10 +744,26 @@ impl Mnemo {
             let all = args.get("all").and_then(Value::as_bool).unwrap_or(false);
             return out(self.commit_detail(&path, sha, all)?);
         }
-        if matches!(cmd, "wip_status" | "stage" | "unstage" | "file_diff" | "stage_lines" | "stash_files" | "ignore" | "conflict_list" | "conflict_file" | "conflict_save" | "conflict_take" | "conflict_reopen" | "conflict_mergetool") {
+        if matches!(
+            cmd,
+            "wip_status"
+                | "stage"
+                | "unstage"
+                | "file_diff"
+                | "stage_lines"
+                | "stash_files"
+                | "ignore"
+                | "conflict_list"
+                | "conflict_file"
+                | "conflict_save"
+                | "conflict_take"
+                | "conflict_reopen"
+                | "conflict_mergetool"
+        ) {
             let session = self.session_for(Path::new(&path))?;
             let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
-            let text = |k: &str| args.get(k).and_then(Value::as_str).ok_or_else(|| CoreError::invalid(format!("{k} ausente")));
+            let text =
+                |k: &str| args.get(k).and_then(Value::as_str).ok_or_else(|| CoreError::invalid(format!("{k} ausente")));
             match cmd {
                 "wip_status" => return out(crate::application::wip::status(&git)?),
                 "file_diff" => {
@@ -731,8 +780,12 @@ impl Mnemo {
                     return Ok(Value::Null);
                 }
                 "stash_files" => {
-                    let index = args.get("index").and_then(Value::as_u64).ok_or_else(|| CoreError::invalid("index ausente"))?;
-                    let entry = git.stash_list()?.into_iter().nth(index as usize)
+                    let index =
+                        args.get("index").and_then(Value::as_u64).ok_or_else(|| CoreError::invalid("index ausente"))?;
+                    let entry = git
+                        .stash_list()?
+                        .into_iter()
+                        .nth(index as usize)
                         .ok_or_else(|| CoreError::invalid(format!("stash@{{{index}}} não existe")))?;
                     let files = crate::application::wip::stash_files(&git, &entry.sha)?;
                     return out(files.into_iter().map(|(f, _)| f).collect::<Vec<_>>());
@@ -769,7 +822,8 @@ impl Mnemo {
             return Ok(Value::Null);
         }
         if cmd == "remote_url" {
-            let remote = args.get("remote").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("remote ausente"))?;
+            let remote =
+                args.get("remote").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("remote ausente"))?;
             return out(self.remote_url(&path, remote)?);
         }
         if cmd == "commit_on_remote" {
@@ -884,7 +938,11 @@ fn highlight_tip(visibility: &GraphVisibility, refs: &RefListing, smart_set: &Ha
     }
     let remote_name = name.strip_prefix("refs/remotes/")?;
     let tracking = refs.local.iter().find(|b| b.upstream.as_deref() == Some(remote_name));
-    let remote = refs.remotes.iter().flat_map(|g| g.branches.iter().chain(g.folders.iter().flat_map(|f| f.branches.iter()))).find(|r| format!("{}/{}", r.remote, r.name) == remote_name);
+    let remote = refs
+        .remotes
+        .iter()
+        .flat_map(|g| g.branches.iter().chain(g.folders.iter().flat_map(|f| f.branches.iter())))
+        .find(|r| format!("{}/{}", r.remote, r.name) == remote_name);
     tracking.map(|b| b.sha.clone()).or_else(|| remote.filter(|r| r.local_exists).map(|r| r.sha.clone()))
 }
 
@@ -897,13 +955,19 @@ fn smart_refs(git: &RepoGit, refs: &RefListing) -> HashSet<String> {
             set.insert(format!("refs/remotes/{upstream}"));
         }
     }
-    if let Some(base) = ["main", "master", "develop", "trunk"].iter().find(|n| refs.local.iter().any(|b| b.name == **n)) {
+    if let Some(base) = ["main", "master", "develop", "trunk"].iter().find(|n| refs.local.iter().any(|b| b.name == **n))
+    {
         set.insert(format!("refs/heads/{base}"));
         roots.push(format!("refs/heads/{base}"));
     }
     for root in roots {
-        let merged =
-            git.text(["for-each-ref", &format!("--merged={root}"), "--format=%(refname)", "refs/heads", "refs/remotes"]);
+        let merged = git.text([
+            "for-each-ref",
+            &format!("--merged={root}"),
+            "--format=%(refname)",
+            "refs/heads",
+            "refs/remotes",
+        ]);
         set.extend(merged.unwrap_or_default().lines().map(str::to_string));
     }
     set

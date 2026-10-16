@@ -25,7 +25,8 @@ impl Handler for FileOps {
                 // Não rastreado: o git rm não o toca.
                 let on_disk = git.workdir().join(path);
                 if on_disk.is_file() {
-                    std::fs::remove_file(&on_disk).map_err(|e| CoreError::internal(format!("não foi possível excluir {path}: {e}")))?;
+                    std::fs::remove_file(&on_disk)
+                        .map_err(|e| CoreError::internal(format!("não foi possível excluir {path}: {e}")))?;
                 }
             }
             _ => return Err(CoreError::internal("kind fora do handler")),

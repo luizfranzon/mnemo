@@ -47,7 +47,10 @@ fn pagina_seguinte_preserva_lanes_das_linhas_anteriores() {
 fn repo_vazio_tem_wip_sem_commits() {
     let repo = TestRepo::empty();
     repo.write("novo.txt", "novo");
-    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 2000, &GraphVisibility::default()).expect("grafo vazio");
+    let page = repo
+        .core
+        .graph_page(&repo.path().to_string_lossy(), None, 2000, &GraphVisibility::default())
+        .expect("grafo vazio");
     assert!(page.commits.is_empty());
     assert!(page.next.is_none());
     assert_eq!((page.wip.changed, page.wip.untracked), (0, 1));
@@ -71,8 +74,12 @@ fn tag_anotada_aparece_no_commit_e_remota_sem_local_tambem_aparece() {
     repo.git(&["push", "-q", "origin", "so-remota"]);
     repo.git(&["switch", "-q", "main"]);
     repo.git(&["branch", "-D", "so-remota"]);
-    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 2000, &GraphVisibility::default()).expect("grafo");
-    assert!(page.commits.iter().any(|commit| commit.sha == remote_sha && commit.refs.iter().any(|r| r.name == "origin/so-remota")));
+    let page =
+        repo.core.graph_page(&repo.path().to_string_lossy(), None, 2000, &GraphVisibility::default()).expect("grafo");
+    assert!(page
+        .commits
+        .iter()
+        .any(|commit| commit.sha == remote_sha && commit.refs.iter().any(|r| r.name == "origin/so-remota")));
     assert!(page
         .commits
         .iter()
@@ -104,7 +111,10 @@ fn carrega_mais_de_dois_mil_commits_em_paginas() {
     let path = repo.path().to_string_lossy();
     let first = repo.core.graph_page(&path, None, 2000, &GraphVisibility::default()).expect("primeiro lote");
     assert_eq!(first.commits.len(), 2000);
-    let second = repo.core.graph_page(&path, Some(first.next.expect("cursor")), 2000, &GraphVisibility::default()).expect("segundo lote");
+    let second = repo
+        .core
+        .graph_page(&path, Some(first.next.expect("cursor")), 2000, &GraphVisibility::default())
+        .expect("segundo lote");
     assert_eq!(second.commits.len(), 101);
     assert!(second.next.is_none());
 }
@@ -117,7 +127,8 @@ fn descricao_e_a_primeira_linha_do_corpo() {
     repo.git(&["commit", "-q", "-m", "assunto", "-m", "primeira linha\ncom mais texto", "-m", "outro parágrafo"]);
     repo.write("b.txt", "b");
     repo.commit_all("sem corpo");
-    let page = repo.core.graph_page(&repo.path().to_string_lossy(), None, 10, &GraphVisibility::default()).expect("página");
+    let page =
+        repo.core.graph_page(&repo.path().to_string_lossy(), None, 10, &GraphVisibility::default()).expect("página");
     assert_eq!(page.commits[0].description, "");
     assert_eq!(page.commits[1].description, "primeira linha");
 }
@@ -181,7 +192,8 @@ fn branches_irmas_mantem_lanes_proprias_ate_o_pai_comum() {
         repo.write(&format!("{name}.txt"), name);
         repo.commit_all(name);
     }
-    let all = repo.core.graph_page(&repo.path().to_string_lossy(), None, 20, &GraphVisibility::default()).expect("grafo");
+    let all =
+        repo.core.graph_page(&repo.path().to_string_lossy(), None, 20, &GraphVisibility::default()).expect("grafo");
     let tips: Vec<usize> = all.commits.iter().take(3).map(|c| c.lane).collect();
     assert_eq!(tips.iter().collect::<std::collections::HashSet<_>>().len(), 3, "cada ponta na sua lane: {tips:?}");
 }
@@ -199,7 +211,9 @@ fn commit_sem_ref_aponta_branch_atual_ou_ponta_da_lane() {
     repo.commit_all("so na main");
     let path = repo.path().to_string_lossy();
     let page = repo.core.graph_page(&path, None, 20, &GraphVisibility::default()).expect("grafo");
-    let ghost = |subject: &str| page.commits.iter().find(|c| c.subject == subject).and_then(|c| c.ghost.as_ref()).map(|g| g.name.clone());
+    let ghost = |subject: &str| {
+        page.commits.iter().find(|c| c.subject == subject).and_then(|c| c.ghost.as_ref()).map(|g| g.name.clone())
+    };
     // pontas de branch têm pill própria; commit só da feature não tem commit sem ref acima dele
     assert_eq!(ghost("so na main"), None);
     assert_eq!(ghost("na feature"), None);
@@ -262,11 +276,22 @@ fn branch_em_destaque_fica_na_lane_0_e_as_outras_saem_dela() {
 fn destaque_numa_branch_oculta_ou_fora_do_solo_nao_reserva_lane() {
     let (repo, _) = repo_com_feature();
     let path = repo.path().to_string_lossy();
-    let hidden = GraphVisibility { hidden: vec!["refs/heads/main".into()], highlight: Some("refs/heads/main".into()), ..Default::default() };
-    let solo = GraphVisibility { solo: Some("refs/heads/feature".into()), highlight: Some("refs/heads/main".into()), ..Default::default() };
+    let hidden = GraphVisibility {
+        hidden: vec!["refs/heads/main".into()],
+        highlight: Some("refs/heads/main".into()),
+        ..Default::default()
+    };
+    let solo = GraphVisibility {
+        solo: Some("refs/heads/feature".into()),
+        highlight: Some("refs/heads/main".into()),
+        ..Default::default()
+    };
     for visibility in [hidden, solo] {
         let page = repo.core.graph_page(&path, None, 50, &visibility).expect("grafo");
-        assert!(page.commits.iter().all(|c| c.lane == 0 && c.lane_count == 1), "sem a branch em destaque, tudo cabe numa lane");
+        assert!(
+            page.commits.iter().all(|c| c.lane == 0 && c.lane_count == 1),
+            "sem a branch em destaque, tudo cabe numa lane"
+        );
     }
 }
 
@@ -278,7 +303,8 @@ fn destaque_preserva_lanes_entre_paginas() {
     let all = repo.core.graph_page(&path, None, 20, &visibility).expect("completo");
     let first = repo.core.graph_page(&path, None, 1, &visibility).expect("primeira");
     let second = repo.core.graph_page(&path, first.next.clone(), 20, &visibility).expect("segunda");
-    let lanes = |commits: &[mnemo_core::application::graph::GraphCommit]| commits.iter().map(|c| c.lane).collect::<Vec<_>>();
+    let lanes =
+        |commits: &[mnemo_core::application::graph::GraphCommit]| commits.iter().map(|c| c.lane).collect::<Vec<_>>();
     assert_eq!([lanes(&first.commits), lanes(&second.commits)].concat(), lanes(&all.commits));
 }
 

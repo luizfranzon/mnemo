@@ -26,7 +26,9 @@ pub fn status(git: &RepoGit) -> Result<WipStatus> {
             continue;
         }
         let path = String::from_utf8_lossy(&entry[3..]).into_owned();
-        let old = (matches!(x, 'R' | 'C') || matches!(y, 'R' | 'C')).then(|| entries.next().map(|o| String::from_utf8_lossy(o).into_owned())).flatten();
+        let old = (matches!(x, 'R' | 'C') || matches!(y, 'R' | 'C'))
+            .then(|| entries.next().map(|o| String::from_utf8_lossy(o).into_owned()))
+            .flatten();
         let file = |code: char, old_path: Option<String>| FileChange {
             path: path.clone(),
             old_path,
@@ -46,7 +48,8 @@ pub fn status(git: &RepoGit) -> Result<WipStatus> {
         }
     }
     for (files, cached) in [(&mut staged, true), (&mut unstaged, false)] {
-        let args: Vec<&str> = if cached { vec!["diff", "--cached", "--numstat", "-z"] } else { vec!["diff", "--numstat", "-z"] };
+        let args: Vec<&str> =
+            if cached { vec!["diff", "--cached", "--numstat", "-z"] } else { vec!["diff", "--numstat", "-z"] };
         let stats = parse_numstat(&git.exec(&GitCmd::new(args))?.stdout);
         for f in files.iter_mut() {
             if let Some((a, r)) = stats.get(&f.path) {
@@ -61,18 +64,35 @@ pub fn status(git: &RepoGit) -> Result<WipStatus> {
 /// os demais são preparados e o erro nomeia os que ficaram de fora.
 pub fn stage(git: &RepoGit, paths: &[String], on: bool) -> Result<()> {
     let bad = if on { crate::application::conflict::with_markers(git, paths)? } else { Vec::new() };
+    if !bad.is_empty() {
+        stage_without(git, paths, &bad)?;
+        return Err(crate::domain::error::CoreError::invalid(format!("marcadores de conflito em: {}", bad.join(", "))));
+    }
     let mut args: Vec<String> = if on { vec!["add".into(), "-A".into()] } else { vec!["reset".into(), "-q".into()] };
     args.push("--".into());
-    let targets: Vec<String> = if paths.is_empty() { vec![".".into()] } else { paths.iter().filter(|p| !bad.contains(p)).cloned().collect() };
-    if !targets.is_empty() {
-        args.extend(targets);
-        args.extend(bad.iter().map(|f| format!(":(exclude,literal){f}")));
+    if paths.is_empty() {
+        args.push(".".into())
+    } else {
+        args.extend(paths.iter().cloned())
+    }
+    git.run(args)
+}
+
+/// Prepara o WIP de `paths` (vazio = todos) menos os arquivos em conflito com marcadores. Lista os arquivos em vez de usar
+/// `:(exclude)`: a partir do git 2.55 o `add` com exclude ainda marca o arquivo excluído como resolvido.
+fn stage_without(git: &RepoGit, paths: &[String], bad: &[String]) -> Result<()> {
+    let inside = |f: &str| {
+        paths.is_empty()
+            || paths.iter().any(|p| f == p || f.strip_prefix(p.as_str()).is_some_and(|r| r.starts_with('/')))
+    };
+    let files: Vec<String> =
+        status(git)?.unstaged.into_iter().map(|f| f.path).filter(|f| inside(f) && !bad.contains(f)).collect();
+    for chunk in files.chunks(500) {
+        let mut args: Vec<String> = vec!["add".into(), "-A".into(), "--".into()];
+        args.extend(chunk.iter().map(|f| format!(":(literal){f}")));
         git.run(args)?;
     }
-    if bad.is_empty() {
-        return Ok(());
-    }
-    Err(crate::domain::error::CoreError::invalid(format!("marcadores de conflito em: {}", bad.join(", "))))
+    Ok(())
 }
 
 /// Acrescenta `pattern` ao `.gitignore` da raiz (se ainda não estiver lá). Não é Operação: é uma edição de arquivo.

@@ -12,7 +12,9 @@ fn call(repo: &TestRepo, cmd: &str, extra: Value) -> mnemo_core::domain::error::
 }
 
 fn ten(edits: &[(usize, &str)]) -> String {
-    (1..=10).map(|n| format!("{}\n", edits.iter().find(|(i, _)| *i == n).map_or(n.to_string(), |(_, t)| t.to_string()))).collect()
+    (1..=10)
+        .map(|n| format!("{}\n", edits.iter().find(|(i, _)| *i == n).map_or(n.to_string(), |(_, t)| t.to_string())))
+        .collect()
 }
 
 /// `main` e `feature` mudam a linha 2 de `a.txt` de jeitos diferentes; o merge para em conflito.

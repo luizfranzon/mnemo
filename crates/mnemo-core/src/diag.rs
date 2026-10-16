@@ -92,7 +92,8 @@ pub fn git_command(args: &[String]) -> String {
     let mut out = vec!["git".to_string()];
     let mut after_m = false;
     for a in args {
-        let inline_msg = hides_message && (a.starts_with("--message=") || (a.starts_with("-m") && a.len() > 2 && !a.starts_with("--")));
+        let inline_msg = hides_message
+            && (a.starts_with("--message=") || (a.starts_with("-m") && a.len() > 2 && !a.starts_with("--")));
         out.push(if (after_m && hides_message) || inline_msg { "<msg>".into() } else { mask_credentials(a) });
         after_m = a == "-m" || a == "--message";
     }

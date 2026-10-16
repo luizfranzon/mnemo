@@ -60,9 +60,12 @@ impl Handler for RemoteHandler {
             _ => return Err(CoreError::internal("kind fora do handler")),
         };
         match ctx.git.exec(&GitCmd::new(args).timeout(NETWORK_TIMEOUT)) {
-            Err(CoreError::GitFailed { stderr, .. }) if matches!(kind, Push { lease: None, .. }) && is_rejection(&stderr) => {
+            Err(CoreError::GitFailed { stderr, .. })
+                if matches!(kind, Push { lease: None, .. }) && is_rejection(&stderr) =>
+            {
                 let branch = ctx.before.branch_name().unwrap_or("HEAD").to_string();
-                let upstream = ctx.git.text(["rev-parse", "--abbrev-ref", "@{u}"]).unwrap_or_else(|_| format!("origin/{branch}"));
+                let upstream =
+                    ctx.git.text(["rev-parse", "--abbrev-ref", "@{u}"]).unwrap_or_else(|_| format!("origin/{branch}"));
                 return Err(CoreError::PushRejected { branch, upstream });
             }
             other => other?,
@@ -100,7 +103,9 @@ fn remote_branch(ctx: &ExecCtx, branch: &str, remote: &str) -> String {
     ctx.git
         .text(["config", "--get", &format!("branch.{branch}.merge")])
         .ok()
-        .filter(|_| ctx.git.text(["config", "--get", &format!("branch.{branch}.remote")]).ok().as_deref() == Some(remote))
+        .filter(|_| {
+            ctx.git.text(["config", "--get", &format!("branch.{branch}.remote")]).ok().as_deref() == Some(remote)
+        })
         .and_then(|m| m.strip_prefix("refs/heads/").map(str::to_string))
         .unwrap_or_else(|| branch.to_string())
 }
