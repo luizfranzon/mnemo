@@ -1,4 +1,4 @@
-// Menus da janela (claude-design/docs/01-features.md § Menus da janela). Montados na hora de abrir, a partir de
+// Menus da janela (docs/design/01-features.md § Menus da janela). Montados na hora de abrir, a partir de
 // um retrato da store: a barra de título não assina estado que muda a cada Operação.
 import { core } from '../bridge'
 import { actions, runningLabel, selectActiveTab, useApp, type Tab } from '../store/app'

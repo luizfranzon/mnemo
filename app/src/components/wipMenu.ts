@@ -1,4 +1,4 @@
-// Menus do painel WIP (docs/specs/12-acoes-por-pasta-e-stash-parcial.md): arquivos (um ou a seleção) e pasta no modo árvore.
+// Menus do painel WIP (docs/specs/acoes-por-pasta-e-stash-parcial.md): arquivos (um ou a seleção) e pasta no modo árvore.
 import type { FileChange } from '../bridge/types'
 import type { MenuEntry } from './menuModel'
 

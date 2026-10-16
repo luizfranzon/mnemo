@@ -33,7 +33,7 @@ impl Handler for IntegrateHandler {
                     }
                     .to_string()
                 }));
-                // como outros clientes: guarda o WIP, avança e devolve o WIP (o git faz stash/pop sozinho)
+                // guarda o WIP, avança e devolve o WIP (o git faz stash/pop sozinho)
                 if *strategy == Some(PullStrategy::FfOnly) {
                     a.push("--autostash".into());
                 }

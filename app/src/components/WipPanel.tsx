@@ -246,7 +246,7 @@ export function WipPanel({ path }: { path: string }) {
   </div>
 }
 
-/** "This will stash all staged and unstaged changes in the selected files", em português. */
+/** Texto de confirmação do stash parcial dos arquivos selecionados. */
 function StashConfirm({ paths, close, confirm }: { paths: string[]; close: () => void; confirm: () => void }) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {

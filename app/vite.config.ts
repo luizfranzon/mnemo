@@ -9,7 +9,7 @@ export default defineConfig({
   base: './',
   define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [react({ babel: { plugins: ['babel-plugin-react-compiler'] } })],
-  resolve: { alias: { '@tokens': resolve(import.meta.dirname, '../claude-design/design-system/tokens.css') } },
+  resolve: { alias: { '@tokens': resolve(import.meta.dirname, 'design-system/tokens.css') } },
   server: { fs: { allow: ['..'] } },
   build: { outDir: 'dist', emptyOutDir: true },
 })

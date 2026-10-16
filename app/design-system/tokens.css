@@ -1,0 +1,178 @@
+/* Mnemo — design tokens (tema escuro). Fontes: o app empacota (@fontsource). */
+
+:root {
+  /* Superfícies */
+  --bg-rail: #0B0B0C;
+  --bg: #0E0E0F;
+  --surface-1: #121213;
+  --surface-2: #141415;
+  --surface-3: #18181A;
+  --control: #1C1C1E;
+  --hover: #1F1F21;
+  --selected: #232326;
+  --active: #2A2A2D;
+
+  /* Bordas */
+  --border-subtle: #1F1F21;
+  --border: #232325;
+  --border-strong: #2C2C2F;
+  --border-hover: #55535A;
+
+  /* Texto */
+  --text: #E8E6E3;
+  --text-secondary: #C9C6C0;
+  --text-muted: #9C9992;
+  --text-subtle: #8A877F;
+  --text-disabled: #6F6C66;
+
+  /* Accent (ação principal, foco, seleção, pull) */
+  --accent: #5B8DEF;
+  --accent-primary: #3D6FE0;
+  --accent-primary-hover: #4A7BEA;
+  --accent-link: #8FB2FF;
+  --accent-text: #DFE7FF;
+  --accent-tint: #22325A;
+  --menu-highlight: #2B3A5E;
+
+  /* Warning — "sua vez", modificado */
+  --warning: #E0A43A;
+  --warning-text: #F0C06A;
+  --warning-bg: #3A2F18;
+  --warning-border: #5A4A24;
+
+  /* Success — adicionado, commit, push */
+  --success: #46B866;
+  --success-solid: #2F9A4A;
+  --success-button: #237A3B;
+  --success-text: #7FDC95;
+  --success-bg: #173020;
+
+  /* Danger */
+  --danger: #E5534B;
+  --danger-text: #F0877F;
+  --danger-bg: #2A1414;
+  --danger-border: #5A2422;
+
+  /* IA */
+  --ai: #C4A7F5;
+  --ai-text: #D5C2FA;
+  --ai-bg: #2A2440;
+  --ai-border: #3A3258;
+
+  /* Diff */
+  --diff-add-line: rgba(63, 185, 80, 0.10);
+  --diff-add-gutter: rgba(63, 185, 80, 0.15);
+  --diff-del-line: rgba(248, 81, 73, 0.11);
+  --diff-del-gutter: rgba(248, 81, 73, 0.15);
+  --diff-empty: repeating-linear-gradient(135deg, #141415 0 6px, #1A1A1C 6px 7px);
+  --conflict-current: rgba(224, 164, 58, 0.12);
+  --conflict-incoming: rgba(91, 141, 239, 0.12);
+
+  /* Lanes do grafo */
+  --lane-1: #4fb3d9;
+  --lane-2: #d65bd0;
+  --lane-3: #e5534b;
+  --lane-4: #e0a43a;
+  --lane-5: #5b8def;
+  --lane-6: #46b866;
+  --lane-7: #c4a7f5;
+  --lane-8: #f08a5d;
+
+  /* Syntax (cores do tema VSCode Min Darkest Dracula) */
+  --syn-keyword: #FF79C6;
+  --syn-string: #F1FA8C;
+  --syn-constant: #BD93F9;
+  --syn-type: #8BE9FD;
+  --syn-punctuation: #F8F8F2;
+  --syn-function: #50FA7B;
+  --syn-comment: #6272A4;
+  --syn-default: #F8F8F2;
+
+  /* Tipografia */
+  --font-ui: "IBM Plex Sans";
+  --font-mono: "JetBrains Mono";
+  --fs-display: 40px;
+  --fs-title-1: 22px;
+  --fs-title-2: 16px;
+  --fs-body: 14px;
+  --fs-body-sm: 13px;
+  --fs-caption: 12px;
+  --fs-overline: 11px;
+  --fs-code: 12px;
+
+  /* Espaço (base 4) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Raio */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-menu: 10px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+
+  /* Elevação */
+  --shadow-menu: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --shadow-dialog: 0 24px 60px rgba(0, 0, 0, 0.6);
+  --focus-ring: 2px solid var(--accent);
+
+  /* Alturas */
+  --h-titlebar: 34px;
+  --h-tabs: 36px;
+  --h-toolbar: 48px;
+  --h-statusbar: 26px;
+  --h-graph-row: 28px;
+  --h-list-row: 26px;
+  --h-menu-item: 30px;
+  --h-diff-line: 20px;
+  --btn-sm: 28px;
+  --btn-md: 32px;
+  --btn-lg: 40px;
+}
+
+/* Checkbox personalizado */
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--surface-1);
+  display: inline-grid;
+  place-content: center;
+  vertical-align: middle;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+input[type="checkbox"]::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  transition: transform 0.12s;
+  background: #FFFFFF;
+  clip-path: polygon(14% 44%, 0 62%, 42% 100%, 100% 18%, 84% 4%, 40% 68%);
+}
+input[type="checkbox"]:hover { border-color: var(--border-hover); background: var(--surface-3); }
+input[type="checkbox"]:checked { background: var(--accent-primary); border-color: var(--accent-primary); }
+input[type="checkbox"]:checked::before { transform: scale(1); }
+input[type="checkbox"]:checked:hover { background: var(--accent-primary-hover); border-color: var(--accent-primary-hover); }
+input[type="checkbox"]:focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+input[type="checkbox"]:disabled { opacity: 0.45; }
+
+/* Foco padrão */
+:where(button, a, input, textarea, select):focus-visible { outline: var(--focus-ring); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

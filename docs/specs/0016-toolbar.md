@@ -1,6 +1,6 @@
 # Toolbar do repositório (#16)
 
-Complementa os critérios da [issue #16](https://github.com/luizfranzon/mnemo/issues/16), os comportamentos de `claude-design/docs/02-comportamentos.md` e o mockup `TopBar.dc.html`.
+Complementa os critérios da [issue #16](https://github.com/luizfranzon/mnemo/issues/16), os comportamentos de `docs/design/02-comportamentos.md` e o mockup `TopBar.dc.html`.
 
 ## Decisões confirmadas na entrevista
 
