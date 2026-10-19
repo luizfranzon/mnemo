@@ -478,6 +478,13 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .diff-scroll { flex: 1; min-width: 0; overflow: auto; font-family: var(--font-mono); font-size: 12px; line-height: var(--h-diff-line); }
 .diff-scroll.split { overflow-x: hidden; }
 .diff-row { position: absolute; top: 0; left: 0; min-width: 100%; }
+.diff-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.diff-hbars { flex: none; display: grid; grid-template-columns: 1fr 1fr; font-family: var(--font-mono); font-size: 12px; }
+.diff-hbar { overflow-x: auto; overflow-y: hidden; }
+.diff-hbar > div { height: 1px; width: calc(var(--cols) * 1ch + 76px); }
+.diff-scroll.split .diff-half .diff-code { flex: 1; min-width: 0; overflow: hidden; padding-right: 0; }
+.diff-scroll.split .diff-half .diff-text { display: inline-block; padding-right: 16px; transform: translateX(calc(-1 * var(--sx, 0px))); }
+.diff-scroll.split .diff-half { position: relative; }
 .diff-scroll:not(.split) .diff-row { width: max-content; }
 .diff-line, .diff-half { display: flex; height: var(--h-diff-line); }
 .diff-line.add, .diff-half.add { background: var(--diff-add-line); }
