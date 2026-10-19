@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { core } from '../bridge'
 import type { ConflictChoice, ConflictDoc, ConflictFile, SideLabel } from '../bridge/types'
 import { actions, isActiveTab, selectConflict, selectWipRevision, useApp } from '../store/app'
@@ -7,7 +7,7 @@ import {
   chunkStarts, conflictsOf, fileSideState, initialPicks, output, outputWithMarkers, paneRows, resultLayout, sideState, taken, toggleFileSide, toggleLine, toggleSide, unresolved,
   type Pick, type PaneRow, type Side, type State,
 } from './conflictModel'
-import { highlightLines } from './syntax'
+import { highlightLines, type Part } from './syntax'
 import { selectSide } from './selectSide'
 import { ResultEditor, type ResultHandle } from './ResultEditor'
 import { Icon } from './Icon'
@@ -81,12 +81,14 @@ export function ConflictEditor({ path }: { path: string }) {
     if (!doc) return
     void core.conflictSave(path, file, manual ?? (markers ? outputWithMarkers(doc, picks) : output(doc, picks)), !markers).then(done, fail)
   }
-  const chunks = doc ? conflictsOf(doc) : []
-  const rows = doc ? paneRows(doc) : []
-  const starts = chunkStarts(rows)
+  // useMemo manual: o Compiler pula componente com useVirtualizer, e sem isso o parse do arquivo inteiro roda a cada frame de scroll
+  const chunks = useMemo(() => (doc ? conflictsOf(doc) : []), [doc])
+  const rows = useMemo(() => (doc ? paneRows(doc) : []), [doc])
+  const starts = useMemo(() => chunkStarts(rows), [rows])
   /** Cada lado parseado inteiro; o índice é o número da linha no lado menos 1. */
-  const parts = { ours: highlightLines(rows.flatMap((r) => (r.ours ? [r.ours.text] : [])).join('\n'), file), theirs: highlightLines(rows.flatMap((r) => (r.theirs ? [r.theirs.text] : [])).join('\n'), file) }
-  const lay = doc ? resultLayout(doc, picks) : null
+  const parts = useMemo(() => ({ ours: highlightLines(rows.flatMap((r) => (r.ours ? [r.ours.text] : [])).join('\n'), file), theirs: highlightLines(rows.flatMap((r) => (r.theirs ? [r.theirs.text] : [])).join('\n'), file) }), [rows, file])
+  const lay = useMemo(() => (doc ? resultLayout(doc, picks) : null), [doc, picks])
+  const merged = useMemo(() => (doc ? output(doc, picks) : ''), [doc, picks])
   const pending = unresolved(picks)
   const autoCount = chunks.filter((c) => c.auto).length
   const locked = manual !== null
@@ -97,7 +99,8 @@ export function ConflictEditor({ path }: { path: string }) {
     if (starts[next] !== undefined) virtual.scrollToIndex(starts[next]!, { align: 'center' })
     if (lay?.starts[next] !== undefined) result.current?.reveal(lay.starts[next]!)
   }
-  const change = (n: number, fn: (p: Pick) => Pick) => { setManual(null); setCurrent(n); setPicks((all) => all.map((p, i) => (i === n ? fn(p) : p))) }
+  // estável entre renders do scroll, senão toda ConflictRowView desenha de novo
+  const change = useCallback((n: number, fn: (p: Pick) => Pick) => { setManual(null); setCurrent(n); setPicks((all) => all.map((p, i) => (i === n ? fn(p) : p))) }, [])
   const reset = () => { setManual(null); setPicks(initialPicks(doc!)) }
 
   /** Arrasto a 60fps só mexe na CSS variable; a altura não é guardada. */
@@ -112,22 +115,6 @@ export function ConflictEditor({ path }: { path: string }) {
     const onMove = (ev: PointerEvent) => box.style.setProperty('--conflict-top', `${Math.min(85, Math.max(15, ((ev.clientY - rect.top) / rect.height) * 100))}%`)
     handle.addEventListener('pointermove', onMove)
     handle.addEventListener('lostpointercapture', () => { handle.removeEventListener('pointermove', onMove); handle.classList.remove('dragging') }, { once: true })
-  }
-
-  const half = (r: PaneRow, side: Side) => {
-    const cell = r[side]
-    const hot = r.chunk !== null
-    const n = r.chunk ?? 0
-    const on = hot && cell?.i != null && taken(picks[n]!, side, cell.i)
-    return <div className={`conflict-half ${side}${hot && cell ? ' hot' : ''}${cell ? '' : ' diff-empty'}`}>
-      <span className="conflict-chk">{hot && r.first && cell && <TriBox state={sideState(picks[n]!, chunks[n]!, side)} disabled={locked}
-        label={`Pegar o trecho inteiro de ${NAME[side]}`} onChange={() => change(n, (p) => toggleSide(p, chunks[n]!, side))} />}</span>
-      <span className="diff-num">{cell?.n ?? ''}</span>
-      <span className="conflict-take">{hot && cell && cell.i !== null && <button className={on ? 'on' : ''} aria-pressed={on} disabled={locked}
-        title={on ? 'Tirar esta linha do Resultado' : 'Pegar esta linha'} aria-label={`Pegar linha ${cell.n} de ${NAME[side]}`}
-        onClick={() => change(n, (p) => toggleLine(p, side, cell.i!))}><Icon name={on ? 'check' : 'plus'} size={12} strokeWidth={2.2} /></button>}</span>
-      {cell && <span className="diff-code">{(parts[side][cell.n - 1] ?? []).map((p, k) => <span key={k} className={`syn-${p.c}`}>{p.t}</span>)}</span>}
-    </div>
   }
 
   return <div className="diff-view conflict-view">
@@ -158,7 +145,7 @@ export function ConflictEditor({ path }: { path: string }) {
             {virtual.getVirtualItems().map((item) => {
               const r = rows[item.index]!
               return <div key={item.key} className="diff-row" style={{ transform: `translateY(${item.start}px)`, height: item.size }}>
-                <div className="diff-split">{half(r, 'ours')}{half(r, 'theirs')}</div>
+                <ConflictRowView r={r} parts={parts} picks={picks} chunks={chunks} locked={locked} onChange={change} />
               </div>
             })}
           </div>
@@ -181,7 +168,7 @@ export function ConflictEditor({ path }: { path: string }) {
           <button onClick={reset}>Reset</button>
           <button className="primary" onClick={() => (pending > 0 && !locked ? setAsk(true) : save(false))}>Salvar</button>
         </div>
-        <ResultEditor key={file} file={file} value={manual ?? output(doc, picks)} layout={locked ? null : lay} onChange={setManual} handle={result} />
+        <ResultEditor key={file} file={file} value={manual ?? merged} layout={locked ? null : lay} onChange={setManual} handle={result} />
       </div>
       <dialog ref={dialog} className="push-dialog card" aria-labelledby="conflict-ask" onCancel={() => setAsk(false)}>
         <h2 id="conflict-ask">Há {pending} conflito(s) sem escolha</h2>
@@ -193,4 +180,30 @@ export function ConflictEditor({ path }: { path: string }) {
       </dialog>
     </div>}
   </div>
+}
+
+interface RowProps {
+  r: PaneRow; parts: Record<Side, Part[][]>; picks: Pick[]; chunks: ReturnType<typeof conflictsOf>; locked: boolean
+  onChange: (n: number, fn: (p: Pick) => Pick) => void
+}
+
+/** Uma linha Atual × Entrando. Componente à parte para o Compiler reaproveitar as linhas que já estavam na tela durante o scroll. */
+function ConflictRowView({ r, parts, picks, chunks, locked, onChange }: RowProps) {
+  const half = (side: Side) => {
+    const cell = r[side]
+    const hot = r.chunk !== null
+    const n = r.chunk ?? 0
+    const on = hot && cell?.i != null && taken(picks[n]!, side, cell.i)
+    return <div className={`conflict-half ${side}${hot && cell ? ' hot' : ''}${cell ? '' : ' diff-empty'}`}>
+      <span className="conflict-chk">{hot && r.first && cell && <TriBox state={sideState(picks[n]!, chunks[n]!, side)} disabled={locked}
+        label={`Pegar o trecho inteiro de ${NAME[side]}`} onChange={() => onChange(n, (p) => toggleSide(p, chunks[n]!, side))} />}</span>
+      <span className="diff-num">{cell?.n ?? ''}</span>
+      <span className="conflict-take">{hot && cell && cell.i !== null && <button className={on ? 'on' : ''} aria-pressed={on} disabled={locked}
+        title={on ? 'Tirar esta linha do Resultado' : 'Pegar esta linha'} aria-label={`Pegar linha ${cell.n} de ${NAME[side]}`}
+        onClick={() => onChange(n, (p) => toggleLine(p, side, cell.i!))}><Icon name={on ? 'check' : 'plus'} size={12} strokeWidth={2.2} /></button>}</span>
+      {cell && <span className="diff-code">{(parts[side][cell.n - 1] ?? []).map((p, k) => <span key={k} className={`syn-${p.c}`}>{p.t}</span>)}</span>}
+    </div>
+  }
+
+  return <div className="diff-split">{half('ours')}{half('theirs')}</div>
 }

@@ -80,7 +80,10 @@ export function moveColumn(order: ColId[], id: ColId, dir: -1 | 1): ColId[] {
 }
 
 /** Geometria do nó: o modo compacto estreita as lanes e troca o avatar por um ponto. */
-export const geometry = (compact: boolean) => (compact ? { lane: 14, first: 8 } : { lane: 24, first: 12 })
+const COMPACT_GEO = { lane: 14, first: 8 }
+const FULL_GEO = { lane: 24, first: 12 }
+// objeto fixo por modo: um novo a cada render faria todo CommitSvg desenhar de novo no scroll
+export const geometry = (compact: boolean) => (compact ? COMPACT_GEO : FULL_GEO)
 
 /** Altura da linha e y do centro do nó. */
 export const ROW = 28

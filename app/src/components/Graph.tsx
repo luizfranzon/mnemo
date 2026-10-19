@@ -1,6 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { createPortal } from 'react-dom'
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { core } from '../bridge'
 import type { GraphCommit, GraphPage } from '../bridge/types'
 import { actions, firstGraphPage, GRAPH_PAGE, isActiveTab, selectSha, useApp } from '../store/app'
@@ -176,7 +176,9 @@ export function Graph({ path }: { path: string }) {
   const geo = geometry(layout.compact)
   const contentWidth = geo.first * 2 + maxLanes * geo.lane
   const cols = visibleColumns(layout)
-  const refsMin = refsMinWidth(page?.commits ?? NO_COMMITS) + (vis.highlight ? 17 : 0) // ícone da Branch em destaque (12 + gap 5)
+  // useMemo manual: o Compiler pula componente com useVirtualizer, e medir todas as pills a cada frame de scroll trava o grafo
+  const pillsMin = useMemo(() => refsMinWidth(page?.commits ?? NO_COMMITS), [page])
+  const refsMin = pillsMin + (vis.highlight ? 17 : 0) // ícone da Branch em destaque (12 + gap 5)
   const bounds = { graphMax: contentWidth, refsMin }
   const update = (fn: (l: GraphLayout) => GraphLayout) => setLayout((l) => {
     const next = fn(l)
