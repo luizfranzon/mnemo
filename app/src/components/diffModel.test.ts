@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { DiffLine, FileDiff } from '../bridge/types'
-import { diffRows, highlight, markers, selectionArgs } from './diffModel'
+import { diffRows, highlight, hunkAt, markers, selectionArgs } from './diffModel'
 
 const line = (kind: DiffLine['kind'], text: string, hunk: number | null = 0): DiffLine =>
   ({ kind, text, old: kind === 'add' ? null : 1, new: kind === 'del' ? null : 1, noNewline: false, hunk })
@@ -55,4 +55,10 @@ test('highlight marca chamada, this, literal, número, operador e nome declarado
     ['keyword:private', 'keyword:readonly', 'constant:node', 'keyword:=', 'function:computed', 'keyword:<', 'type:Node', 'keyword:|',
       'constant:null', 'keyword:>', 'keyword:=>', 'constant:this', 'function:data', 'keyword:??', 'constant:1'])
   assert.equal(parts.map((p) => p.t).join(''), text)
+})
+
+test('trecho atual: o último cabeçalho na linha ou antes dela', () => {
+  const heads = [0, 5, 9]
+  assert.deepEqual([0, 4, 5, 8, 9, 50].map((r) => hunkAt(heads, r)), [0, 0, 1, 1, 2, 2])
+  assert.equal(hunkAt([], 3), 0)
 })

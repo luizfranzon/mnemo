@@ -3,13 +3,13 @@ import { EncodingPicker } from './EncodingPicker'
 import { Icon, type IconName } from './Icon'
 import { selectSide } from './selectSide'
 import { Segmented } from './Segmented'
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { core } from '../bridge'
 import type { DiffLine, DiffSource, FileDiff } from '../bridge/types'
 import { actions, isActiveTab, selectDiff, selectWipRevision, useApp } from '../store/app'
 import type { Rect } from './menuModel'
 import { diffParts, type Part } from './syntax'
-import { diffRows, hunkLines, hunkRows, LAYOUTS, markers, selectionArgs, type DiffLayout, type DiffRow } from './diffModel'
+import { diffRows, hunkAt, hunkLines, hunkRows, LAYOUTS, markers, selectionArgs, type DiffLayout, type DiffRow } from './diffModel'
 
 const LINE = 20
 const HUNK = 28
@@ -70,26 +70,28 @@ export function DiffView({ path }: { path: string }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const rows = diff && !diff.binary && !diff.tooLarge ? diffRows(diff, layout) : []
-  const heads = hunkRows(rows)
-  const parts = rows.length ? diffParts(diff!) : []
+  // useMemo manual: o Compiler pula componente com useVirtualizer, e sem isso o parse do arquivo inteiro roda a cada frame de scroll
+  const rows = useMemo(() => (diff && !diff.binary && !diff.tooLarge ? diffRows(diff, layout) : []), [diff, layout])
+  const heads = useMemo(() => hunkRows(rows), [rows])
+  const parts = useMemo(() => (rows.length ? diffParts(diff!) : []), [diff, rows])
+  const marks = useMemo(() => (diff ? markers(diff, rows) : []), [diff, rows])
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current, overscan: 20,
     estimateSize: (i) => (rows[i]?.type === 'hunk' ? HUNK : LINE), getItemKey: (i) => rows[i]!.key })
-  if (!target || !source) return null
 
   const pickLayout = (next: DiffLayout) => { setLayout(next); try { localStorage.setItem(LAYOUT_KEY, next) } catch { /* sem storage */ } }
   const goTo = (n: number) => { if (heads[n] !== undefined) virtual.scrollToIndex(heads[n]!, { align: 'start' }); setCurrent(n) }
   const onScroll = () => {
     const at = virtual.getVirtualItemForOffset(scroller.current?.scrollTop ?? 0)?.index ?? 0
-    setCurrent(Math.max(0, heads.filter((h) => h <= at + 1).length - 1))
+    setCurrent(hunkAt(heads, at + 1))
   }
-  const stage = (lines: number[]) => {
+  // estáveis entre renders do scroll, senão toda DiffRowView desenha de novo
+  const stage = useCallback((lines: number[]) => {
     if (!diff) return
     void core.stageLines(path, file, unstage, selectionArgs(diff, new Set(lines))).then(() => {
       setSelected(new Set()); actions.wipChanged(path)
     }, actions.reportError)
-  }
-  const toggle = (i: number, e: MouseEvent) => {
+  }, [diff, path, file, unstage])
+  const toggle = useCallback((i: number, e: MouseEvent) => {
     if (!diff) return
     setSelected((old) => {
       const next = new Set(old)
@@ -101,36 +103,11 @@ export function DiffView({ path }: { path: string }) {
       return next
     })
     anchor.current = i
-  }
+  }, [diff])
+  if (!target || !source) return null
   const verb = unstage ? 'Tirar' : 'Preparar'
   const g = GLYPH[target.file.status] ?? GLYPH.M!
   const slash = file.lastIndexOf('/')
-
-  const code = (l: DiffLine, i: number) => <span className="diff-code">{(parts[i] ?? ([] as Part[])).map((p, k) => <span key={k} className={`syn-${p.c}`}>{p.t}</span>)}
-    {l.noNewline && <span className="diff-eol" title="Sem quebra de linha no fim do arquivo"><Icon name="noEol" size={12} /></span>}</span>
-  const mark = (l: DiffLine) => (l.kind === 'add' ? '+' : l.kind === 'del' ? '−' : '')
-  const gutter = (i: number, nums: (number | null)[]) => {
-    const l = diff!.lines[i]!
-    const cells = <>{nums.map((n, k) => <span key={k} className="diff-num">{n ?? ''}</span>)}<span className="diff-mark">{mark(l)}</span></>
-    if (!canStage || l.kind === 'context' || l.hunk === null) return <span className="diff-gutter">{cells}</span>
-    return <button className="diff-gutter" aria-pressed={selected.has(i)} title={`Selecionar linha (Shift seleciona um intervalo) para ${verb.toLowerCase()}`}
-      aria-label={`Selecionar linha ${l.new ?? l.old}`} onClick={(e) => toggle(i, e)}>{cells}</button>
-  }
-  const half = (i: number | null, side: 'left' | 'right') => {
-    if (i === null) return <div className={`diff-half ${side} diff-empty`} />
-    const l = diff!.lines[i]!
-    return <div className={`diff-half ${side} ${l.kind}${selected.has(i) ? ' selected' : ''}`}>{gutter(i, [side === 'left' ? l.old : l.new])}{code(l, i)}</div>
-  }
-  const row = (r: DiffRow) => {
-    if (r.type === 'hunk') {
-      const h = diff!.hunks[r.hunk]!
-      return <div className="diff-hunk"><span>{h.header}</span>
-        {canStage && <button onClick={() => stage(hunkLines(diff!, r.hunk))}>{verb} trecho</button>}</div>
-    }
-    if (r.type === 'split') return <div className="diff-split">{half(r.left, 'left')}{half(r.right, 'right')}</div>
-    const l = diff!.lines[r.line]!
-    return <div className={`diff-line ${l.kind}${selected.has(r.line) ? ' selected' : ''}`}>{gutter(r.line, [l.old, l.new])}{code(l, r.line)}</div>
-  }
 
   return <div className="diff-view" aria-label={`Diff de ${file}`}>
     <div className="diff-head">
@@ -172,7 +149,7 @@ export function DiffView({ path }: { path: string }) {
               <div className={`diff-scroll ${layout}`} ref={scroller} onScroll={onScroll} onPointerDown={selectSide}>
                 <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
                   {virtual.getVirtualItems().map((item) => <div key={item.key} className="diff-row" style={{ transform: `translateY(${item.start}px)`, height: item.size }}>
-                    {row(rows[item.index]!)}</div>)}
+                    <DiffRowView r={rows[item.index]!} diff={diff} parts={parts} selected={selected} canStage={canStage} verb={verb} onToggle={toggle} onStage={stage} /></div>)}
                 </div>
               </div>
               <div className="diff-markers" aria-hidden="true" onClick={(e) => {
@@ -180,8 +157,40 @@ export function DiffView({ path }: { path: string }) {
                 const box = e.currentTarget.getBoundingClientRect()
                 if (el) el.scrollTop = ((e.clientY - box.top) / box.height) * el.scrollHeight - el.clientHeight / 2
               }}>
-                {markers(diff, rows).map((m, k) => <div key={k} className={`diff-marker ${m.kind}`} style={{ top: `${m.top * 100}%`, height: `max(3px, ${m.height * 100}%)` }} />)}
+                {marks.map((m, k) => <div key={k} className={`diff-marker ${m.kind}`} style={{ top: `${m.top * 100}%`, height: `max(3px, ${m.height * 100}%)` }} />)}
               </div>
             </div>}
   </div>
+}
+
+interface RowProps {
+  r: DiffRow; diff: FileDiff; parts: Part[][]; selected: Set<number>; canStage: boolean; verb: string
+  onToggle: (i: number, e: MouseEvent) => void; onStage: (lines: number[]) => void
+}
+
+/** Uma linha do diff. Componente à parte para o Compiler reaproveitar as linhas que já estavam na tela durante o scroll. */
+function DiffRowView({ r, diff, parts, selected, canStage, verb, onToggle, onStage }: RowProps) {
+  const code = (l: DiffLine, i: number) => <span className="diff-code">{(parts[i] ?? ([] as Part[])).map((p, k) => <span key={k} className={`syn-${p.c}`}>{p.t}</span>)}
+    {l.noNewline && <span className="diff-eol" title="Sem quebra de linha no fim do arquivo"><Icon name="noEol" size={12} /></span>}</span>
+  const mark = (l: DiffLine) => (l.kind === 'add' ? '+' : l.kind === 'del' ? '−' : '')
+  const gutter = (i: number, nums: (number | null)[]) => {
+    const l = diff.lines[i]!
+    const cells = <>{nums.map((n, k) => <span key={k} className="diff-num">{n ?? ''}</span>)}<span className="diff-mark">{mark(l)}</span></>
+    if (!canStage || l.kind === 'context' || l.hunk === null) return <span className="diff-gutter">{cells}</span>
+    return <button className="diff-gutter" aria-pressed={selected.has(i)} title={`Selecionar linha (Shift seleciona um intervalo) para ${verb.toLowerCase()}`}
+      aria-label={`Selecionar linha ${l.new ?? l.old}`} onClick={(e) => onToggle(i, e)}>{cells}</button>
+  }
+  const half = (i: number | null, side: 'left' | 'right') => {
+    if (i === null) return <div className={`diff-half ${side} diff-empty`} />
+    const l = diff.lines[i]!
+    return <div className={`diff-half ${side} ${l.kind}${selected.has(i) ? ' selected' : ''}`}>{gutter(i, [side === 'left' ? l.old : l.new])}{code(l, i)}</div>
+  }
+  if (r.type === 'hunk') {
+    const h = diff.hunks[r.hunk]!
+    return <div className="diff-hunk"><span>{h.header}</span>
+      {canStage && <button onClick={() => onStage(hunkLines(diff, r.hunk))}>{verb} trecho</button>}</div>
+  }
+  if (r.type === 'split') return <div className="diff-split">{half(r.left, 'left')}{half(r.right, 'right')}</div>
+  const l = diff.lines[r.line]!
+  return <div className={`diff-line ${l.kind}${selected.has(r.line) ? ' selected' : ''}`}>{gutter(r.line, [l.old, l.new])}{code(l, r.line)}</div>
 }

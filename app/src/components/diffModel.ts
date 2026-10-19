@@ -48,6 +48,18 @@ export function diffRows(diff: FileDiff, layout: DiffLayout): DiffRow[] {
 /** Índices (em `rows`) dos cabeçalhos de trecho, para "Trecho 1 de 2" e anterior/próximo. */
 export const hunkRows = (rows: DiffRow[]) => rows.flatMap((r, i) => (r.type === 'hunk' ? [i] : []))
 
+/** Trecho (posição em `heads`) em que a linha `row` está; busca binária porque roda a cada evento de scroll. */
+export function hunkAt(heads: number[], row: number) {
+  let lo = 0
+  let hi = heads.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (heads[mid]! <= row) lo = mid + 1
+    else hi = mid
+  }
+  return Math.max(0, lo - 1)
+}
+
 export interface Marker { kind: 'add' | 'del'; top: number; height: number }
 
 /** Marcadores da barra de scroll: blocos seguidos do mesmo tipo, em fração da altura total. */
