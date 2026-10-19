@@ -39,6 +39,8 @@ interface AppState {
   tabs: Tab[]
   activePath: string | null
   selectedSha: string | null
+  /** Seleção/diff/conflito das abas em segundo plano, por diretório: cada aba volta como a deixou. */
+  views: Record<string, TabView>
   graphRevision: Record<string, number>
   /** Muda quando o WIP muda sem Operação (preparar, tirar, ignorar): painel WIP e diff releem. */
   wipRevision: Record<string, number>
@@ -73,6 +75,8 @@ interface AppState {
   repoPrefs: Record<string, RepoPrefs>
 }
 
+interface TabView { selectedSha: string | null; diff: DiffTarget | null; conflict: { path: string; file: string } | null }
+
 export interface DiffTarget { path: string; file: FileChange; source: DiffSource }
 
 export interface Prefs {
@@ -104,6 +108,7 @@ export const useApp = create<AppState>(() => ({
   tabs: [],
   activePath: null,
   selectedSha: null,
+  views: {},
   graphRevision: {},
   wipRevision: {},
   diff: null,
@@ -149,6 +154,13 @@ const stripUndo = (t: Toast): Toast => ({ ...t, undoPath: undefined })
 
 export function dismissToast(id: number) {
   set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
+}
+
+/** Troca a aba ativa guardando a visão da que sai e restaurando a da que entra. */
+function activate(s: AppState, path: string | null, views = s.views): Partial<AppState> {
+  if (s.activePath) views = { ...views, [norm(s.activePath)]: { selectedSha: s.selectedSha, diff: s.diff, conflict: s.conflict } }
+  const v = path ? views[norm(path)] : undefined
+  return { activePath: path, views, selectedSha: v?.selectedSha ?? null, diff: v?.diff ?? null, conflict: v?.conflict ?? null }
 }
 
 function clearPushRejected(path: string) {
@@ -244,13 +256,15 @@ export const actions = {
     void core.closeRepository(path)
     set((s) => {
       const tabs = s.tabs.filter((t) => !same(t.path, path))
-      const activePath = s.activePath && same(s.activePath, path) ? (tabs.at(-1)?.path ?? null) : s.activePath
-      return { tabs, activePath, diff: s.diff && same(s.diff.path, path) ? null : s.diff, selectedSha: activePath !== s.activePath ? null : s.selectedSha, pushPrompt: s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt } // o retry pendente era de uma aba que pode ser esta
+      const { [norm(path)]: _closed, ...views } = s.views
+      const pushPrompt = s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt // o retry pendente era de uma aba que pode ser esta
+      if (!s.activePath || !same(s.activePath, path)) return { tabs, views, pushPrompt }
+      return { tabs, pushPrompt, ...activate({ ...s, activePath: null }, tabs.at(-1)?.path ?? null, views) }
     })
   },
 
   focusTab(path: string) {
-    set({ activePath: path, selectedSha: null, diff: null, conflict: null })
+    set((s) => activate(s, path))
   },
   selectCommit(sha: string) { set((s) => ({ selectedSha: sha, diff: s.selectedSha === sha ? s.diff : null })) },
   openDiff(diff: DiffTarget) { set({ diff, conflict: null }) },
@@ -563,8 +577,7 @@ function adoptRepository(info: RepositoryInfo) {
     const tab: Tab = { path: info.path, name: info.name, head: info.head, undo: info.undo, toolbar: info.toolbar, authors }
     return {
       tabs: exists ? s.tabs.map((t) => (same(t.path, info.path) ? tab : t)) : [...s.tabs, tab],
-      activePath: info.path,
-      selectedSha: s.activePath && same(s.activePath, info.path) ? s.selectedSha : null,
+      ...(s.activePath && same(s.activePath, info.path) ? { activePath: info.path } : activate(s, info.path)),
     }
   })
 }
