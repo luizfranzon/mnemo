@@ -3,7 +3,7 @@ import { Segmented, FILE_VIEWS } from './Segmented'
 import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import type { CommitDetail, FileChange } from '../bridge/types'
-import { actions, useApp } from '../store/app'
+import { actions, selectDiff, selectSha, useApp } from '../store/app'
 import { Avatar } from './avatar'
 import { dirMenu, fileMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
@@ -39,8 +39,8 @@ function summary(files: FileChange[]) {
 }
 
 export function CommitPanel({ path }: { path: string }) {
-  const sha = useApp((s) => (s.selectedSha === 'wip' ? null : s.selectedSha))
-  const opened = useApp((s) => (s.diff?.source.kind === 'commit' ? s.diff.file.path : null))
+  const sha = useApp((s) => { const v = selectSha(path)(s); return v === 'wip' ? null : v })
+  const opened = useApp((s) => { const d = selectDiff(path)(s); return d?.source.kind === 'commit' ? d.file.path : null })
   const [detail, setDetail] = useState<CommitDetail | null>(null)
   const [draft, setDraft] = useState({ subject: '', body: '' })
   const [all, setAll] = useState(false)
@@ -88,7 +88,7 @@ export function CommitPanel({ path }: { path: string }) {
     // o hash muda (e o dos descendentes): acompanha o HEAD; um commit mais antigo deixa de existir e a seleção vai para o WIP
     const head = await core.commitDetail(path, 'HEAD', false).catch(() => null)
     const gone = await core.commitDetail(path, detail.sha, false).then(() => false, () => true)
-    if (gone) actions.selectCommit(wasHead && head ? head.sha : 'wip')
+    if (gone) actions.selectCommit(path, wasHead && head ? head.sha : 'wip')
   }
   const openDiff = (file: FileChange) => actions.openDiff({ path, file, source: { kind: 'commit', sha: detail.sha, oldPath: file.oldPath } })
   const copy = () => { void navigator.clipboard.writeText(detail.sha).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) }, () => {}) }
@@ -110,7 +110,7 @@ export function CommitPanel({ path }: { path: string }) {
         <Avatar name={detail.author} email={detail.email} />
         <div><div>{detail.author}</div><div className="muted">criou em {new Date(detail.timestamp * 1000).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div></div>
         {detail.parents.length > 0 && <div className="commit-parents"><span className="muted">{detail.parents.length > 1 ? 'pais' : 'pai'}</span>
-          <span>{detail.parents.map((p, i) => <span key={p}>{i > 0 && ' · '}<a href="#" onClick={(e) => { e.preventDefault(); actions.selectCommit(p) }}>{p.slice(0, 6)}</a></span>)}</span></div>}
+          <span>{detail.parents.map((p, i) => <span key={p}>{i > 0 && ' · '}<a href="#" onClick={(e) => { e.preventDefault(); actions.selectCommit(path, p) }}>{p.slice(0, 6)}</a></span>)}</span></div>}
       </div>
     </div>
     <div className="commit-summary">

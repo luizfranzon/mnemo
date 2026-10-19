@@ -1,3 +1,4 @@
+import { useShallow } from 'zustand/react/shallow'
 import { actions, selectActiveTab, useApp } from '../store/app'
 import { DiscardDialogs } from './DiscardDialogs'
 import { Graph } from './Graph'
@@ -13,16 +14,23 @@ import { PushRejectedBar } from './PushRejectedBar'
 
 export function Workspace() {
   const path = useApp((s) => selectActiveTab(s)?.path)
+  const tabs = useApp(useShallow((s) => s.tabs.map((t) => t.path)))
   const palette = useApp((s) => s.palette)
   return (
     <div className="workspace">
       <TabBar />
       {path && <Toolbar />}
       <PushRejectedBar />
-      {path ? (
-        <Panels key={path} path={path}>
-          <Graph key={path} path={path} />
-        </Panels>
+      {tabs.length ? (
+        <div className="tab-stack">
+          {tabs.map((p) => (
+            <div key={p} className={p === path ? 'tab-view' : 'tab-view inactive'}>
+              <Panels path={p}>
+                <Graph path={p} />
+              </Panels>
+            </div>
+          ))}
+        </div>
       ) : (
         <main className="main">
           <Empty />

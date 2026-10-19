@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { core } from '../bridge'
 import type { GraphCommit, GraphPage } from '../bridge/types'
-import { actions, firstGraphPage, GRAPH_PAGE, useApp } from '../store/app'
+import { actions, firstGraphPage, GRAPH_PAGE, isActiveTab, selectSha, useApp } from '../store/app'
 import { graphVisibility, localRef, selectVisibility, updateVisibility, useVisibility } from '../store/visibility'
 import { AuthorFilter } from './AuthorFilter'
 import { Avatar, initials, useGravatar } from './avatar'
@@ -162,7 +162,7 @@ export function Graph({ path }: { path: string }) {
   const lastSelection = useRef<string | null>(null)
   const hbar = useRef<HTMLDivElement>(null)
   const pendingSelection = useRef<string | null>(null)
-  const selectedSha = useApp((s) => s.selectedSha)
+  const selectedSha = useApp(selectSha(path))
   const revision = useApp((s) => s.graphRevision[path.replace(/\\/g, '/').toLowerCase()] ?? s.graphRevision[path.replace(/\\/g, '/')] ?? 0)
   const head = useApp((s) => s.tabs.find((t) => t.path === path)?.head)
   const vis = useVisibility(selectVisibility(path))
@@ -230,7 +230,7 @@ export function Graph({ path }: { path: string }) {
       setPage(next)
       setVersion((v) => v + 1)
       setMaxLanes(Math.max(1, ...next.commits.map((commit) => commit.laneCount)))
-      if (!useApp.getState().selectedSha && next.commits[0]) actions.selectCommit(next.commits[0].sha)
+      if (!selectSha(path)(useApp.getState()) && next.commits[0]) actions.selectCommit(path, next.commits[0].sha)
     }, (err) => { if (generation.current === current) actions.reportError(err) }).finally(() => {
       if (generation.current === current) { busy.current = false; setLoading(false); setReloading(false) }
     })
@@ -314,17 +314,17 @@ export function Graph({ path }: { path: string }) {
 
   useEffect(() => {
     const copy = (e: KeyboardEvent) => {
-      if (!selectedSha || selectedSha === 'wip' || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (!isActiveTab(path) || !selectedSha || selectedSha === 'wip' || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (!matchesShortcut('Ctrl+Shift+C', e)) return
       e.preventDefault()
       copyText(selectedSha)
     }
     window.addEventListener('keydown', copy)
     return () => window.removeEventListener('keydown', copy)
-  }, [selectedSha])
+  }, [selectedSha, path])
   useEffect(() => {
     const open = (e: KeyboardEvent) => {
-      if (!matchesShortcut('Ctrl+F', e)) return
+      if (!isActiveTab(path) || !matchesShortcut('Ctrl+F', e)) return
       e.preventDefault()
       openFind()
     }
@@ -344,24 +344,24 @@ export function Graph({ path }: { path: string }) {
   const hits = hitsFor(find?.text ?? '')
   const current = hits.findIndex((c) => c.sha === selectedSha)
   const step = (by: 1 | -1) => {
-    if (hits.length) actions.selectCommit(hits[current < 0 ? (by > 0 ? 0 : hits.length - 1) : (current + by + hits.length) % hits.length]!.sha)
+    if (hits.length) actions.selectCommit(path, hits[current < 0 ? (by > 0 ? 0 : hits.length - 1) : (current + by + hits.length) % hits.length]!.sha)
   }
   const search = (text: string) => {
     setFind({ text })
     const first = hitsFor(text)[0]
-    if (first) return actions.selectCommit(first.sha)
+    if (first) return actions.selectCommit(path, first.sha)
     // o tip da branch pode estar numa página ainda não carregada: o efeito de seleção carrega até achar
     const n = text.trim().toLocaleLowerCase()
     if (!n) return
     void core.listRefs(path).then((refs) => {
       const remotes = refs.remotes.flatMap((g) => [...g.branches, ...g.folders.flatMap((f) => f.branches)]).map((r) => ({ name: `${r.remote}/${r.name}`, sha: r.sha }))
       const tip = [...refs.local, ...remotes].find((r) => r.name.toLocaleLowerCase().includes(n))
-      if (tip) actions.selectCommit(tip.sha)
+      if (tip) actions.selectCommit(path, tip.sha)
     }, () => {})
   }
   const openMenu = async (commit: GraphCommit, e: React.MouseEvent) => {
     e.preventDefault()
-    actions.selectCommit(commit.sha)
+    actions.selectCommit(path, commit.sha)
     const anchor = { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }
     const base = await menuBase(path)
     if (!base) return
@@ -489,7 +489,7 @@ export function Graph({ path }: { path: string }) {
           const wip = item.index < top
           const selected = commit ? selectedSha === commit.sha : selectedSha === 'wip'
           return <div key={item.key} className={`graph-row graph-grid${wip && conflicts > 0 ? ' conflict' : ''}${selected ? ' selected' : ''}${commit && !matches(commit) ? ' dim' : ''}`} style={{ height: ROW, transform: `translateY(${item.start}px)`, '--lane': commit?.color ?? headColor } as CSSProperties}
-            onClick={() => actions.selectCommit(commit?.sha ?? 'wip')}
+            onClick={() => actions.selectCommit(path, commit?.sha ?? 'wip')}
             onContextMenu={(e) => { if (commit) void openMenu(commit, e) }}
             >
             {cells(commit, wip)}

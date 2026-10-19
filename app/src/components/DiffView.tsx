@@ -6,7 +6,7 @@ import { Segmented } from './Segmented'
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { core } from '../bridge'
 import type { DiffLine, DiffSource, FileDiff } from '../bridge/types'
-import { actions, selectDiff, selectWipRevision, useApp } from '../store/app'
+import { actions, isActiveTab, selectDiff, selectWipRevision, useApp } from '../store/app'
 import type { Rect } from './menuModel'
 import { diffParts, type Part } from './syntax'
 import { diffRows, hunkLines, hunkRows, LAYOUTS, markers, selectionArgs, type DiffLayout, type DiffRow } from './diffModel'
@@ -63,8 +63,8 @@ export function DiffView({ path }: { path: string }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
-      if (e.key !== 'Escape' || e.defaultPrevented || typing || document.querySelector('.menu-overlay, dialog[open], .modal')) return
-      actions.closeDiff()
+      if (!isActiveTab(path) || e.key !== 'Escape' || e.defaultPrevented || typing || document.querySelector('.menu-overlay, dialog[open], .modal')) return
+      actions.closeDiff(path)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -139,7 +139,7 @@ export function DiffView({ path }: { path: string }) {
         <span className="muted">{file.slice(0, slash + 1)}</span><span>{file.slice(slash + 1)}</span></span>
       {wip && <span className="diff-side">{unstage ? 'Preparado' : 'Não preparado'}</span>}
       {diff && !diff.binary && <span className="mono"><span className="added">+{diff.added}</span> <span className="removed">−{diff.removed}</span></span>}
-      <button className="diff-close" aria-label="Fechar diff e voltar ao grafo (Esc)" title="Fechar diff (Esc)" onClick={actions.closeDiff}>
+      <button className="diff-close" aria-label="Fechar diff e voltar ao grafo (Esc)" title="Fechar diff (Esc)" onClick={() => actions.closeDiff(path)}>
         <Icon name="close" size={14} strokeWidth={2} /></button>
     </div>
     <div className="diff-tools">

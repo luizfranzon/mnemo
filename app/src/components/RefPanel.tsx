@@ -2,7 +2,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import type { LocalRef, RefListing, RemoteRef } from '../bridge/types'
-import { actions, runningLabel, useApp } from '../store/app'
+import { actions, isActiveTab, runningLabel, useApp } from '../store/app'
 import { localRef, remoteRef, selectVisibility, toggleHidden, updateVisibility, useVisibility } from '../store/visibility'
 import type { BranchTarget } from './branchMenu'
 import { Menu } from './Menu'
@@ -124,7 +124,7 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
   }, [path, running, undo])
   useEffect(() => {
     const focus = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey && e.altKey && e.key.toLowerCase() === 'f')) return
+      if (!isActiveTab(path) || !(e.ctrlKey && e.altKey && e.key.toLowerCase() === 'f')) return
       e.preventDefault()
       if (rail) expand()
       requestAnimationFrame(() => input.current?.focus())
@@ -201,8 +201,8 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
                   title={row.type === 'remote' ? `${row.ref.remote}/${row.ref.name}` : row.type === 'local' ? row.ref.name : row.name}
                   onClick={() => {
                     setSelected(row.key)
-                    if (row.type === 'local' || row.type === 'remote') actions.selectCommit(row.ref.sha)
-                    else if (row.type === 'plain' && row.section === 'tags' && row.sha) actions.selectCommit(row.sha)
+                    if (row.type === 'local' || row.type === 'remote') actions.selectCommit(path, row.ref.sha)
+                    else if (row.type === 'plain' && row.section === 'tags' && row.sha) actions.selectCommit(path, row.sha)
                   }} onDoubleClick={() => { if (doubleClickCheckout) checkout(row) }}>
                   <span className="refs-symbol"><Icon name={row.type === 'local' && row.ref.current ? 'check' : row.type === 'plain' ? ICON[row.section] : 'branch'} /></span>
                   <span className="refs-label">{row.type === 'remote' ? row.ref.name.split('/').at(-1) : row.type === 'local' ? row.ref.name : row.name}</span>
