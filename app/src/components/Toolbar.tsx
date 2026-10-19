@@ -46,20 +46,21 @@ export function Toolbar() {
   const autoFetchError = useApp((s) => selectActiveTab(s)?.autoFetchError)
   const running = useApp((s) => (s.activePath ? runningLabel(s, s.activePath) : undefined))
   const [open, setOpen] = useState<OpenMenu | null>(null)
-  const [pending, setPending] = useState<{ path: string; control: Control; label: string } | null>(null)
+  type Pending = { control: Control; label: string }
+  const [pending, setPending] = useState<Record<string, Pending>>({})
   useEffect(() => { setOpen(null) }, [path, running])
   if (!path || !name || !head || !undo || !toolbar) return null
 
-  const local = pending?.path === path ? pending : null
+  const local = pending[path]
   const executing = running ?? local?.label
   const reason = toolbarAvailability(head, toolbar, executing)
   const branchName = head.kind === 'branch' ? head.name : `HEAD ${head.sha}`
   const mode = PULL_MODES.find((m) => m.value === toolbar.pullMode) ?? PULL_MODES[1]!
   const run = async (control: Control, label: string, action: () => Promise<unknown>) => {
     setOpen(null)
-    const task = { path, control, label }
-    setPending(task)
-    try { await action() } finally { setPending((current) => current === task ? null : current) }
+    const task = { control, label }
+    setPending((p) => ({ ...p, [path]: task }))
+    try { await action() } finally { setPending(({ [path]: cur, ...rest }) => cur === task ? rest : { ...rest, [path]: cur! }) }
   }
   const execute = (control: Control, label: string, kind: OperationKind) => void run(control, label, () => actions.execute(path, kind))
   const fetching = () => execute('fetch', 'Fazendo fetch…', { type: 'fetch', remote: null })
