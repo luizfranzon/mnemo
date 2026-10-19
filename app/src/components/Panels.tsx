@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type Poin
 import { dragWidth, loadLayout, PANEL, RAIL, saveLayout, type Layout, type Side } from './panelLayout'
 import { CommitPanel } from './CommitPanel'
 import { WipPanel } from './WipPanel'
-import { selectConflict, selectDiff, useApp } from '../store/app'
+import { isActiveTab, selectConflict, selectDiff, selectSha, useApp } from '../store/app'
 import { RefPanel } from './RefPanel'
 import { TOGGLE_PANEL } from './windowMenus'
 
@@ -10,11 +10,11 @@ import { TOGGLE_PANEL } from './windowMenus'
 const DiffView = lazy(() => import('./DiffView').then((m) => ({ default: m.DiffView })))
 const ConflictEditor = lazy(() => import('./ConflictEditor').then((m) => ({ default: m.ConflictEditor })))
 
-/** Refs · centro · painel direito. Montado por Aba (`key` = caminho): cada repo lembra suas larguras. */
+/** Refs · centro · painel direito. Uma instância por Aba (`key` = caminho), todas montadas: cada repo lembra suas larguras. */
 export function Panels({ path, children }: { path: string; children: ReactNode }) {
   const [layout, setLayout] = useState(() => loadLayout(path))
   const root = useRef<HTMLDivElement>(null)
-  const wip = useApp((s) => s.selectedSha === 'wip')
+  const wip = useApp((s) => selectSha(path)(s) === 'wip')
   // com o diff aberto o painel de refs vira rail sem mexer no layout salvo; expandir vale até o diff fechar
   const conflictOpen = useApp((s) => selectConflict(path)(s) !== null)
   const diffOpen = useApp((s) => selectDiff(path)(s) !== null) || conflictOpen
@@ -31,6 +31,7 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
 
   useEffect(() => {
     const onToggle = (e: Event) => {
+      if (!isActiveTab(path)) return
       if ((e as CustomEvent<Side>).detail === 'left') update((l) => ({ ...l, leftOpen: !l.leftOpen }))
       else update((l) => ({ ...l, rightOpen: !l.rightOpen }))
     }

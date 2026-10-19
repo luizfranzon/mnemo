@@ -3,7 +3,7 @@ import { Segmented, FILE_VIEWS } from './Segmented'
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { core } from '../bridge'
 import type { ConflictFile, FileChange, WipStatus } from '../bridge/types'
-import { actions, commitOptions, selectActiveTab, selectRepoPrefs, selectWipRevision, useApp } from '../store/app'
+import { actions, commitOptions, selectDiff, selectRepoPrefs, selectWipRevision, useApp } from '../store/app'
 import { fileRows, type TreeRow } from './fileTree'
 import { Menu } from './Menu'
 import { copyText } from './menuBase'
@@ -24,8 +24,8 @@ const point = (e: MouseEvent): Rect => ({ left: e.clientX, right: e.clientX, top
 /** Painel direito com o nó WIP selecionado: preparar, tirar, commitar; seleção múltipla e ações por pasta. */
 export function WipPanel({ path }: { path: string }) {
   const revision = useApp(selectWipRevision(path))
-  const branch = useApp((s) => { const head = selectActiveTab(s)?.head; return head?.kind === 'branch' ? head.name : 'HEAD' })
-  const opened = useApp((s) => (s.diff && s.diff.source.kind !== 'commit' ? `${s.diff.source.kind === 'staged' ? 's' : 'u'}:${s.diff.file.path}` : null))
+  const branch = useApp((s) => { const head = s.tabs.find((t) => t.path === path)?.head; return head?.kind === 'branch' ? head.name : 'HEAD' })
+  const opened = useApp((s) => { const d = selectDiff(path)(s); return d && d.source.kind !== 'commit' ? `${d.source.kind === 'staged' ? 's' : 'u'}:${d.file.path}` : null })
   const [status, setStatus] = useState<WipStatus>({ unstaged: [], staged: [] })
   const [conflicts, setConflicts] = useState<ConflictFile[]>([])
   const [view, setView] = useState<'path' | 'tree'>('path')

@@ -2,7 +2,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { core } from '../bridge'
 import type { ConflictChoice, ConflictDoc, ConflictFile, SideLabel } from '../bridge/types'
-import { actions, selectConflict, selectWipRevision, useApp } from '../store/app'
+import { actions, isActiveTab, selectConflict, selectWipRevision, useApp } from '../store/app'
 import {
   chunkStarts, conflictsOf, fileSideState, initialPicks, output, outputWithMarkers, paneRows, resultLayout, sideState, taken, toggleFileSide, toggleLine, toggleSide, unresolved,
   type Pick, type PaneRow, type Side, type State,
@@ -50,7 +50,7 @@ export function ConflictEditor({ path }: { path: string }) {
     void core.conflictList(path).then(async (list) => {
       if (!active) return
       const f = list.find((c) => c.path === file) ?? null
-      if (!f) return actions.closeConflict() // já resolvido (fora do editor ou por Continuar)
+      if (!f) return actions.closeConflict(path) // já resolvido (fora do editor ou por Continuar)
       setInfo(f)
       if (f.binary || (f.kind !== 'both' && f.kind !== 'bothAdded')) return
       const d = await core.conflictFile(path, file)
@@ -67,14 +67,14 @@ export function ConflictEditor({ path }: { path: string }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented || ask || document.querySelector('.menu-overlay, dialog[open], .modal')) return
-      actions.closeConflict()
+      if (!isActiveTab(path) || e.key !== 'Escape' || e.defaultPrevented || ask || document.querySelector('.menu-overlay, dialog[open], .modal')) return
+      actions.closeConflict(path)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [ask])
 
-  const done = () => { actions.wipChanged(path); actions.closeConflict() }
+  const done = () => { actions.wipChanged(path); actions.closeConflict(path) }
   const fail = actions.reportError
   const take = (choice: ConflictChoice) => void core.conflictTake(path, file, choice).then(done, fail)
   const save = (markers: boolean) => {
@@ -133,7 +133,7 @@ export function ConflictEditor({ path }: { path: string }) {
   return <div className="diff-view conflict-view">
     <div className="diff-head">
       <div className="diff-crumb"><span>{file}</span> <span className="diff-side">{info ? KIND[info.kind] : ''}</span></div>
-      <button className="diff-close" aria-label="Fechar editor de conflito (Esc)" title="Fechar (Esc)" onClick={actions.closeConflict}>×</button>
+      <button className="diff-close" aria-label="Fechar editor de conflito (Esc)" title="Fechar (Esc)" onClick={() => actions.closeConflict(path)}>×</button>
     </div>
     {info && !doc && <div className="conflict-choices">
       <p>{info.binary ? 'Arquivo binário: escolha uma das versões.' : `${file}: ${KIND[info.kind]}.`}</p>

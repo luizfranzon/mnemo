@@ -38,16 +38,11 @@ interface AppState {
   git: GitStatus
   tabs: Tab[]
   activePath: string | null
-  selectedSha: string | null
-  /** Seleção/diff/conflito das abas em segundo plano, por diretório: cada aba volta como a deixou. */
+  /** Seleção, diff e conflito por diretório: cada aba é isolada e volta como foi deixada. */
   views: Record<string, TabView>
   graphRevision: Record<string, number>
   /** Muda quando o WIP muda sem Operação (preparar, tirar, ignorar): painel WIP e diff releem. */
   wipRevision: Record<string, number>
-  /** Diff aberto no centro (o grafo fica montado por baixo). */
-  diff: DiffTarget | null
-  /** Editor de conflito aberto no centro (mesmo lugar do diff). */
-  conflict: { path: string; file: string } | null
   /** Operação em curso, por diretório (a toolbar mostra o texto). */
   running: Record<string, string>
   toasts: Toast[]
@@ -107,12 +102,9 @@ export const useApp = create<AppState>(() => ({
   git: { phase: 'checking' },
   tabs: [],
   activePath: null,
-  selectedSha: null,
   views: {},
   graphRevision: {},
   wipRevision: {},
-  diff: null,
-  conflict: null,
   running: {},
   toasts: [],
   update: { status: 'none' },
@@ -156,11 +148,12 @@ export function dismissToast(id: number) {
   set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
 }
 
-/** Troca a aba ativa guardando a visão da que sai e restaurando a da que entra. */
-function activate(s: AppState, path: string | null, views = s.views): Partial<AppState> {
-  if (s.activePath) views = { ...views, [norm(s.activePath)]: { selectedSha: s.selectedSha, diff: s.diff, conflict: s.conflict } }
-  const v = path ? views[norm(path)] : undefined
-  return { activePath: path, views, selectedSha: v?.selectedSha ?? null, diff: v?.diff ?? null, conflict: v?.conflict ?? null }
+const EMPTY_VIEW: TabView = { selectedSha: null, diff: null, conflict: null }
+function patchView(path: string, patch: Partial<TabView> | ((v: TabView) => Partial<TabView>)) {
+  set((s) => {
+    const v = s.views[norm(path)] ?? EMPTY_VIEW
+    return { views: { ...s.views, [norm(path)]: { ...v, ...(typeof patch === 'function' ? patch(v) : patch) } } }
+  })
 }
 
 function clearPushRejected(path: string) {
@@ -257,20 +250,19 @@ export const actions = {
     set((s) => {
       const tabs = s.tabs.filter((t) => !same(t.path, path))
       const { [norm(path)]: _closed, ...views } = s.views
-      const pushPrompt = s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt // o retry pendente era de uma aba que pode ser esta
-      if (!s.activePath || !same(s.activePath, path)) return { tabs, views, pushPrompt }
-      return { tabs, pushPrompt, ...activate({ ...s, activePath: null }, tabs.at(-1)?.path ?? null, views) }
+      const activePath = s.activePath && same(s.activePath, path) ? (tabs.at(-1)?.path ?? null) : s.activePath
+      return { tabs, views, activePath, pushPrompt: s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt } // o retry pendente era de uma aba que pode ser esta
     })
   },
 
   focusTab(path: string) {
-    set((s) => activate(s, path))
+    set({ activePath: path })
   },
-  selectCommit(sha: string) { set((s) => ({ selectedSha: sha, diff: s.selectedSha === sha ? s.diff : null })) },
-  openDiff(diff: DiffTarget) { set({ diff, conflict: null }) },
-  closeDiff() { set({ diff: null }) },
-  openConflict(path: string, file: string) { set({ conflict: { path, file }, diff: null }) },
-  closeConflict() { set({ conflict: null }) },
+  selectCommit(path: string, sha: string) { patchView(path, (v) => ({ selectedSha: sha, diff: v.selectedSha === sha ? v.diff : null })) },
+  openDiff(diff: DiffTarget) { patchView(diff.path, { diff, conflict: null }) },
+  closeDiff(path: string) { patchView(path, { diff: null }) },
+  openConflict(path: string, file: string) { patchView(path, { conflict: { path, file }, diff: null }) },
+  closeConflict(path: string) { patchView(path, { conflict: null }) },
   /** Preparar/tirar/ignorar mudaram o WIP: quem mostra o WIP relê. */
   wipChanged(path: string) { set((s) => ({ wipRevision: { ...s.wipRevision, [norm(path)]: (s.wipRevision[norm(path)] ?? 0) + 1 } })) },
   setAuthorFilter(path: string, authors: string[]) { patchTab(path, { authors }) },
@@ -577,7 +569,7 @@ function adoptRepository(info: RepositoryInfo) {
     const tab: Tab = { path: info.path, name: info.name, head: info.head, undo: info.undo, toolbar: info.toolbar, authors }
     return {
       tabs: exists ? s.tabs.map((t) => (same(t.path, info.path) ? tab : t)) : [...s.tabs, tab],
-      ...(s.activePath && same(s.activePath, info.path) ? { activePath: info.path } : activate(s, info.path)),
+      activePath: info.path,
     }
   })
 }
@@ -604,8 +596,11 @@ export const selectActiveTab = (s: AppState) => s.tabs.find((t) => s.activePath 
 export const runningLabel = (s: AppState, path: string) => s.running[norm(path)]
 export const selectWipRevision = (path: string) => (s: AppState) => (s.graphRevision[norm(path)] ?? 0) + (s.wipRevision[norm(path)] ?? 0)
 /** Diff aberto nesta Aba (o de outra Aba não aparece aqui). */
-export const selectDiff = (path: string) => (s: AppState) => (s.diff && same(s.diff.path, path) ? s.diff : null)
+/** Só a aba ativa reage a atalhos globais; as outras seguem montadas, escondidas. */
+export const isActiveTab = (path: string) => { const a = get().activePath; return !!a && same(a, path) }
+export const selectSha = (path: string) => (s: AppState) => s.views[norm(path)]?.selectedSha ?? null
+export const selectDiff = (path: string) => (s: AppState) => s.views[norm(path)]?.diff ?? null
 export const selectRepoPrefs = (path: string) => (s: AppState): RepoPrefs | undefined => s.repoPrefs[norm(path)]
 /** Opções do painel WIP com o padrão das Preferências do repositório (antes de ler o config: tudo desligado, hooks ligados). */
 export const commitOptions = (p: RepoPrefs | undefined) => ({ sign: p?.signCommits ?? false, hooks: !p?.skipHooks, pushAfter: p?.pushAfterCommit ?? false })
-export const selectConflict = (path: string) => (s: AppState) => (s.conflict && same(s.conflict.path, path) ? s.conflict : null)
+export const selectConflict = (path: string) => (s: AppState) => s.views[norm(path)]?.conflict ?? null

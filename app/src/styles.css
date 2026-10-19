@@ -31,6 +31,11 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .app { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); height: 100%; }
 .workspace { display: flex; flex-direction: column; height: 100%; }
 .main { flex: 1; min-height: 0; }
+/* Todas as abas ficam montadas e empilhadas: a inativa só some (sem display:none, que perde o scroll) */
+.tab-stack { flex: 1; min-height: 0; position: relative; }
+.tab-view { position: absolute; inset: 0; display: flex; }
+.tab-view > .panels { flex: 1; }
+.tab-view.inactive { visibility: hidden; pointer-events: none; }
 
 /* Barra de título: janela sem moldura, arrasta por aqui */
 .titlebar { position: relative; display: flex; align-items: center; gap: var(--space-1); height: var(--h-titlebar); padding-left: var(--space-3); background: var(--bg-rail); border-bottom: 1px solid var(--border-subtle); -webkit-app-region: drag; user-select: none; }
