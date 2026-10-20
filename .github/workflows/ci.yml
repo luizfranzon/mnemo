@@ -28,3 +28,34 @@ jobs:
       - run: bun run test
         working-directory: app
       - run: cargo test --workspace
+
+  # Classes de equivalência do git, uma por lado de cada mudança de comportamento:
+  # 2.43 = mais antigo que passa (abaixo disso os testes de conflito e descarte quebram); 2.47|2.48 = `fetch` passa a criar origin/HEAD;
+  # 2.54|2.55 = `add` com `:(exclude)` marca o arquivo como resolvido; 2.56 = mais novo.
+  git-compat:
+    name: Git ${{ matrix.git }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        git: ['2.43.0', '2.47.0', '2.48.0', '2.54.0', '2.55.0', '2.56.0']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/git-${{ matrix.git }}
+          key: git-${{ matrix.git }}
+      - name: Compilar git ${{ matrix.git }}
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL "https://mirrors.edge.kernel.org/pub/software/scm/git/git-${{ matrix.git }}.tar.gz" | tar xz
+          make -C "git-${{ matrix.git }}" -j"$(nproc)" prefix="$HOME/git-${{ matrix.git }}" \
+            NO_OPENSSL=1 NO_CURL=1 NO_GETTEXT=1 NO_TCLTK=1 NO_PERL=1 NO_EXPAT=1 NO_PYTHON=1 install
+      - name: Testes do núcleo com git ${{ matrix.git }}
+        run: |
+          export PATH="$HOME/git-${{ matrix.git }}/bin:$PATH"
+          test "$(git --version)" = "git version ${{ matrix.git }}"
+          cargo test -p mnemo-core
