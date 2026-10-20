@@ -24,9 +24,27 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           if gh release view "v$version" >/dev/null 2>&1; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
 
+  test:
+    name: Testes
+    needs: version
+    if: needs.version.outputs.exists == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: bun install --frozen-lockfile
+        working-directory: app
+      - run: bun run typecheck
+        working-directory: app
+      - run: bun run test
+        working-directory: app
+      - run: cargo test --workspace
+
   package:
     name: Instalador (${{ matrix.os }})
-    needs: version
+    needs: [version, test]
     if: needs.version.outputs.exists == 'false'
     strategy:
       fail-fast: true

@@ -60,8 +60,17 @@ impl Handler for RemoteHandler {
             _ => return Err(CoreError::internal("kind fora do handler")),
         };
         // refs remotas e tags ficam fora do RepoState: compara aqui para achar fetch/push sem efeito
-        let remote_refs =
-            || ctx.git.text(["for-each-ref", "--format=%(refname)%00%(objectname)", "refs/remotes", "refs/tags"]);
+        // `origin/HEAD` fica de fora: o git novo (>= 2.48) o cria no primeiro fetch, sem novidade real
+        let remote_refs = || {
+            ctx.git.text(["for-each-ref", "--format=%(refname)%00%(objectname)", "refs/remotes", "refs/tags"]).map(
+                |t| {
+                    t.lines()
+                        .filter(|l| !l.split('\0').next().is_some_and(|r| r.ends_with("/HEAD")))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                },
+            )
+        };
         let before = if matches!(kind, Push { .. } | Fetch { .. }) { remote_refs().ok() } else { None };
         match ctx.git.exec(&GitCmd::new(args).timeout(NETWORK_TIMEOUT)) {
             Err(CoreError::GitFailed { stderr, .. })
