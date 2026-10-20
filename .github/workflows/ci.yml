@@ -29,16 +29,12 @@ jobs:
         working-directory: app
       - run: cargo test --workspace
 
-  # Classes de equivalência do git, uma por lado de cada mudança de comportamento:
-  # 2.43 = mais antigo que passa (abaixo disso os testes de conflito e descarte quebram); 2.47|2.48 = `fetch` passa a criar origin/HEAD;
-  # 2.54|2.55 = `add` com `:(exclude)` marca o arquivo como resolvido; 2.56 = mais novo.
-  git-compat:
-    name: Git ${{ matrix.git }}
+  # Núcleo contra o git mais novo (compilado, o do runner é antigo). Outras versões: scripts/test-git.sh
+  git-latest:
+    name: Git mais novo
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        git: ['2.43.0', '2.47.0', '2.48.0', '2.54.0', '2.55.0', '2.56.0']
+    env:
+      GIT_VERSION: '2.56.0'
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -46,17 +42,17 @@ jobs:
       - id: cache
         uses: actions/cache@v4
         with:
-          path: ~/git-${{ matrix.git }}
-          key: git-${{ matrix.git }}
-      - name: Compilar git ${{ matrix.git }}
+          path: ~/git-${{ env.GIT_VERSION }}
+          key: git-${{ env.GIT_VERSION }}
+      - name: Compilar git ${{ env.GIT_VERSION }}
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           cd "$RUNNER_TEMP"  # fora do workspace: o git 2.55+ builda Rust e o cargo acharia o Cargo.toml do repo
-          curl -fsSL "https://mirrors.edge.kernel.org/pub/software/scm/git/git-${{ matrix.git }}.tar.gz" | tar xz
-          make -C "git-${{ matrix.git }}" -j"$(nproc)" prefix="$HOME/git-${{ matrix.git }}" \
+          curl -fsSL "https://mirrors.edge.kernel.org/pub/software/scm/git/git-${{ env.GIT_VERSION }}.tar.gz" | tar xz
+          make -C "git-${{ env.GIT_VERSION }}" -j"$(nproc)" prefix="$HOME/git-${{ env.GIT_VERSION }}" \
             NO_OPENSSL=1 NO_CURL=1 NO_GETTEXT=1 NO_TCLTK=1 NO_PERL=1 NO_EXPAT=1 NO_PYTHON=1 install
-      - name: Testes do núcleo com git ${{ matrix.git }}
+      - name: Testes do núcleo com git ${{ env.GIT_VERSION }}
         run: |
-          export PATH="$HOME/git-${{ matrix.git }}/bin:$PATH"
-          test "$(git --version)" = "git version ${{ matrix.git }}"
+          export PATH="$HOME/git-${{ env.GIT_VERSION }}/bin:$PATH"
+          test "$(git --version)" = "git version ${{ env.GIT_VERSION }}"
           cargo test -p mnemo-core
