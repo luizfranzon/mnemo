@@ -53,7 +53,7 @@ export function CommitPanel({ path }: { path: string }) {
   const scroller = useRef<HTMLDivElement>(null)
   const copyRestore = (cmd: string) => {
     copyText(cmd)
-    if (sha) void core.commitOnRemote(path, sha).then((on) => { if (!on) actions.info('Este commit só existe no seu repositório local (ainda não foi enviado ao remoto). Quem receber o comando precisa que você dê push antes.') }, () => {})
+    if (sha) void core.commitOnRemote(path, sha).then((on) => { if (!on) actions.info('Este commit só existe no seu repositório local (ainda não foi enviado ao remoto). Quem receber o comando precisa que você dê push antes.', path) }, () => {})
   }
   const openMenu = async (file: FileChange, anchor: Rect) => {
     if (!sha) return
@@ -62,7 +62,7 @@ export function CommitPanel({ path }: { path: string }) {
     const sep = path.includes('\\') ? '\\' : '/'
     setMenu({ anchor, items: fileMenu(sha, file, {
       ...base, dialog: setDialog, copyRestore, absolute: `${path.replace(/[\\/]$/, '')}${sep}${file.path.replaceAll('/', sep)}`,
-      open: (how) => void core.openFile(path, file.path, how).catch(actions.reportError),
+      open: (how) => void core.openFile(path, file.path, how).catch((err) => actions.reportError(err, path)),
     }) })
   }
   const openDirMenu = (dir: string, anchor: Rect) => { if (sha) setMenu({ anchor, items: dirMenu(sha, dir, { copyRestore }) }) }
@@ -72,7 +72,7 @@ export function CommitPanel({ path }: { path: string }) {
     void core.commitDetail(path, sha, all).then((next) => {
       if (!active) return
       setDetail(next); setCollapsed(new Set()); setDraft({ subject: next.subject, body: next.body })
-    }, (err) => { if (active) { setDetail(null); actions.reportError(err) } })
+    }, (err) => { if (active) { setDetail(null); actions.reportError(err, path) } })
     return () => { active = false }
   }, [path, sha, all])
   const rows = detail ? fileRows(sorted(detail.files, sort), view, collapsed) : []

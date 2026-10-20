@@ -59,6 +59,10 @@ impl Handler for RemoteHandler {
             }
             _ => return Err(CoreError::internal("kind fora do handler")),
         };
+        // refs remotas e tags ficam fora do RepoState: compara aqui para achar fetch/push sem efeito
+        let remote_refs =
+            || ctx.git.text(["for-each-ref", "--format=%(refname)%00%(objectname)", "refs/remotes", "refs/tags"]);
+        let before = if matches!(kind, Push { .. } | Fetch { .. }) { remote_refs().ok() } else { None };
         match ctx.git.exec(&GitCmd::new(args).timeout(NETWORK_TIMEOUT)) {
             Err(CoreError::GitFailed { stderr, .. })
                 if matches!(kind, Push { lease: None, .. }) && is_rejection(&stderr) =>
@@ -70,6 +74,9 @@ impl Handler for RemoteHandler {
             }
             other => other?,
         };
+        if before.is_some() && before == remote_refs().ok() {
+            return Ok(HandlerOutcome::NoEffect);
+        }
         Ok(HandlerOutcome::Done(UndoPlan::irreversible(REMOTE_REASON)))
     }
 }

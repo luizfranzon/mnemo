@@ -11,6 +11,7 @@ import { highlightLines, type Part } from './syntax'
 import { selectSide } from './selectSide'
 import { ResultEditor, type ResultHandle } from './ResultEditor'
 import { Icon } from './Icon'
+import { FindBar, focusFind, useFindHighlight, useFindShortcut } from './FindBar'
 
 const ROW = 20
 const SIDES = ['ours', 'theirs'] as const
@@ -39,6 +40,8 @@ export function ConflictEditor({ path }: { path: string }) {
   const [manual, setManual] = useState<string | null>(null)
   const [current, setCurrent] = useState(0)
   const [ask, setAsk] = useState(false)
+  const [find, setFind] = useState<{ text: string; at: number } | null>(null)
+  const root = useRef<HTMLDivElement>(null)
   const main = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const result = useRef<ResultHandle | null>(null)
@@ -56,7 +59,7 @@ export function ConflictEditor({ path }: { path: string }) {
       const d = await core.conflictFile(path, file)
       if (!active) return
       setDoc(d); setPicks(initialPicks(d))
-    }).catch((err) => { if (active) actions.reportError(err) })
+    }).catch((err) => { if (active) actions.reportError(err, path) })
     return () => { active = false }
   }, [path, file, revision])
 
@@ -75,7 +78,7 @@ export function ConflictEditor({ path }: { path: string }) {
   }, [ask])
 
   const done = () => { actions.wipChanged(path); actions.closeConflict(path) }
-  const fail = actions.reportError
+  const fail = (err: unknown) => actions.reportError(err, path)
   const take = (choice: ConflictChoice) => void core.conflictTake(path, file, choice).then(done, fail)
   const save = (markers: boolean) => {
     if (!doc) return
@@ -93,6 +96,18 @@ export function ConflictEditor({ path }: { path: string }) {
   const autoCount = chunks.filter((c) => c.auto).length
   const locked = manual !== null
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current, overscan: 20, estimateSize: () => ROW })
+  const findRows = (needle: string) => (needle ? rows.flatMap((r, k) => (SIDES.some((s) => r[s]?.text.toLocaleLowerCase().includes(needle)) ? [k] : [])) : [])
+  const needle = find?.text.trim().toLocaleLowerCase() ?? ''
+  const hits = useMemo(() => findRows(needle), [rows, needle])
+  const hit = find && hits.length ? hits[Math.min(find.at, hits.length - 1)] : undefined
+  useFindHighlight(scroller, needle)
+  useFindShortcut(path, () => { setFind((f) => f ?? { text: '', at: 0 }); focusFind(root) })
+  const seek = (text: string, at: number) => {
+    const all = findRows(text.trim().toLocaleLowerCase())
+    const next = all.length ? (at + all.length) % all.length : 0
+    setFind({ text, at: next })
+    if (all.length) virtual.scrollToIndex(all[next]!, { align: 'center' })
+  }
   const goto = (n: number) => {
     const next = Math.min(Math.max(n, 0), chunks.length - 1)
     setCurrent(next)
@@ -117,7 +132,9 @@ export function ConflictEditor({ path }: { path: string }) {
     handle.addEventListener('lostpointercapture', () => { handle.removeEventListener('pointermove', onMove); handle.classList.remove('dragging') }, { once: true })
   }
 
-  return <div className="diff-view conflict-view">
+  return <div className="diff-view conflict-view" ref={root}>
+    {find && <FindBar text={find.text} label="Buscar no conflito" count={needle ? `${hits.length ? Math.min(find.at, hits.length - 1) + 1 : 0}/${hits.length}` : ''}
+      disabled={!hits.length} onText={(t) => seek(t, 0)} onStep={(by) => seek(find.text, find.at + by)} onClose={() => setFind(null)} />}
     <div className="diff-head">
       <div className="diff-crumb"><span>{file}</span> <span className="diff-side">{info ? KIND[info.kind] : ''}</span></div>
       <button className="diff-close" aria-label="Fechar editor de conflito (Esc)" title="Fechar (Esc)" onClick={() => actions.closeConflict(path)}>×</button>
@@ -144,7 +161,7 @@ export function ConflictEditor({ path }: { path: string }) {
           <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
             {virtual.getVirtualItems().map((item) => {
               const r = rows[item.index]!
-              return <div key={item.key} className="diff-row" style={{ transform: `translateY(${item.start}px)`, height: item.size }}>
+              return <div key={item.key} className={item.index === hit ? 'diff-row find-current' : 'diff-row'} style={{ transform: `translateY(${item.start}px)`, height: item.size }}>
                 <ConflictRowView r={r} parts={parts} picks={picks} chunks={chunks} locked={locked} onChange={change} />
               </div>
             })}

@@ -48,12 +48,12 @@ export function WipPanel({ path }: { path: string }) {
 
   useEffect(() => {
     let active = true
-    void core.wipStatus(path).then((next) => active && setStatus(next), (err) => active && actions.reportError(err))
-    void core.conflictList(path).then((next) => active && setConflicts(next), (err) => active && actions.reportError(err))
+    void core.wipStatus(path).then((next) => active && setStatus(next), (err) => active && actions.reportError(err, path))
+    void core.conflictList(path).then((next) => active && setConflicts(next), (err) => active && actions.reportError(err, path))
     return () => { active = false }
   }, [path, revision])
 
-  const stage = (paths: string[], on: boolean) => void core.stage(path, paths, on).then(() => actions.wipChanged(path), actions.reportError)
+  const stage = (paths: string[], on: boolean) => void core.stage(path, paths, on).then(() => actions.wipChanged(path), (err) => actions.reportError(err, path))
   const { unstaged, staged } = status
   const rows: Row[] = [
     { type: 'head', key: 'h:u', staged: false, count: unstaged.length },
@@ -71,7 +71,7 @@ export function WipPanel({ path }: { path: string }) {
   const openDiff = (file: FileChange, isStaged: boolean) => actions.openDiff({ path, file, source: { kind: isStaged ? 'staged' : 'unstaged' } })
   const ctx = (isStaged: boolean): WipMenuContext => ({
     stage, discard: (paths) => void actions.requestDiscard(path, paths), stash: setStashAsk, copy: copyText,
-    ignore: (pattern) => void core.ignore(path, pattern).then(() => actions.wipChanged(path), actions.reportError),
+    ignore: (pattern) => void core.ignore(path, pattern).then(() => actions.wipChanged(path), (err) => actions.reportError(err, path)),
     openDiff: (file) => openDiff(file, isStaged),
   })
   const clickFile = (row: Extract<Row, { type: 'file' }>, e: MouseEvent) => {
@@ -120,7 +120,7 @@ export function WipPanel({ path }: { path: string }) {
     core.commitDetail(path, 'HEAD', false).then((c) => {
       loaded.current = { summary: c.subject, description: c.body.trim() }
       setSummary(loaded.current.summary); setDescription(loaded.current.description)
-    }, actions.reportError)
+    }, (err) => actions.reportError(err, path))
   }
   const stash = () => {
     if (busy) return

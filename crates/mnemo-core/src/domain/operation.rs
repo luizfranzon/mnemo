@@ -1,4 +1,4 @@
-use super::repo_state::RepoState;
+use super::repo_state::{short_sha, RepoState};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -206,6 +206,30 @@ impl OperationKind {
             Reword { .. } => "editar mensagem".into(),
             RestoreFile { commit, path } => format!("restaurar {path} de {}", commit.get(..7).unwrap_or(commit)),
             DeleteFile { path } => format!("excluir {path}"),
+        }
+    }
+
+    /// Por que a Operação terminou sem efeito; `branch` é a branch do HEAD antes dela.
+    pub fn no_effect(&self, branch: Option<&str>) -> String {
+        use OperationKind::*;
+        let current = branch.unwrap_or("HEAD");
+        // alvo vindo de um commit do grafo chega como SHA completo
+        let short = |t: &str| {
+            if t.len() == 40 && t.bytes().all(|b| b.is_ascii_hexdigit()) {
+                short_sha(t).to_string()
+            } else {
+                t.to_string()
+            }
+        };
+        match self {
+            Merge { target } => format!("{current} já contém {}", short(target)),
+            Rebase { onto } => format!("{current} já está sobre {}", short(onto)),
+            Pull { .. } => format!("{current} já está em dia com o remoto"),
+            Fetch { .. } => "Nada novo no remoto".into(),
+            Push { branch, .. } => format!("O remoto já está em dia com {}", branch.as_deref().unwrap_or(current)),
+            Checkout { target } => format!("Você já está em {}", short(target)),
+            Reset { target, .. } => format!("{current} já está em {}", short(target)),
+            _ => format!("Nada mudou: {}", self.label()),
         }
     }
 

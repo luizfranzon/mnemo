@@ -3,6 +3,7 @@ import { core, errorCode, errorMessage } from '../bridge'
 import type { DiffSource, DiscardPreview, FileChange, ForcePushPreview, GraphPage, ResetPreview, HeadInfo, OperationKind, PullMode, RepoPrefs, RepositoryInfo, ToolbarInfo, UndoRedoState, UpdateState } from '../bridge/types'
 import { toolbarAvailability } from '../components/toolbarModel'
 import { graphVisibility, selectVisibility, useVisibility } from './visibility'
+import { tabLabel } from './tabLabel'
 
 export interface Tab {
   /** Diretório de trabalho: a identidade da Aba (o mesmo diretório nunca abre duas vezes). */
@@ -19,6 +20,8 @@ export interface Tab {
 
 export interface Toast {
   id: number
+  /** Nome da aba de onde veio; toast global (preferências, atualização) não tem. */
+  title?: string
   text: string
   /** Mostra o botão "Desfazer" (Operação desfazível). */
   undoPath?: string
@@ -135,10 +138,14 @@ function patchTab(path: string, patch: Partial<Tab>) {
   set((s) => ({ tabs: s.tabs.map((t) => (same(t.path, path) ? { ...t, ...patch } : t)) }))
 }
 
-function pushToast(toast: Omit<Toast, 'id'>) {
+/** `path`: a aba de onde o toast veio, que vira o título (fixado agora: sobrevive à aba fechar). */
+function pushToast({ path, ...toast }: Omit<Toast, 'id' | 'title'> & { path?: string }) {
   const id = ++toastSeq
+  const tabs = get().tabs
+  const tab = path === undefined ? undefined : tabs.find((t) => same(t.path, path))
+  const title = tab && tabLabel(tabs, tab.path)
   // O "Desfazer" do toast age na última Operação: toasts antigos perdem o botão.
-  set((s) => ({ toasts: [...s.toasts.map(stripUndo), { ...toast, id }] }))
+  set((s) => ({ toasts: [...s.toasts.map(stripUndo), { ...toast, title, id }] }))
   setTimeout(() => dismissToast(id), toast.error ? 12000 : 6000)
 }
 
@@ -160,13 +167,13 @@ function clearPushRejected(path: string) {
   if (get().pushRejected && same(get().pushRejected!.path, path)) set({ pushRejected: null })
 }
 
-function fail(err: unknown, retry?: () => Promise<void>) {
+function fail(err: unknown, path?: string, retry?: () => Promise<void>) {
   const text = errorMessage(err)
-  pushToast({ text: text.length > 300 ? `${text.slice(0, 300)}…` : text, error: true, retry: errorCode(err) === 'indexLocked' ? retry : undefined })
+  pushToast({ path, text: text.length > 300 ? `${text.slice(0, 300)}…` : text, error: true, retry: errorCode(err) === 'indexLocked' ? retry : undefined })
 }
 
 export const actions = {
-  reportError(err: unknown) { fail(err) },
+  reportError(err: unknown, path?: string) { fail(err, path) },
   async refreshUpdate() { set({ update: await core.updateState().catch(() => ({ status: 'none' as const })) }) },
   /** Clique na versão: checa na hora; sem novidade, avisa. */
   async checkUpdate() {
@@ -180,7 +187,7 @@ export const actions = {
     if (Object.keys(get().running).length > 0) return pushToast({ text: 'Aguarde a Operação terminar para reiniciar e atualizar', info: true })
     void core.updateInstall()
   },
-  info(text: string) { pushToast({ text, info: true }) },
+  info(text: string, path?: string) { pushToast({ path, text, info: true }) },
   async checkoutRef(path: string, kind: Extract<OperationKind, { type: 'checkout' | 'checkoutRemote' }>, behind = 0) {
     const target = kind.type === 'checkout' ? kind.target : kind.branch
     const remote = kind.type === 'checkoutRemote' ? kind.remote : null
@@ -190,11 +197,11 @@ export const actions = {
         set({ checkoutPrompt: { path, target, remote, conflicts, behind } })
         return
       }
-    } catch (err) { fail(err); return }
+    } catch (err) { fail(err, path); return }
     const executed = await actions.execute(path, kind)
     const head = get().tabs.find((tab) => same(tab.path, path))?.head
     if (behind > 0 && head?.kind === 'branch' && head.name === target && executed)
-      pushToast({ text: `${target} está ${behind} commit(s) atrás do remoto`, pullPath: path })
+      pushToast({ path, text: `${target} está ${behind} commit(s) atrás do remoto`, pullPath: path })
   },
   async confirmCheckout(mode: 'stash' | 'carry') {
     const prompt = get().checkoutPrompt
@@ -203,7 +210,7 @@ export const actions = {
     const executed = await actions.execute(prompt.path, { type: 'checkoutWithChanges', target: prompt.target, remote: prompt.remote, mode })
     const head = get().tabs.find((tab) => same(tab.path, prompt.path))?.head
     if (prompt.behind > 0 && head?.kind === 'branch' && head.name === prompt.target && executed)
-      pushToast({ text: `${prompt.target} está ${prompt.behind} commit(s) atrás do remoto`, pullPath: prompt.path })
+      pushToast({ path: prompt.path, text: `${prompt.target} está ${prompt.behind} commit(s) atrás do remoto`, pullPath: prompt.path })
   },
   cancelCheckout() { set({ checkoutPrompt: null }) },
   async pullNow(path: string) {
@@ -273,14 +280,15 @@ export const actions = {
       const r = await core.execute(path, kind.type === 'fetch' ? { ...kind, prune: get().prefs.prune } : kind)
       patchTab(path, { undo: r.state })
       await refreshHead(path)
-      if (r.status === 'conflict') pushToast({ text: `${r.progress} parou em conflito` })
+      if (r.status === 'conflict') pushToast({ path, text: `${r.progress} parou em conflito` })
+      else if (r.noEffect !== null) pushToast({ path, text: r.noEffect, info: true })
       else if (r.opId !== null) {
         const tracking = kind.type === 'checkoutRemote' ? { branch: kind.branch, remote: kind.remote }
           : kind.type === 'checkoutWithChanges' && kind.remote ? { branch: kind.target, remote: kind.remote } : null
-        pushToast({ text: tracking ? `criada ${tracking.branch} rastreando ${tracking.remote}/${tracking.branch}` : capitalize(r.label),
+        pushToast({ path, text: tracking ? `criada ${tracking.branch} rastreando ${tracking.remote}/${tracking.branch}` : capitalize(r.label),
           undoPath: r.undoable ? path : undefined })
       }
-      r.status === 'completed' && r.warnings.forEach((w) => pushToast({ text: w }))
+      r.status === 'completed' && r.warnings.forEach((w) => pushToast({ path, text: w }))
       if (kind.type === 'push' || kind.type === 'pull') clearPushRejected(path)
       return true
     } catch (err) {
@@ -289,7 +297,7 @@ export const actions = {
         set({ pushRejected: { path, branch, upstream } })
         return false
       }
-      fail(err, async () => void (await actions.execute(path, kind)))
+      fail(err, path, async () => void (await actions.execute(path, kind)))
       return false
     }
   },
@@ -297,14 +305,14 @@ export const actions = {
   async setPullMode(path: string, mode: PullMode) {
     try {
       patchTab(path, { toolbar: await core.setPullMode(path, mode) })
-    } catch (err) { fail(err) }
+    } catch (err) { fail(err, path) }
   },
 
   async requestPush(path: string) {
     const tab = get().tabs.find((t) => same(t.path, path))
     if (!tab || tab.head.kind !== 'branch') return
     const reason = toolbarAvailability(tab.head, tab.toolbar, runningLabel(get(), path)).push
-    if (reason) return fail(new Error(reason))
+    if (reason) return fail(new Error(reason), path)
     if (tab.head.upstream !== null) {
       return actions.execute(path, { type: 'push', remote: null, branch: null, setUpstream: false })
     }
@@ -321,7 +329,7 @@ export const actions = {
     const tab = get().tabs.find((t) => same(t.path, prompt.path))
     if (!tab || tab.head.kind !== 'branch' || tab.head.name !== prompt.branch) return
     const reason = toolbarAvailability(tab.head, tab.toolbar, runningLabel(get(), prompt.path)).push
-    if (reason) return fail(new Error(reason))
+    if (reason) return fail(new Error(reason), prompt.path)
     await actions.execute(prompt.path, { type: 'push', remote, branch: prompt.branch, setUpstream: true })
   },
 
@@ -335,13 +343,13 @@ export const actions = {
   async pullAfterRejection(path: string) {
     if (!(await actions.execute(path, { type: 'pull', strategy: 'merge' }))) return
     const progress = get().tabs.find((t) => same(t.path, path))?.toolbar.progress
-    if (!progress) pushToast({ text: 'Pull concluído. Faça o push de novo.' })
+    if (!progress) pushToast({ path, text: 'Pull concluído. Faça o push de novo.' })
   },
 
   async requestForcePush(path: string) {
     try {
       set({ forcePrompt: { path, preview: await core.pushForcePreview(path) } })
-    } catch (err) { fail(err) }
+    } catch (err) { fail(err, path) }
   },
 
   async confirmForcePush() {
@@ -363,7 +371,7 @@ export const actions = {
       }
       await refreshHead(path)
       return true
-    } catch (err) { fail(err); return false }
+    } catch (err) { fail(err, path); return false }
   },
 
   async undo(path: string) {
@@ -377,10 +385,10 @@ export const actions = {
   async requestDiscard(path: string, paths: string[]) {
     try {
       const preview = await core.discardPreview(path, paths)
-      if (preview.trackedChanges + preview.untrackedFiles === 0) return pushToast({ text: 'Não há mudanças para descartar' })
+      if (preview.trackedChanges + preview.untrackedFiles === 0) return pushToast({ path, text: 'Não há mudanças para descartar' })
       set({ discardPrompt: { path, paths, preview } })
     } catch (err) {
-      fail(err)
+      fail(err, path)
     }
   },
 
@@ -398,7 +406,7 @@ export const actions = {
     try {
       set({ resetPrompt: { path, target, preview: await core.resetPreview(path, target) } })
     } catch (err) {
-      fail(err)
+      fail(err, path)
     }
   },
 
@@ -418,9 +426,9 @@ export const actions = {
     if (!c) return
     try {
       const copies = await core.restoreDiscardAsCopies(c.path, c.opId)
-      pushToast({ text: `${copies.length} arquivo(s) restaurado(s) como cópia ao lado (.mnemo-restaurado)` })
+      pushToast({ path: c.path, text: `${copies.length} arquivo(s) restaurado(s) como cópia ao lado (.mnemo-restaurado)` })
     } catch (err) {
-      fail(err)
+      fail(err, c.path)
     }
   },
 
@@ -443,15 +451,15 @@ export const actions = {
     try {
       const prefs = await core.repoPrefs(path)
       set((s) => ({ repoPrefs: { ...s.repoPrefs, [norm(path)]: prefs } }))
-    } catch (err) { fail(err) }
+    } catch (err) { fail(err, path) }
   },
 
   async setRepoPref(path: string, key: keyof RepoPrefs, value: boolean) {
     try {
       const prefs = await core.setRepoPref(path, key, value)
       set((s) => ({ repoPrefs: { ...s.repoPrefs, [norm(path)]: prefs } }))
-      pushToast({ text: 'Preferências salvas' })
-    } catch (err) { fail(err) }
+      pushToast({ path, text: 'Preferências salvas' })
+    } catch (err) { fail(err, path) }
   },
 
   setPalette(palette: PaletteMode | null, start: string | null = null) {
@@ -476,15 +484,15 @@ export const actions = {
   async runMaintenance(path: string) {
     try {
       await core.maintenance(path)
-      pushToast({ text: 'Manutenção concluída' })
-    } catch (err) { fail(err, () => actions.runMaintenance(path)) }
+      pushToast({ path, text: 'Manutenção concluída' })
+    } catch (err) { fail(err, path, () => actions.runMaintenance(path)) }
   },
 
   /** Janela voltou ao foco: relê todas as abas, que podem ter mudado fora (VS Code, terminal). */
   async refreshAll() {
     await Promise.all(get().tabs.map(async ({ path }) => {
       const r = await core.refreshExternal(path).catch(() => null)
-      if (r?.status === 'completed' && r.opId !== null) pushToast({ text: capitalize(r.label), undoPath: r.undoable ? path : undefined })
+      if (r?.status === 'completed' && r.opId !== null) pushToast({ path, text: capitalize(r.label), undoPath: r.undoable ? path : undefined })
       set((s) => ({ graphRevision: { ...s.graphRevision, [norm(path)]: (s.graphRevision[norm(path)] ?? 0) + 1 } }))
       await refreshHead(path).catch(() => undefined)
     }))
@@ -518,7 +526,7 @@ async function stepHistory(path: string, fn: (p: string) => Promise<UndoRedoStat
       set({ restoreConflict: { path, opId: c.op_id!, paths: c.paths ?? [] } })
       return
     }
-    fail(err, () => stepHistory(path, fn))
+    fail(err, path, () => stepHistory(path, fn))
     // a Mudança externa corta o histórico: relê o estado para o botão refletir o motivo
     await core.syncExternal(path).then((undo) => patchTab(path, { undo }), () => undefined)
   }

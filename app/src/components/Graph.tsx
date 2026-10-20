@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { core } from '../bridge'
 import type { GraphCommit, GraphPage } from '../bridge/types'
-import { actions, firstGraphPage, GRAPH_PAGE, isActiveTab, selectSha, useApp } from '../store/app'
+import { actions, firstGraphPage, GRAPH_PAGE, isActiveTab, selectConflict, selectDiff, selectSha, useApp } from '../store/app'
+import { FindBar, focusFind, useFindShortcut } from './FindBar'
 import { graphVisibility, localRef, selectVisibility, updateVisibility, useVisibility } from '../store/visibility'
 import { AuthorFilter } from './AuthorFilter'
 import { Avatar, initials, useGravatar } from './avatar'
@@ -233,7 +234,7 @@ export function Graph({ path }: { path: string }) {
       setVersion((v) => v + 1)
       setMaxLanes(Math.max(1, ...next.commits.map((commit) => commit.laneCount)))
       if (!selectSha(path)(useApp.getState()) && next.commits[0]) actions.selectCommit(path, next.commits[0].sha)
-    }, (err) => { if (generation.current === current) actions.reportError(err) }).finally(() => {
+    }, (err) => { if (generation.current === current) actions.reportError(err, path) }).finally(() => {
       if (generation.current === current) { busy.current = false; setLoading(false); setReloading(false) }
     })
     return () => { generation.current++ }
@@ -251,7 +252,7 @@ export function Graph({ path }: { path: string }) {
       pageRef.current = merged
       setPage(merged)
       setMaxLanes((lanes) => Math.max(lanes, ...next.commits.map((commit) => commit.laneCount)))
-    }, (err) => { if (generation.current === current) actions.reportError(err) }).finally(() => {
+    }, (err) => { if (generation.current === current) actions.reportError(err, path) }).finally(() => {
       if (generation.current === current) { busy.current = false; setLoading(false) }
     })
   }
@@ -324,15 +325,8 @@ export function Graph({ path }: { path: string }) {
     window.addEventListener('keydown', copy)
     return () => window.removeEventListener('keydown', copy)
   }, [selectedSha, path])
-  useEffect(() => {
-    const open = (e: KeyboardEvent) => {
-      if (!isActiveTab(path) || !matchesShortcut('Ctrl+F', e)) return
-      e.preventDefault()
-      openFind()
-    }
-    window.addEventListener('keydown', open)
-    return () => window.removeEventListener('keydown', open)
-  }, [])
+  // com diff ou conflito aberto, o Ctrl+F é deles
+  useFindShortcut(path, () => openFind(), () => !!(selectDiff(path)(useApp.getState()) || selectConflict(path)(useApp.getState())))
   const hasText = (c: GraphCommit, needle: string) => `${c.subject}\n${c.description}\n${c.sha}\n${c.refs.map((r) => r.name).join('\n')}`.toLocaleLowerCase().includes(needle)
   const byAuthor = (c: GraphCommit) => !authors?.length || authors.includes(c.email.toLowerCase())
   const needle = find?.text.trim().toLocaleLowerCase() ?? ''
@@ -377,7 +371,7 @@ export function Graph({ path }: { path: string }) {
   /** Ctrl+F com a busca aberta só devolve o foco e seleciona o texto, como no navegador. */
   function openFind() {
     setFind((f) => f ?? { text: '' })
-    requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>('.graph-filter input')?.select())
+    focusFind(root)
   }
   const branchActions = useBranchActions(path)
   /** Resolve a pill na ref completa (a lista de refs traz upstream e se a local existe) antes de agir. */
@@ -454,16 +448,8 @@ export function Graph({ path }: { path: string }) {
         <button className="graph-pop-reset" onClick={() => update(() => DEFAULT_LAYOUT)}>Restaurar padrão</button>
       </div>
     </>}
-    {find && <div className="graph-filter" role="search" onKeyDown={(e) => {
-      if (e.key === 'Escape') setFind(null)
-      else if (e.key === 'Enter') { e.preventDefault(); step(e.shiftKey ? -1 : 1) }
-    }}>
-      <input value={find.text} onChange={(e) => search(e.target.value)} placeholder="Buscar branch, mensagem ou SHA…" aria-label="Buscar branch, mensagem ou SHA" />
-      <span className="graph-filter-count" aria-live="polite">{needle ? `${current + 1}/${hits.length}${page?.next ? '+' : ''}` : ''}</span>
-      <button className="up" aria-label="Ocorrência anterior" title="Anterior (Shift+Enter)" disabled={!hits.length} onClick={() => step(-1)}><Icon name="chevron" size={14} /></button>
-      <button className="down" aria-label="Próxima ocorrência" title="Próxima (Enter)" disabled={!hits.length} onClick={() => step(1)}><Icon name="chevron" size={14} /></button>
-      <button aria-label="Fechar busca" onClick={() => setFind(null)}><Icon name="close" size={14} /></button>
-    </div>}
+    {find && <FindBar text={find.text} label="Buscar branch, mensagem ou SHA" count={needle ? `${current + 1}/${hits.length}${page?.next ? '+' : ''}` : ''}
+      disabled={!hits.length} onText={search} onStep={step} onClose={() => setFind(null)} />}
     <div className="graph-header graph-grid">
       <button className="graph-gear" aria-label="Colunas do grafo" title="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)}><Icon name="sliders" size={15} /></button>
       {cols.map((id) => <div key={id} className="graph-hcell">

@@ -35,6 +35,8 @@ pub enum ExecuteResult {
         /// `None` quando nada mudou e nada foi registrado (ex.: merge já atualizado).
         op_id: Option<u64>,
         label: String,
+        /// Operação sem efeito disparada pelo usuário: por que nada mudou.
+        no_effect: Option<String>,
         undoable: bool,
         warnings: Vec<String>,
         state: UndoRedoState,
@@ -255,6 +257,7 @@ impl RepoSession {
                 None => Ok(ExecuteResult::Completed {
                     op_id: None,
                     label: kind.name().to_lowercase(),
+                    no_effect: None,
                     undoable: false,
                     warnings: vec![],
                     state: self.undo_state(),
@@ -320,6 +323,7 @@ impl RepoSession {
                 let after = self.git.capture_state(kind.tracks_index())?;
                 self.record(op_id, kind, before, after, plan, warnings)
             }
+            HandlerOutcome::NoEffect => Ok(self.no_effect(op_id, &kind, &before, warnings)),
             HandlerOutcome::Conflict { kind: progress, plan } => {
                 let label = kind.label();
                 let merge_head =
@@ -346,14 +350,7 @@ impl RepoSession {
         let label = kind.label();
         let unchanged = plan.refs.is_some() && plan.wip.is_none() && plan.stash.is_none() && before.same_refs(&after);
         if unchanged {
-            self.git.delete_pinned(id);
-            return Ok(ExecuteResult::Completed {
-                op_id: None,
-                label,
-                undoable: false,
-                warnings,
-                state: self.undo_state(),
-            });
+            return Ok(self.no_effect(id, &kind, &before, warnings));
         }
         let undoable = plan.irreversible.is_none();
         let op = Operation { id, kind, label: label.clone(), at_ms: now_ms(), before, after, plan };
@@ -365,7 +362,26 @@ impl RepoSession {
             dropped
         };
         self.release(&dropped);
-        Ok(ExecuteResult::Completed { op_id: Some(id), label, undoable, warnings, state: self.undo_state() })
+        Ok(ExecuteResult::Completed {
+            op_id: Some(id),
+            label,
+            no_effect: None,
+            undoable,
+            warnings,
+            state: self.undo_state(),
+        })
+    }
+
+    fn no_effect(&self, id: u64, kind: &OperationKind, before: &RepoState, warnings: Vec<String>) -> ExecuteResult {
+        self.git.delete_pinned(id);
+        ExecuteResult::Completed {
+            op_id: None,
+            label: kind.label(),
+            no_effect: Some(kind.no_effect(before.branch_name())),
+            undoable: false,
+            warnings,
+            state: self.undo_state(),
+        }
     }
 
     fn step(&self, dir: Direction) -> Result<UndoRedoState> {

@@ -7,7 +7,7 @@ Git client desktop visual, local. Mostra o histórico como grafo e executa açõ
 ### Janela
 
 **Aba**:
-Um diretório de trabalho aberto: o repositório principal ou um worktree. O mesmo diretório nunca fica aberto em duas abas, e abrir um worktree abre uma aba nova ou foca a que já existe. A única mudança de diretório permitida é entrar num submódulo e voltar ao pai. Cada nível (repositório e cada submódulo) tem HEAD, WIP e Histórico de Operações próprios, e a aba mostra o nível em que está.
+Um diretório de trabalho aberto: o repositório principal ou um worktree. O mesmo diretório nunca fica aberto em duas abas, e abrir um worktree abre uma aba nova ou foca a que já existe. A única mudança de diretório permitida é entrar num submódulo e voltar ao pai. Cada nível (repositório e cada submódulo) tem HEAD, WIP e Histórico de Operações próprios, e a aba mostra o nível em que está. O nome da aba é o da pasta; se duas abas abertas têm o mesmo nome, ambas ganham o menor trecho do caminho pai que as diferencia (`MobileCore — projects`).
 _Avoid_: janela, projeto
 
 **Favorito**:
@@ -78,6 +78,10 @@ _Avoid_: conta, usuário
 **Operação**:
 Uma ação git disparada pelo Mnemo (checkout, commit, reset, descartar…). Ela guarda o estado anterior dos refs e sabe como se inverter. Cada repositório roda uma Operação por vez. Preparar e tirar arquivos do stage não são Operações. Um merge ou rebase parado em conflito ainda não é uma Operação: ele só entra no Histórico quando é concluído (e aí se desfaz inteiro) ou abortado. Um merge (inclusive o de um pull) concluído fora do Mnemo entra no Histórico do mesmo jeito, desde que o resultado seja exatamente aquele merge; se não for, ou se for rebase, cherry-pick ou revert concluído fora, é Mudança externa.
 _Avoid_: comando, ação git (no código)
+
+**Operação sem efeito**:
+Operação que termina sem mudar refs, WIP nem stash (merge de branch já contida, checkout da branch atual, fetch ou push sem novidade). Não entra no Histórico. Quando o usuário a disparou, o Mnemo diz por que nada mudou; mudança externa e fetch automático sem efeito ficam em silêncio.
+_Avoid_: no-op, nada a fazer
 
 **Desfazer**:
 Inverter a última Operação desfazível do repositório. Operações de refs feitas antes de uma Mudança externa não podem mais ser desfeitas. Desfazer não existe para Operações que mexem no remoto (push, fetch, excluir remota). Descartar mudanças do WIP também é desfazível. Desfazer um pull volta só a branch local; as refs remotas ficam como o fetch deixou.

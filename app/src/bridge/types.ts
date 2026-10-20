@@ -99,7 +99,7 @@ export type OperationKind =
   | { type: 'deleteFile'; path: string }
 
 export type ExecuteResult =
-  | { status: 'completed'; opId: number | null; label: string; undoable: boolean; warnings: string[]; state: UndoRedoState }
+  | { status: 'completed'; opId: number | null; label: string; /** Operação sem efeito: por que nada mudou. */ noEffect: string | null; undoable: boolean; warnings: string[]; state: UndoRedoState }
   | { status: 'conflict'; label: string; progress: string; state: UndoRedoState }
 
 /** Atualização do app pelo GitHub Releases (vem do processo main, não do core). */

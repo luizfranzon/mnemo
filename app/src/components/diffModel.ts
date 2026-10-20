@@ -48,6 +48,13 @@ export function diffRows(diff: FileDiff, layout: DiffLayout): DiffRow[] {
 /** Índices (em `rows`) dos cabeçalhos de trecho, para "Trecho 1 de 2" e anterior/próximo. */
 export const hunkRows = (rows: DiffRow[]) => rows.flatMap((r, i) => (r.type === 'hunk' ? [i] : []))
 
+/** Linhas (índice em `rows`) com `needle` (já minúsculo) em algum lado; cabeçalho de trecho não conta. */
+export function findRows(diff: FileDiff, rows: DiffRow[], needle: string) {
+  if (!needle) return []
+  const has = (i: number | null) => i !== null && diff.lines[i]!.text.toLocaleLowerCase().includes(needle)
+  return rows.flatMap((r, k) => ((r.type === 'line' ? has(r.line) : r.type === 'split' && (has(r.left) || has(r.right))) ? [k] : []))
+}
+
 /** Trecho (posição em `heads`) em que a linha `row` está; busca binária porque roda a cada evento de scroll. */
 export function hunkAt(heads: number[], row: number) {
   let lo = 0

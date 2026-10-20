@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { DiffLine, FileDiff } from '../bridge/types'
-import { diffRows, highlight, hunkAt, markers, selectionArgs } from './diffModel'
+import { diffRows, findRows, highlight, hunkAt, markers, selectionArgs } from './diffModel'
 
 const line = (kind: DiffLine['kind'], text: string, hunk: number | null = 0): DiffLine =>
   ({ kind, text, old: kind === 'add' ? null : 1, new: kind === 'del' ? null : 1, noNewline: false, hunk })
@@ -61,4 +61,11 @@ test('trecho atual: o último cabeçalho na linha ou antes dela', () => {
   const heads = [0, 5, 9]
   assert.deepEqual([0, 4, 5, 8, 9, 50].map((r) => hunkAt(heads, r)), [0, 0, 1, 1, 2, 2])
   assert.equal(hunkAt([], 3), 0)
+})
+
+test('busca: devolve as linhas com o texto em qualquer lado, sem diferenciar maiúsculas', () => {
+  const d = diff([line('context', 'Alpha'), line('del', 'beta'), line('add', 'BETA'), line('context', 'gama')])
+  assert.deepEqual(findRows(d, diffRows(d, 'hunks'), 'beta'), [2, 3])
+  assert.deepEqual(findRows(d, diffRows(d, 'split'), 'beta'), [2])
+  assert.deepEqual(findRows(d, diffRows(d, 'hunks'), ''), [])
 })

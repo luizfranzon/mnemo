@@ -258,6 +258,7 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .toast.error .toast-node { background: var(--tone); }
 .toast-text { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .toast.error .toast-text { font: var(--fs-code) / 1.5 var(--font-mono); }
+.toast-title { display: block; font: 600 11px/1.4 var(--font-ui); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .toast-actions { flex: none; display: flex; gap: 2px; }
 .toast-actions button { height: 26px; padding: 0 9px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--tone-text); font-size: var(--fs-caption); font-weight: 600; white-space: nowrap; cursor: pointer; }
 .toast-actions button:hover { background: var(--surface-1); }
@@ -270,7 +271,7 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .palette-row { display: flex; justify-content: space-between; align-items: center; background: transparent; border: 0; border-radius: var(--radius-sm); padding: 0 10px; text-align: left; }
 .palette-row.selected { background: var(--menu-highlight); color: var(--accent-text); }
 
-.modal { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.5); }
+.modal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.5); }
 .modal .actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
 
 .push-dialog { max-width: min(480px, calc(100vw - 32px)); background: var(--surface-1); color: var(--text); border: 1px solid var(--border-strong); }
@@ -604,3 +605,5 @@ button.diff-gutter[aria-pressed="true"] { background: var(--accent-primary); col
 .push-bar button.danger { border-color: var(--danger); color: var(--danger-text); }
 .push-dialog .danger { border-color: var(--danger); }
 .push-dialog .primary.danger { background: var(--danger); color: #fff; }
+::highlight(find) { background: color-mix(in srgb, var(--warning-text) 45%, transparent); color: inherit; }
+.diff-row.find-current { box-shadow: inset 3px 0 var(--warning-text); }

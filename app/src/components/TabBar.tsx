@@ -1,5 +1,6 @@
 import { useShallow } from 'zustand/react/shallow'
 import { actions, useApp } from '../store/app'
+import { tabLabel } from '../store/tabLabel'
 import { Icon } from './Icon'
 
 export function TabBar() {
@@ -18,7 +19,7 @@ export function TabBar() {
 }
 
 function TabItem({ path }: { path: string }) {
-  const name = useApp((s) => s.tabs.find((t) => t.path === path)?.name ?? path)
+  const name = useApp((s) => tabLabel(s.tabs, path) ?? path)
   const active = useApp((s) => s.activePath === path)
   return (
     <div role="tab" aria-selected={active} className={active ? 'tab active' : 'tab'}>

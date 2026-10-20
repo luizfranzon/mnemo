@@ -1,5 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { EncodingPicker } from './EncodingPicker'
+import { FindBar, focusFind, useFindHighlight, useFindShortcut } from './FindBar'
 import { Icon, type IconName } from './Icon'
 import { selectSide } from './selectSide'
 import { Segmented } from './Segmented'
@@ -9,7 +10,7 @@ import type { DiffLine, DiffSource, FileDiff } from '../bridge/types'
 import { actions, isActiveTab, selectDiff, selectWipRevision, useApp } from '../store/app'
 import type { Rect } from './menuModel'
 import { diffParts, type Part } from './syntax'
-import { diffRows, hunkAt, hunkLines, hunkRows, LAYOUTS, markers, selectionArgs, type DiffLayout, type DiffRow } from './diffModel'
+import { diffRows, findRows, hunkAt, hunkLines, hunkRows, LAYOUTS, markers, selectionArgs, type DiffLayout, type DiffRow } from './diffModel'
 
 const LINE = 20
 const HUNK = 28
@@ -34,9 +35,11 @@ export function DiffView({ path }: { path: string }) {
   const [encAnchor, setEncAnchor] = useState<Rect | null>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [current, setCurrent] = useState(0)
+  const [find, setFind] = useState<{ text: string; at: number } | null>(null)
   const anchor = useRef<number | null>(null)
   const loaded = useRef<{ diff: FileDiff; source: DiffSource; layout: DiffLayout } | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  const root = useRef<HTMLDivElement>(null)
   const source = target?.source
   const file = target?.file.path ?? ''
   const encoding = pick && pick.source === source && pick.file === file ? pick.id : 'guess'
@@ -56,7 +59,7 @@ export function DiffView({ path }: { path: string }) {
       loaded.current = { diff: next, source, layout }
       setDiff(next)
       setSelected((sel) => new Set([...sel].filter(same)))
-    }, (err) => { if (active) actions.reportError(err) })
+    }, (err) => { if (active) actions.reportError(err, path) })
     return () => { active = false }
   }, [path, file, source, layout, encoding, wip ? revision : 0])
 
@@ -79,6 +82,17 @@ export function DiffView({ path }: { path: string }) {
   const marks = useMemo(() => (diff ? markers(diff, rows) : []), [diff, rows])
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current, overscan: 20,
     estimateSize: (i) => (rows[i]?.type === 'hunk' ? HUNK : LINE), getItemKey: (i) => rows[i]!.key })
+  const needle = find?.text.trim().toLocaleLowerCase() ?? ''
+  const hits = useMemo(() => (diff ? findRows(diff, rows, needle) : []), [diff, rows, needle])
+  const hit = find && hits.length ? hits[Math.min(find.at, hits.length - 1)] : undefined
+  useFindHighlight(scroller, needle)
+  useFindShortcut(path, () => { setFind((f) => f ?? { text: '', at: 0 }); focusFind(root) })
+  const seek = (text: string, at: number) => {
+    const all = diff ? findRows(diff, rows, text.trim().toLocaleLowerCase()) : []
+    const next = all.length ? (at + all.length) % all.length : 0
+    setFind({ text, at: next })
+    if (all.length) virtual.scrollToIndex(all[next]!, { align: 'center' })
+  }
 
   const pickLayout = (next: DiffLayout) => { setLayout(next); try { localStorage.setItem(LAYOUT_KEY, next) } catch { /* sem storage */ } }
   const goTo = (n: number) => { if (heads[n] !== undefined) virtual.scrollToIndex(heads[n]!, { align: 'start' }); setCurrent(n) }
@@ -97,7 +111,7 @@ export function DiffView({ path }: { path: string }) {
     if (!diff) return
     void core.stageLines(path, file, unstage, selectionArgs(diff, new Set(lines))).then(() => {
       setSelected(new Set()); actions.wipChanged(path)
-    }, actions.reportError)
+    }, (err) => actions.reportError(err, path))
   }, [diff, path, file, unstage])
   const toggle = useCallback((i: number, e: MouseEvent) => {
     if (!diff) return
@@ -117,7 +131,9 @@ export function DiffView({ path }: { path: string }) {
   const g = GLYPH[target.file.status] ?? GLYPH.M!
   const slash = file.lastIndexOf('/')
 
-  return <div className="diff-view" aria-label={`Diff de ${file}`}>
+  return <div className="diff-view" aria-label={`Diff de ${file}`} ref={root}>
+    {find && <FindBar text={find.text} label="Buscar no diff" count={needle ? `${hits.length ? Math.min(find.at, hits.length - 1) + 1 : 0}/${hits.length}` : ''}
+      disabled={!hits.length} onText={(t) => seek(t, 0)} onStep={(by) => seek(find.text, find.at + by)} onClose={() => setFind(null)} />}
     <div className="diff-head">
       <span className={`commit-status ${g.cls}`}><Icon name={g.icon} size={12} strokeWidth={2.2} /></span>
       <span className="diff-crumb" title={target.file.oldPath ? `${target.file.oldPath} → ${file}` : file}>
@@ -157,7 +173,7 @@ export function DiffView({ path }: { path: string }) {
               <div className="diff-main" style={{ '--cols': cols } as CSSProperties}>
               <div className={`diff-scroll ${layout}`} ref={scroller} onScroll={onScroll} onPointerDown={selectSide}>
                 <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
-                  {virtual.getVirtualItems().map((item) => <div key={item.key} className="diff-row" style={{ transform: `translateY(${item.start}px)`, height: item.size }}>
+                  {virtual.getVirtualItems().map((item) => <div key={item.key} className={item.index === hit ? 'diff-row find-current' : 'diff-row'} style={{ transform: `translateY(${item.start}px)`, height: item.size }}>
                     <DiffRowView r={rows[item.index]!} diff={diff} parts={parts} selected={selected} canStage={canStage} verb={verb} onToggle={toggle} onStage={stage} /></div>)}
                 </div>
               </div>

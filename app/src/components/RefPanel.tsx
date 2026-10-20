@@ -119,7 +119,7 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
   useEffect(() => {
     if (running) return
     let active = true
-    void core.listRefs(path).then((next) => { if (active) setRefs(next) }, (err) => { if (active) actions.reportError(err) })
+    void core.listRefs(path).then((next) => { if (active) setRefs(next) }, (err) => { if (active) actions.reportError(err, path) })
     return () => { active = false }
   }, [path, running, undo])
   useEffect(() => {
