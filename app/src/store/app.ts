@@ -201,7 +201,7 @@ export const actions = {
     const executed = await actions.execute(path, kind)
     const head = get().tabs.find((tab) => same(tab.path, path))?.head
     if (behind > 0 && head?.kind === 'branch' && head.name === target && executed)
-      pushToast({ path, text: `${target} está ${behind} commit(s) atrás do remoto`, pullPath: path })
+      await actions.execute(path, { type: 'pull', strategy: 'ffOnly' })
   },
   async confirmCheckout(mode: 'stash' | 'carry') {
     const prompt = get().checkoutPrompt
@@ -210,7 +210,7 @@ export const actions = {
     const executed = await actions.execute(prompt.path, { type: 'checkoutWithChanges', target: prompt.target, remote: prompt.remote, mode })
     const head = get().tabs.find((tab) => same(tab.path, prompt.path))?.head
     if (prompt.behind > 0 && head?.kind === 'branch' && head.name === prompt.target && executed)
-      pushToast({ path: prompt.path, text: `${prompt.target} está ${prompt.behind} commit(s) atrás do remoto`, pullPath: prompt.path })
+      await actions.execute(prompt.path, { type: 'pull', strategy: 'ffOnly' })
   },
   cancelCheckout() { set({ checkoutPrompt: null }) },
   async pullNow(path: string) {
