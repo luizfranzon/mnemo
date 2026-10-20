@@ -51,6 +51,7 @@ jobs:
       - name: Compilar git ${{ matrix.git }}
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
+          cd "$RUNNER_TEMP"  # fora do workspace: o git 2.55+ builda Rust e o cargo acharia o Cargo.toml do repo
           curl -fsSL "https://mirrors.edge.kernel.org/pub/software/scm/git/git-${{ matrix.git }}.tar.gz" | tar xz
           make -C "git-${{ matrix.git }}" -j"$(nproc)" prefix="$HOME/git-${{ matrix.git }}" \
             NO_OPENSSL=1 NO_CURL=1 NO_GETTEXT=1 NO_TCLTK=1 NO_PERL=1 NO_EXPAT=1 NO_PYTHON=1 install
