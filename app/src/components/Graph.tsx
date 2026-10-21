@@ -120,6 +120,7 @@ function PillView({ pill, on, highlight }: { pill: Pill; on: PillHandlers; highl
 /** Mostra só a primeira pill; as demais abrem numa lista sobreposta (portal, fora do clip da linha e sem mudar a altura dela). */
 function Pills({ refs, color, on, highlight }: { refs: GraphCommit['refs']; color: string; on: PillHandlers; highlight: string | null }) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  const [dim, setDim] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const pills = pillsOf(refs)
   useEffect(() => {
@@ -130,14 +131,18 @@ function Pills({ refs, color, on, highlight }: { refs: GraphCommit['refs']; colo
   }, [anchor])
   if (!pills.length) return null
   const [first, ...rest] = pills
-  const open = () => { if (rest.length && box.current) setAnchor(box.current.getBoundingClientRect()) }
+  const open = () => {
+    if (!rest.length || !box.current) return
+    setDim(!!box.current.closest('.dim')) // a lista está num portal, fora da linha esmaecida pela busca
+    setAnchor(box.current.getBoundingClientRect())
+  }
   const style = { '--pill': color } as CSSProperties
   const close: PillHandlers = { checkout: (p) => { setAnchor(null); on.checkout(p) }, menu: (p, e) => { setAnchor(null); on.menu(p, e) } }
   return <div ref={box} className="graph-pills" style={style} onMouseEnter={open} onMouseLeave={() => setAnchor(null)}>
     <PillView pill={first!} on={close} highlight={highlight} />
     {rest.length > 0 && <button className="graph-pill-more" aria-haspopup="true" aria-expanded={!!anchor} aria-label={`Mais ${rest.length} refs`}
       onFocus={open} onBlur={() => setAnchor(null)}>+{rest.length}</button>}
-    {anchor && createPortal(<div className="graph-pill-list" style={{ ...style, left: anchor.left, top: anchor.bottom - 4 }}>
+    {anchor && createPortal(<div className={dim ? 'graph-pill-list dim' : 'graph-pill-list'} style={{ ...style, left: anchor.left, top: anchor.bottom - 4 }}>
       {rest.map((pill) => <PillView key={pill.key} pill={pill} on={close} highlight={highlight} />)}
     </div>, document.body)}
   </div>

@@ -2,9 +2,9 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { EncodingPicker } from './EncodingPicker'
 import { FindBar, focusFind, useFindHighlight, useFindShortcut } from './FindBar'
 import { Icon, type IconName } from './Icon'
-import { selectSide } from './selectSide'
+import { Code, SplitScroll } from './SplitScroll'
 import { Segmented } from './Segmented'
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type UIEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { core } from '../bridge'
 import type { DiffLine, DiffSource, FileDiff } from '../bridge/types'
 import { actions, isActiveTab, selectDiff, selectWipRevision, useApp } from '../store/app'
@@ -100,12 +100,6 @@ export function DiffView({ path }: { path: string }) {
     const at = virtual.getVirtualItemForOffset(scroller.current?.scrollTop ?? 0)?.index ?? 0
     setCurrent(hunkAt(heads, at + 1))
   }
-  // as duas barras horizontais andam juntas; o deslocamento vai por CSS variable, sem re-render
-  const syncX = (e: UIEvent<HTMLDivElement>) => {
-    const x = (e.target as HTMLElement).scrollLeft
-    for (const bar of e.currentTarget.parentElement!.children) (bar as HTMLElement).scrollLeft = x
-    scroller.current?.style.setProperty('--sx', `${x}px`)
-  }
   // estáveis entre renders do scroll, senão toda DiffRowView desenha de novo
   const stage = useCallback((lines: number[]) => {
     if (!diff) return
@@ -170,16 +164,8 @@ export function DiffView({ path }: { path: string }) {
         : diff.tooLarge ? <div className="diff-message">Diff grande demais para mostrar (mais de 16 MB).</div>
           : !rows.length ? <div className="diff-message">{diff.oldPath ? `Renomeado de ${diff.oldPath}, sem mudança de conteúdo.` : 'Sem mudanças de texto neste arquivo.'}</div>
             : <div className="diff-body">
-              <div className="diff-main" style={{ '--cols': cols } as CSSProperties}>
-              <div className={`diff-scroll ${layout}`} ref={scroller} onScroll={onScroll} onPointerDown={selectSide}>
-                <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
-                  {virtual.getVirtualItems().map((item) => <div key={item.key} className={item.index === hit ? 'diff-row find-current' : 'diff-row'} style={{ transform: `translateY(${item.start}px)`, height: item.size }}>
-                    <DiffRowView r={rows[item.index]!} diff={diff} parts={parts} selected={selected} canStage={canStage} verb={verb} onToggle={toggle} onStage={stage} /></div>)}
-                </div>
-              </div>
-              {layout === 'split' && <div className="diff-hbars">
-                <div className="diff-hbar" onScroll={syncX}><div /></div><div className="diff-hbar" onScroll={syncX}><div /></div></div>}
-              </div>
+              <SplitScroll virtual={virtual} scroller={scroller} split={layout === 'split'} cols={cols} hit={hit} onScroll={onScroll}
+                renderRow={(i) => <DiffRowView r={rows[i]!} diff={diff} parts={parts} selected={selected} canStage={canStage} verb={verb} onToggle={toggle} onStage={stage} />} />
               <div className="diff-markers" aria-hidden="true" onClick={(e) => {
                 const el = scroller.current
                 const box = e.currentTarget.getBoundingClientRect()
@@ -198,8 +184,8 @@ interface RowProps {
 
 /** Uma linha do diff. Componente à parte para o Compiler reaproveitar as linhas que já estavam na tela durante o scroll. */
 function DiffRowView({ r, diff, parts, selected, canStage, verb, onToggle, onStage }: RowProps) {
-  const code = (l: DiffLine, i: number) => <span className="diff-code"><span className="diff-text">{(parts[i] ?? ([] as Part[])).map((p, k) => <span key={k} className={`syn-${p.c}`}>{p.t}</span>)}
-    {l.noNewline && <span className="diff-eol" title="Sem quebra de linha no fim do arquivo"><Icon name="noEol" size={12} /></span>}</span></span>
+  const code = (l: DiffLine, i: number) => <Code parts={parts[i] ?? []}>
+    {l.noNewline && <span className="diff-eol" title="Sem quebra de linha no fim do arquivo"><Icon name="noEol" size={12} /></span>}</Code>
   const mark = (l: DiffLine) => (l.kind === 'add' ? '+' : l.kind === 'del' ? '−' : '')
   const gutter = (i: number, nums: (number | null)[]) => {
     const l = diff.lines[i]!
