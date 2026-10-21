@@ -102,7 +102,7 @@ export function Toolbar() {
     <div className="toolbar" role="toolbar" aria-label="Repositório">
       <span className="repo-name" title={path}><Icon name="repo" size={14} /> {name}</span><span className="crumb">›</span>
       <button className="branch-button" disabled={!!reason.mutation} title={reason.mutation ?? 'Checkout de branch'} onClick={() => actions.setPalette('checkout')}>
-        {spinLabel('checkout') ? <Spinner label={spinLabel('checkout')!} /> : <><Icon name="branch" size={14} /> {branchName} <span className="muted"><Icon name="chevronDown" size={13} /></span></>}
+        {spinLabel('checkout') ? <Spinner label={spinLabel('checkout')!} /> : <><Icon name="branch" size={14} /><span className="branch-name">{branchName}</span><span className="muted"><Icon name="chevronDown" size={13} /></span></>}
       </button>
       <span className="sync-count" title={head.kind === 'branch' && head.upstream ? `Em relação a ${head.upstream}` : 'Sem upstream'}>
         <span className="behind"><Icon name="arrowDown" size={12} strokeWidth={2.2} />{toolbar.behind ?? '–'}</span><span className="ahead"><Icon name="arrowUp" size={12} strokeWidth={2.2} />{toolbar.ahead ?? '–'}</span>
@@ -127,10 +127,10 @@ export function Toolbar() {
       </button>
       <button disabled={!!reason.mutation} title={reason.mutation ?? 'Nova branch'} onClick={() => actions.setPalette('createBranch')}>
         {spinLabel('branch') ? <Spinner label={spinLabel('branch')!} /> : <><Icon name="branch" size={16} /> Branch</>}</button>
-      <div className="toolbar-split plain">
+      <div className="toolbar-split">
         <button disabled={!!reason.mutation} title={reason.mutation ?? 'Guardar mudanças locais'}
           onClick={() => execute('stash', 'Executando criar stash…', { type: 'stashCreate', message: null, includeUntracked: false })}>
-          {spinLabel('stash') ? <Spinner label={spinLabel('stash')!} /> : <><Icon name="stash" size={16} /> Stash</>}{!!toolbar.stashCount && <span className="stash-count">{toolbar.stashCount}</span>}
+          {spinLabel('stash') ? <Spinner label={spinLabel('stash')!} /> : <><Icon name="stash" size={16} /> Stash</>}{!!toolbar.stashCount && <span className="count-badge gray">{toolbar.stashCount}</span>}
         </button>
         {menuButton('stash', 'Opções de stash', reason.mutation)}
       </div>
