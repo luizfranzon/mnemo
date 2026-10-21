@@ -1,5 +1,6 @@
 import { useShallow } from 'zustand/react/shallow'
 import { actions, selectActiveTab, useApp } from '../store/app'
+import { Breadcrumb } from './Breadcrumb'
 import { DiscardDialogs } from './DiscardDialogs'
 import { Graph } from './Graph'
 import { Palette } from './Palette'
@@ -20,6 +21,7 @@ export function Workspace() {
     <div className="workspace">
       <TabBar />
       {path && <Toolbar />}
+      {path && <Breadcrumb path={path} />}
       <PushRejectedBar />
       {tabs.length ? (
         <div className="tab-stack">

@@ -113,6 +113,8 @@ export type CoreEvent =
   | { type: 'operationStarted'; workdir: string; label: string }
   | { type: 'operationFinished'; workdir: string; label: string; ok: boolean }
   | { type: 'historyChanged'; workdir: string; state: UndoRedoState }
+  /** HEAD ou refs mudaram por fora do app (terminal, outro cliente). */
+  | { type: 'repoChanged'; workdir: string }
   | ({ type: 'update' } & UpdateState)
 
 export interface DiscardPreview {

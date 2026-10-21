@@ -14,6 +14,8 @@ export interface Tab {
   toolbar: ToolbarInfo
   /** Emails (minúsculos) do filtro de Autores do grafo; vazio = sem filtro. Vive só enquanto a aba está aberta. */
   authors: string[]
+  /** Diretório do repositório pai, quando a aba é um submódulo aberto a partir dele (alimenta o breadcrumb). */
+  parent?: string
   /** Erro do último auto-fetch; `null`/ausente = deu certo. */
   autoFetchError?: string | null
 }
@@ -55,6 +57,8 @@ interface AppState {
   palette: PaletteMode | null
   /** Ponto de partida da nova branch (nulo = HEAD). */
   paletteStart: string | null
+  /** Diretório a que a paleta se aplica quando não é o da aba ativa (submódulo aberto pelo painel de refs). */
+  paletteTarget: string | null
   checkoutPrompt: { path: string; target: string; remote: string | null; conflicts: number; behind: number } | null
   pushPrompt: { path: string; branch: string; remotes: string[] } | null
   /** Push que o remoto rejeitou (branch atrás): a barra sobre o grafo oferece Pull, Force Push e Cancelar. */
@@ -113,6 +117,7 @@ export const useApp = create<AppState>(() => ({
   update: { status: 'none' },
   palette: null,
   paletteStart: null,
+  paletteTarget: null,
   checkoutPrompt: null,
   pushPrompt: null,
   pushRejected: null,
@@ -247,6 +252,18 @@ export const actions = {
     try {
       const info = await core.openRepository(target)
       adoptRepository(info)
+    } catch (err) {
+      fail(err)
+    }
+  },
+
+  /** Abre o submódulo (caminho relativo ao pai, como o `git submodule status` devolve) numa aba própria, com o pai no breadcrumb. */
+  async openSubmodule(parent: string, name: string) {
+    try {
+      const info = await core.openRepository(submodulePath(parent, name))
+      // pasta vazia (submódulo não iniciado): o git sobe até o repositório pai
+      if (same(info.path, parent)) throw new Error(`O submódulo ${name} não foi iniciado`)
+      adoptRepository(info, parent)
     } catch (err) {
       fail(err)
     }
@@ -462,8 +479,8 @@ export const actions = {
     } catch (err) { fail(err, path) }
   },
 
-  setPalette(palette: PaletteMode | null, start: string | null = null) {
-    set({ palette, paletteStart: start })
+  setPalette(palette: PaletteMode | null, start: string | null = null, target: string | null = null) {
+    set({ palette, paletteStart: start, paletteTarget: target })
   },
 
   clearError() {
@@ -490,18 +507,18 @@ export const actions = {
 
   /** Janela voltou ao foco: relê todas as abas, que podem ter mudado fora (VS Code, terminal). */
   async refreshAll() {
-    await Promise.all(get().tabs.map(async ({ path }) => {
-      const r = await core.refreshExternal(path).catch(() => null)
-      if (r?.status === 'completed' && r.opId !== null) pushToast({ path, text: capitalize(r.label), undoPath: r.undoable ? path : undefined })
-      set((s) => ({ graphRevision: { ...s.graphRevision, [norm(path)]: (s.graphRevision[norm(path)] ?? 0) + 1 } }))
-      await refreshHead(path).catch(() => undefined)
-    }))
+    await Promise.all(get().tabs.map(({ path }) => refreshTab(path)))
   },
 
   /** Eventos push do core (`listen`): mantêm Desfazer/Refazer e a toolbar em dia. */
   applyCoreEvent(e: import('../bridge/types').CoreEvent) {
     if (e.type === 'update') { const { type: _type, ...update } = e; set({ update }); return }
-    if (e.type === 'historyChanged') {
+    if (e.type !== 'repoChanged') ownActivity.set(norm(e.workdir), Date.now())
+    if (e.type === 'repoChanged') {
+      // o app mesmo mexeu nas refs agora há pouco: o grafo já foi relido pelos eventos da Operação
+      if (get().running[norm(e.workdir)] || Date.now() - (ownActivity.get(norm(e.workdir)) ?? 0) < 1500) return
+      void refreshTab(e.workdir)
+    } else if (e.type === 'historyChanged') {
       patchTab(e.workdir, { undo: e.state })
       set((s) => ({ graphRevision: { ...s.graphRevision, [norm(e.workdir)]: (s.graphRevision[norm(e.workdir)] ?? 0) + 1 } }))
       void refreshHead(e.workdir).catch(() => undefined) // a branch mostrada acompanha o histórico
@@ -531,6 +548,20 @@ async function stepHistory(path: string, fn: (p: string) => Promise<UndoRedoStat
     await core.syncExternal(path).then((undo) => patchTab(path, { undo }), () => undefined)
   }
 }
+
+/** Diretório de um submódulo, a partir do nome (caminho relativo) que o `git submodule status` devolve. */
+export const submodulePath = (parent: string, name: string) => `${parent.replace(/[\\/]+$/, '')}/${name}`
+
+/** Relê uma aba que mudou fora do app: Mudança externa no histórico, grafo e HEAD. */
+async function refreshTab(path: string) {
+  const r = await core.refreshExternal(path).catch(() => null)
+  if (r?.status === 'completed' && r.opId !== null) pushToast({ path, text: capitalize(r.label), undoPath: r.undoable ? path : undefined })
+  set((s) => ({ graphRevision: { ...s.graphRevision, [norm(path)]: (s.graphRevision[norm(path)] ?? 0) + 1 } }))
+  await refreshHead(path).catch(() => undefined)
+}
+
+/** Quando o core falou de cada diretório pela última vez, para o watcher não reler o que o app mesmo acabou de fazer. */
+const ownActivity = new Map<string, number>()
 
 const refreshing = new Map<string, Promise<void>>()
 
@@ -569,12 +600,12 @@ export function firstGraphPage(path: string, args: GraphArgs): Promise<GraphPage
   return hit ?? core.graphPage(path, null, GRAPH_PAGE, args)
 }
 
-function adoptRepository(info: RepositoryInfo) {
+function adoptRepository(info: RepositoryInfo, parent?: string) {
   if (!get().tabs.some((t) => same(t.path, info.path))) prefetchGraph(info.path)
   set((s) => {
     const exists = s.tabs.some((t) => same(t.path, info.path))
     const authors = s.tabs.find((t) => same(t.path, info.path))?.authors ?? []
-    const tab: Tab = { path: info.path, name: info.name, head: info.head, undo: info.undo, toolbar: info.toolbar, authors }
+    const tab: Tab = { path: info.path, name: info.name, head: info.head, undo: info.undo, toolbar: info.toolbar, authors, parent: parent ?? s.tabs.find((t) => same(t.path, info.path))?.parent }
     return {
       tabs: exists ? s.tabs.map((t) => (same(t.path, info.path) ? tab : t)) : [...s.tabs, tab],
       activePath: info.path,

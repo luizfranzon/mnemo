@@ -89,6 +89,8 @@ export const core = {
   refreshExternal: (path: string) => invoke<ExecuteResult | null>('refresh_external', { path }),
   /** Arquivo do repositório fora do app: editor (`$VISUAL`/`$EDITOR`/code), programa padrão ou pasta. */
   openFile: (workdir: string, file: string, how: 'editor' | 'default' | 'folder') => invoke<null>('open_file', { workdir, file, how }),
+  /** Observa HEAD e refs do repositório (mudança por fora vira o evento `repoChanged`); nulo para de observar. */
+  watchRepository: (path: string | null) => invoke<null>('watch_repository', { path }),
   /** Controles da janela e edição nativa (a janela não tem moldura nem menu do sistema). */
   window: (action: WindowAction) => invoke<null>('window_action', { action }),
 }
