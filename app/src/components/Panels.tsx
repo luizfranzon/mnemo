@@ -2,8 +2,9 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState, type Poin
 import { dragWidth, loadLayout, PANEL, RAIL, saveLayout, type Layout, type Side } from './panelLayout'
 import { CommitPanel } from './CommitPanel'
 import { WipPanel } from './WipPanel'
-import { isActiveTab, selectConflict, selectDiff, selectSha, useApp } from '../store/app'
+import { isActiveTab, selectConflict, selectDiff, selectReview, selectSha, useApp } from '../store/app'
 import { RefPanel } from './RefPanel'
+import { ReviewPanel } from './ReviewPanel'
 import { TOGGLE_PANEL } from './windowMenus'
 
 // diff e conflito trazem o CodeMirror e os parsers de linguagem: só carregam ao abrir o primeiro
@@ -17,7 +18,8 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
   const wip = useApp((s) => selectSha(path)(s) === 'wip')
   // com o diff aberto o painel de refs vira rail sem mexer no layout salvo; expandir vale até o diff fechar
   const conflictOpen = useApp((s) => selectConflict(path)(s) !== null)
-  const diffOpen = useApp((s) => selectDiff(path)(s) !== null) || conflictOpen
+  const reviewing = useApp((s) => selectReview(path)(s) !== undefined)
+  const diffOpen = useApp((s) => selectDiff(path)(s) !== null) || conflictOpen || reviewing
   const [peek, setPeek] = useState(false)
   useEffect(() => { if (!diffOpen) setPeek(false) }, [diffOpen])
   const leftOpen = diffOpen ? peek : layout.leftOpen
@@ -52,15 +54,24 @@ export function Panels({ path, children }: { path: string; children: ReactNode }
           collapse={() => (diffOpen ? setPeek(false) : update((l) => ({ ...l, leftOpen: false })))} />
         <Divider side="left" layout={layout} root={root} update={update} />
       </aside>
-      <main className="panel-center">{children}<Suspense>{conflictOpen ? <ConflictEditor path={path} /> : diffOpen && <DiffView path={path} />}</Suspense></main>
-      {layout.rightOpen && (
-        <aside className="panel panel-right" aria-label="Detalhes">
+      <main className="panel-center">{children}<Suspense>{conflictOpen ? <ConflictEditor path={path} /> : diffOpen && <DiffView path={path} />}</Suspense>
+        {reviewing && <ReviewIdle path={path} />}</main>
+      {(layout.rightOpen || reviewing) && (
+        <aside className="panel panel-right" aria-label={reviewing ? 'Revisão' : 'Detalhes'}>
           <Divider side="right" layout={layout} root={root} update={update} />
-          {wip ? <WipPanel path={path} /> : <CommitPanel path={path} />}
+          {reviewing ? <ReviewPanel path={path} /> : wip ? <WipPanel path={path} /> : <CommitPanel path={path} />}
         </aside>
       )}
     </div>
   )
+}
+
+/** Centro da Revisão sem arquivo aberto: cobre o grafo e diz o que fazer. */
+function ReviewIdle({ path }: { path: string }) {
+  const empty = useApp((s) => selectDiff(path)(s) === null)
+  const files = useApp((s) => selectReview(path)(s)?.state.files.length ?? 0)
+  if (!empty) return null
+  return <div className="diff-view review-idle"><p className="muted">{files ? 'Escolha um arquivo na lista ao lado.' : 'Nenhum arquivo para revisar nesta rodada.'}</p></div>
 }
 
 interface DividerProps {

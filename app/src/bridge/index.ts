@@ -1,6 +1,6 @@
 // Único módulo da UI que conhece como falar com o backend. Mesmo formato do `@tauri-apps/api`:
 // na migração para o Tauri, só este arquivo troca. Nenhum componente importa `electron`.
-import type { AuthorInfo, ConflictChoice, ConflictDoc, ConflictFile, BranchInfo, CoreError, CoreEvent, DiffSource, DiscardPreview, ExecuteResult, EncodingInfo, FileChange, FileDiff, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepoPrefs, RepositoryInfo, ForcePushPreview, ToolbarInfo, UndoRedoState, UpdateState, WindowAction, WipStatus } from './types'
+import type { AuthorInfo, ConflictChoice, ConflictDoc, ConflictFile, BranchInfo, CoreError, CoreEvent, DiffSource, DiscardPreview, ExecuteResult, EncodingInfo, FileChange, FileDiff, GraphCursor, GraphPage, GraphVisibilityArg, CommitDetail, ResetPreview, OperationKind, PullMode, RefListing, RemoteBranchInfo, RepoPrefs, RepositoryInfo, ForcePushPreview, Review, ReviewComment, ReviewState, ReviewSummary, ToolbarInfo, UndoRedoState, UpdateState, WindowAction, WipStatus } from './types'
 
 interface Transport {
   invoke(cmd: string, args: Record<string, unknown>): Promise<unknown>
@@ -91,6 +91,20 @@ export const core = {
   openFile: (workdir: string, file: string, how: 'editor' | 'default' | 'folder') => invoke<null>('open_file', { workdir, file, how }),
   /** Observa HEAD e refs do repositório (mudança por fora vira o evento `repoChanged`); nulo para de observar. */
   watchRepository: (path: string | null) => invoke<null>('watch_repository', { path }),
+  reviewList: (path: string) => invoke<ReviewSummary[]>('review_list', { path }),
+  /** Base registrada da branch, ou a branch padrão do repositório. */
+  reviewBase: (path: string, branch: string) => invoke<string | null>('review_base', { path, branch }),
+  /** Busca só esta branch no remoto; devolve o motivo quando não deu. */
+  reviewFetch: (path: string, branch: string) => invoke<string | null>('review_fetch', { path, branch }),
+  reviewStart: (path: string, branch: string, base: string) => invoke<ReviewState>('review_start', { path, branch, base }),
+  reviewOpen: (path: string, branch: string) => invoke<ReviewState>('review_open', { path, branch }),
+  reviewMark: (path: string, branch: string, file: string, reviewed: boolean) => invoke<Review>('review_mark', { path, branch, file, reviewed }),
+  reviewComment: (path: string, branch: string, comment: ReviewComment) => invoke<Review>('review_comment', { path, branch, comment }),
+  reviewUncomment: (path: string, branch: string, id: string) => invoke<Review>('review_uncomment', { path, branch, id }),
+  reviewConclude: (path: string, branch: string) => invoke<Review>('review_conclude', { path, branch }),
+  reviewEnd: (path: string, branch: string) => invoke<null>('review_end', { path, branch }),
+  /** Diálogo de salvar; `null` = cancelado. */
+  saveText: (name: string, text: string) => invoke<string | null>('save_text', { name, text }),
   /** Controles da janela e edição nativa (a janela não tem moldura nem menu do sistema). */
   window: (action: WindowAction) => invoke<null>('window_action', { action }),
 }

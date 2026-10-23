@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { core } from '../bridge'
 import type { GraphCommit, GraphPage } from '../bridge/types'
-import { actions, firstGraphPage, GRAPH_PAGE, isActiveTab, selectConflict, selectDiff, selectSha, useApp } from '../store/app'
+import { actions, firstGraphPage, GRAPH_PAGE, isActiveTab, selectConflict, selectDiff, selectReviewList, selectSha, useApp } from '../store/app'
+import { reviewMarks } from './reviewModel'
 import { FindBar, focusFind, useFindShortcut } from './FindBar'
 import { graphVisibility, localRef, selectVisibility, updateVisibility, useVisibility } from '../store/visibility'
 import { AuthorFilter } from './AuthorFilter'
@@ -218,6 +219,10 @@ export function Graph({ path }: { path: string }) {
     void core.conflictList(path).then((list) => active && setConflicts(list.length), () => active && setConflicts(0))
     return () => { active = false }
   }, [path, revision])
+  // Commits revisados: o marcador acompanha refs que mudam (rodada concluída, push do dev, rebase)
+  useEffect(() => { void actions.loadReviews(path) }, [path, revision])
+  const reviews = useApp(selectReviewList(path))
+  const marks = useMemo(() => reviewMarks(reviews), [reviews])
 
   useEffect(() => {
     const current = ++generation.current
@@ -432,7 +437,10 @@ export function Graph({ path }: { path: string }) {
         ? <span key={id} className="graph-message graph-wip"><em>// WIP</em>
           <span className="wip-chip changed"><Icon name="edit" size={11} />{page?.wip.changed ?? 0}</span>
           <span className="wip-chip added">+ {page?.wip.untracked ?? 0}</span></span>
-        : <span key={id} className={`graph-message${commit && commit.parents.length > 1 ? ' merge' : ''}`} title={commit?.subject}>{commit?.subject}</span>
+        : <span key={id} className={`graph-message${commit && commit.parents.length > 1 ? ' merge' : ''}`} title={commit?.subject}>
+          {commit && marks.get(commit.sha)?.map((m) => <button key={m.branch} className={m.rewritten ? 'graph-review-mark rewritten' : 'graph-review-mark'} title={m.title}
+            aria-label={m.title} onClick={(e) => { e.stopPropagation(); void actions.openReview(path, m.branch) }}><Icon name="shown" size={12} strokeWidth={2} /></button>)}
+          {commit?.subject}</span>
       case 'description': return <span key={id} className="graph-description" title={commit?.description}>{commit?.description}</span>
       case 'author': return <span key={id} className="graph-author" title={commit?.email}>
         {commit && layout.compact && <Avatar small name={commit.author} email={commit.email} />}{commit?.author}</span>

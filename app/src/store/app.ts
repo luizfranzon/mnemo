@@ -1,8 +1,10 @@
 import { create } from 'zustand'
 import { core, errorCode, errorMessage } from '../bridge'
-import type { DiffSource, DiscardPreview, FileChange, ForcePushPreview, GraphPage, ResetPreview, HeadInfo, OperationKind, PullMode, RepoPrefs, RepositoryInfo, ToolbarInfo, UndoRedoState, UpdateState } from '../bridge/types'
+import type { DiffSource, DiscardPreview, FileChange, ForcePushPreview, GraphPage, ResetPreview, HeadInfo, OperationKind, PullMode, RepoPrefs, RepositoryInfo, Review, ReviewComment, ReviewFile, ReviewScope, ReviewState, ReviewSummary, ToolbarInfo, UndoRedoState, UpdateState } from '../bridge/types'
+import { nextFile, rangeOf } from '../components/reviewModel'
 import { toolbarAvailability } from '../components/toolbarModel'
 import { graphVisibility, selectVisibility, useVisibility } from './visibility'
+import { overwrittenPaths } from './overwritten'
 import { tabLabel } from './tabLabel'
 
 export interface Tab {
@@ -33,6 +35,8 @@ export interface Toast {
   /** Aviso neutro (azul). */
   info?: boolean
   retry?: () => Promise<void>
+  /** Botões extras do toast (ex.: resolver e repetir a Operação). */
+  buttons?: { label: string; run: () => Promise<unknown> }[]
 }
 
 export type PaletteMode = 'checkout' | 'createBranch'
@@ -75,7 +79,17 @@ interface AppState {
   prefsOpen: boolean
   /** Preferências de repositório já lidas do `.git/config`, por diretório. */
   repoPrefs: Record<string, RepoPrefs>
+  /** Revisão aberta na Aba (modo Revisão): o diff do centro e o painel direito são dela. */
+  reviews: Record<string, ReviewView>
+  /** Revisões do repositório, para o menu da toolbar e os marcadores do grafo. */
+  reviewList: Record<string, ReviewSummary[]>
+  /** Começar Revisão ou Rodada: o diálogo confirma a Base. */
+  reviewPrompt: { path: string; branch: string; base: string; round: number } | null
+  /** Encerrar Revisão aguardando confirmação (apaga as rodadas). */
+  reviewEndPrompt: { path: string; branch: string } | null
 }
+
+export interface ReviewView { branch: string; state: ReviewState; scope: ReviewScope }
 
 interface TabView { selectedSha: string | null; diff: DiffTarget | null; conflict: { path: string; file: string } | null }
 
@@ -128,6 +142,10 @@ export const useApp = create<AppState>(() => ({
   prefs: loadPrefs(),
   prefsOpen: false,
   repoPrefs: {},
+  reviews: {},
+  reviewList: {},
+  reviewPrompt: null,
+  reviewEndPrompt: null,
 }))
 
 const set = useApp.setState
@@ -174,7 +192,20 @@ function clearPushRejected(path: string) {
 
 function fail(err: unknown, path?: string, retry?: () => Promise<void>) {
   const text = errorMessage(err)
-  pushToast({ path, text: text.length > 300 ? `${text.slice(0, 300)}…` : text, error: true, retry: errorCode(err) === 'indexLocked' ? retry : undefined })
+  pushToast({ path, text: text.length > 300 ? `${text.slice(0, 300)}…` : text, error: true, retry: errorCode(err) === 'indexLocked' ? retry : undefined,
+    buttons: path === undefined ? undefined : blockedPullButtons(err, path) })
+}
+
+/** Pull barrado por arquivos que seriam sobrescritos: guardar no stash ou descartar, e repetir o pull. */
+function blockedPullButtons(err: unknown, path: string): Toast['buttons'] {
+  const { args = '', stderr = '' } = err as { args?: string; stderr?: string }
+  const paths = errorCode(err) === 'gitFailed' && /^pull\b/.test(args) ? overwrittenPaths(stderr) : []
+  if (paths.length === 0) return undefined
+  const then = async (kind: OperationKind) => { if (await actions.execute(path, kind)) await actions.pullNow(path) }
+  return [
+    { label: 'Stash e tentar de novo', run: () => then({ type: 'stashCreate', message: null, includeUntracked: true, paths }) },
+    { label: 'Descartar e tentar de novo', run: () => then({ type: 'discard', paths }) },
+  ]
 }
 
 export const actions = {
@@ -274,8 +305,9 @@ export const actions = {
     set((s) => {
       const tabs = s.tabs.filter((t) => !same(t.path, path))
       const { [norm(path)]: _closed, ...views } = s.views
+      const { [norm(path)]: _review, ...reviews } = s.reviews
       const activePath = s.activePath && same(s.activePath, path) ? (tabs.at(-1)?.path ?? null) : s.activePath
-      return { tabs, views, activePath, pushPrompt: s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt } // o retry pendente era de uma aba que pode ser esta
+      return { tabs, views, reviews, activePath, pushPrompt: s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt } // o retry pendente era de uma aba que pode ser esta
     })
   },
 
@@ -284,7 +316,11 @@ export const actions = {
   },
   selectCommit(path: string, sha: string) { patchView(path, (v) => ({ selectedSha: sha, diff: v.selectedSha === sha ? v.diff : null })) },
   openDiff(diff: DiffTarget) { patchView(diff.path, { diff, conflict: null }) },
-  closeDiff(path: string) { patchView(path, { diff: null }) },
+  /** No modo Revisão, fechar o diff volta ao grafo (a Revisão continua salva). */
+  closeDiff(path: string) {
+    patchView(path, { diff: null })
+    if (get().reviews[norm(path)]) actions.closeReview(path)
+  },
   openConflict(path: string, file: string) { patchView(path, { conflict: { path, file }, diff: null }) },
   closeConflict(path: string) { patchView(path, { conflict: null }) },
   /** Preparar/tirar/ignorar mudaram o WIP: quem mostra o WIP relê. */
@@ -510,6 +546,119 @@ export const actions = {
     await Promise.all(get().tabs.map(({ path }) => refreshTab(path)))
   },
 
+  async loadReviews(path: string) {
+    try {
+      const list = await core.reviewList(path)
+      set((s) => ({ reviewList: { ...s.reviewList, [norm(path)]: list } }))
+    } catch (err) { fail(err, path) }
+  },
+
+  /** Revisar branch: Rodada aberta continua direto; senão o diálogo confirma a Base antes de começar. */
+  async requestReview(path: string, branch: string) {
+    await actions.loadReviews(path)
+    const current = get().reviewList[norm(path)]?.find((r) => r.branch === branch)
+    if (current?.open) return actions.openReview(path, branch)
+    const base = await core.reviewBase(path, branch).catch(() => null)
+    set({ reviewPrompt: { path, branch, base: base ?? '', round: current ? current.round + 1 : 1 } })
+  },
+  cancelReviewPrompt() { set({ reviewPrompt: null }) },
+
+  /** Busca a branch, avança a local até a remota (Operação desfazível) e começa a Revisão ou a próxima Rodada. */
+  async startReview(path: string, branch: string, base: string): Promise<boolean> {
+    const offline = await core.reviewFetch(path, branch).catch((err: unknown) => errorMessage(err))
+    await syncLocalBranch(path, branch)
+    try {
+      enterReview(path, branch, await core.reviewStart(path, branch, base))
+    } catch (err) { fail(err, path); return false }
+    set({ reviewPrompt: null })
+    if (offline) pushToast({ path, text: `Não foi possível buscar ${branch} no remoto. A revisão usa o que já está neste computador.`, info: true })
+    void actions.loadReviews(path)
+    return true
+  },
+
+  async openReview(path: string, branch: string) {
+    try { enterReview(path, branch, await core.reviewOpen(path, branch)) } catch (err) { fail(err, path) }
+  },
+
+  /** Relê a Rodada aberta (a branch pode ter andado: os avisos do painel acompanham). */
+  async refreshReview(path: string) {
+    const r = get().reviews[norm(path)]
+    if (!r) return
+    const state = await core.reviewOpen(path, r.branch).catch(() => null)
+    if (state && get().reviews[norm(path)]?.branch === r.branch) patchReview(path, { state })
+  },
+
+  closeReview(path: string) {
+    set((s) => { const { [norm(path)]: _closed, ...reviews } = s.reviews; return { reviews } })
+    patchView(path, { diff: null })
+  },
+
+  openReviewFile(path: string, file: ReviewFile) {
+    const r = get().reviews[norm(path)]
+    const round = r?.state.review.rounds.at(-1)
+    if (!r || !round) return
+    const { from, to } = rangeOf(round, r.scope)
+    patchView(path, { diff: { path, file, source: { kind: 'range', from, to, oldPath: file.oldPath } }, conflict: null })
+  },
+
+  setReviewScope(path: string, scope: ReviewScope) {
+    patchReview(path, { scope })
+    const open = get().views[norm(path)]?.diff
+    if (open?.source.kind === 'range') actions.openReviewFile(path, open.file as ReviewFile)
+  },
+
+  /** Marca (ou desmarca) o arquivo. `advance`: abre o próximo que falta revisar. */
+  async markReviewed(path: string, file: string, reviewed: boolean, advance = false) {
+    const r = get().reviews[norm(path)]
+    if (!r) return
+    try {
+      const review = await core.reviewMark(path, r.branch, file, reviewed)
+      setReviewData(path, review)
+      const next = advance && reviewed ? nextFile(r.state.files, review.rounds.at(-1)!.reviewed, file) : null
+      if (next) actions.openReviewFile(path, next)
+    } catch (err) { fail(err, path) }
+  },
+
+  async saveComment(path: string, comment: ReviewComment): Promise<boolean> {
+    const r = get().reviews[norm(path)]
+    if (!r) return false
+    try {
+      setReviewData(path, await core.reviewComment(path, r.branch, comment))
+      return true
+    } catch (err) { fail(err, path); return false }
+  },
+
+  async deleteComment(path: string, id: string) {
+    const r = get().reviews[norm(path)]
+    if (!r) return
+    try { setReviewData(path, await core.reviewUncomment(path, r.branch, id)) } catch (err) { fail(err, path) }
+  },
+
+  async concludeRound(path: string): Promise<Review | null> {
+    const r = get().reviews[norm(path)]
+    if (!r) return null
+    try {
+      const review = await core.reviewConclude(path, r.branch)
+      setReviewData(path, review)
+      void actions.loadReviews(path)
+      return review
+    } catch (err) { fail(err, path); return null }
+  },
+
+  requestEndReview(path: string, branch: string) { set({ reviewEndPrompt: { path, branch } }) },
+  cancelEndReview() { set({ reviewEndPrompt: null }) },
+  async confirmEndReview() {
+    const prompt = get().reviewEndPrompt
+    set({ reviewEndPrompt: null })
+    if (!prompt) return
+    try {
+      await core.reviewEnd(prompt.path, prompt.branch)
+      if (get().reviews[norm(prompt.path)]?.branch === prompt.branch) actions.closeReview(prompt.path)
+      pushToast({ path: prompt.path, text: `Revisão de ${prompt.branch} encerrada` })
+      await actions.loadReviews(prompt.path)
+    } catch (err) { fail(err, prompt.path) }
+  },
+
   /** Eventos push do core (`listen`): mantêm Desfazer/Refazer e a toolbar em dia. */
   applyCoreEvent(e: import('../bridge/types').CoreEvent) {
     if (e.type === 'update') { const { type: _type, ...update } = e; set({ update }); return }
@@ -547,6 +696,35 @@ async function stepHistory(path: string, fn: (p: string) => Promise<UndoRedoStat
     // a Mudança externa corta o histórico: relê o estado para o botão refletir o motivo
     await core.syncExternal(path).then((undo) => patchTab(path, { undo }), () => undefined)
   }
+}
+
+function patchReview(path: string, patch: Partial<ReviewView>) {
+  set((s) => { const r = s.reviews[norm(path)]; return r ? { reviews: { ...s.reviews, [norm(path)]: { ...r, ...patch } } } : {} })
+}
+
+/** Dados da Revisão que o core devolveu depois de gravar; arquivos e avisos ficam como estão. */
+function setReviewData(path: string, review: Review) {
+  set((s) => {
+    const r = s.reviews[norm(path)]
+    return r && r.branch === review.branch ? { reviews: { ...s.reviews, [norm(path)]: { ...r, state: { ...r.state, review } } } } : {}
+  })
+}
+
+/** Entra no modo Revisão e abre o primeiro arquivo que falta revisar. */
+function enterReview(path: string, branch: string, state: ReviewState) {
+  set((s) => ({ reviews: { ...s.reviews, [norm(path)]: { branch, state, scope: 'round' } } }))
+  const round = state.review.rounds.at(-1)
+  const first = round && (nextFile(state.files, round.reviewed, null) ?? state.files.find((f) => !f.reverted))
+  if (first) actions.openReviewFile(path, first)
+  else patchView(path, { diff: null })
+}
+
+/** Local atrás da remota que rastreia: avança (pull na branch atual). Divergiu: a Revisão segue a remota e avisa. */
+async function syncLocalBranch(path: string, branch: string) {
+  const local = (await core.listRefs(path).catch(() => null))?.local.find((b) => b.name === branch)
+  if (!local?.upstream?.endsWith(`/${branch}`) || !local.behind) return
+  if (local.ahead) return pushToast({ path, text: `${branch} local divergiu de ${local.upstream}. A revisão usa ${local.upstream}.`, info: true })
+  await actions.execute(path, local.current ? { type: 'pull', strategy: 'ffOnly' } : { type: 'fastForward', branch })
 }
 
 /** Diretório de um submódulo, a partir do nome (caminho relativo) que o `git submodule status` devolve. */
@@ -633,6 +811,8 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 export const selectActiveTab = (s: AppState) => s.tabs.find((t) => s.activePath !== null && same(t.path, s.activePath))
 export const runningLabel = (s: AppState, path: string) => s.running[norm(path)]
+/** Muda quando refs ou HEAD mudam (Operação, fetch, mudança externa). */
+export const selectGraphRevision = (path: string) => (s: AppState) => s.graphRevision[norm(path)] ?? 0
 export const selectWipRevision = (path: string) => (s: AppState) => (s.graphRevision[norm(path)] ?? 0) + (s.wipRevision[norm(path)] ?? 0)
 /** Diff aberto nesta Aba (o de outra Aba não aparece aqui). */
 /** Só a aba ativa reage a atalhos globais; as outras seguem montadas, escondidas. */
@@ -643,3 +823,7 @@ export const selectRepoPrefs = (path: string) => (s: AppState): RepoPrefs | unde
 /** Opções do painel WIP com o padrão das Preferências do repositório (antes de ler o config: tudo desligado, hooks ligados). */
 export const commitOptions = (p: RepoPrefs | undefined) => ({ sign: p?.signCommits ?? false, hooks: !p?.skipHooks, pushAfter: p?.pushAfterCommit ?? false })
 export const selectConflict = (path: string) => (s: AppState) => s.views[norm(path)]?.conflict ?? null
+/** Revisão aberta nesta Aba (`undefined` = fora do modo Revisão). */
+export const selectReview = (path: string) => (s: AppState): ReviewView | undefined => s.reviews[norm(path)]
+const NO_REVIEWS: ReviewSummary[] = []
+export const selectReviewList = (path: string) => (s: AppState) => s.reviewList[norm(path)] ?? NO_REVIEWS

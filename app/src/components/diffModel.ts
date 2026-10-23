@@ -9,6 +9,9 @@ export type DiffRow =
   | { type: 'line'; key: string; line: number }
   /** Lado a lado: `null` é a área vazia (hachurada). */
   | { type: 'split'; key: string; left: number | null; right: number | null }
+  /** Revisão: um comentário e a caixa de escrever, logo abaixo da linha (`reviewModel.ts`). */
+  | { type: 'comment'; key: string; id: string }
+  | { type: 'composer'; key: string }
 
 /** Trechos mostra só os trechos; Inline e Lado a lado usam o arquivo inteiro (linhas sem trecho entram sem cabeçalho). */
 export function diffRows(diff: FileDiff, layout: DiffLayout): DiffRow[] {

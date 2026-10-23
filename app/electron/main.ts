@@ -113,6 +113,13 @@ const appCommands: Record<string, (args: Record<string, unknown>) => Promise<unk
     const r = await dialog.showOpenDialog(window ?? undefined!, { properties: ['openDirectory'], title: 'Abrir repositório' })
     return r.canceled ? null : (r.filePaths[0] ?? null)
   },
+  /** Grava um texto onde o usuário escolher; `null` = cancelado. */
+  async save_text(args) {
+    const r = await dialog.showSaveDialog(window ?? undefined!, { defaultPath: String(args.name), filters: [{ name: 'Markdown', extensions: ['md'] }] })
+    if (r.canceled || !r.filePath) return null
+    writeFileSync(r.filePath, String(args.text))
+    return r.filePath
+  },
   /** Pastas passadas na linha de comando (`mnemo <pasta>`): abrem como Abas. */
   initial_paths() {
     const args = app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)

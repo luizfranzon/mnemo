@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { OperationKind, PullMode } from '../bridge/types'
-import { actions, runningLabel, selectActiveTab, useApp } from '../store/app'
+import { actions, runningLabel, selectActiveTab, selectReview, selectReviewList, useApp } from '../store/app'
 import { Icon } from './Icon'
 import { Menu } from './Menu'
 import type { MenuEntry, Rect } from './menuModel'
+import { reviewMenu } from './reviewModel'
 import { PULL_MODES, toolbarAvailability } from './toolbarModel'
 
 function relativeFetch(epoch: number | null, now: number): string {
@@ -34,7 +35,7 @@ function Spinner({ label }: { label: string }) {
 }
 
 type Control = 'fetch' | 'pull' | 'push' | 'stash' | 'checkout' | 'branch' | 'discard' | 'undo' | 'redo' | 'continue' | 'skip' | 'abort'
-type OpenMenu = { name: 'pull' | 'stash' | 'more'; anchor: Rect }
+type OpenMenu = { name: 'pull' | 'stash' | 'more' | 'reviews'; anchor: Rect }
 
 /** Desfazer/Refazer agem na Operação, mesmo com foco em campo de texto. */
 export function Toolbar() {
@@ -45,6 +46,8 @@ export function Toolbar() {
   const toolbar = useApp((s) => selectActiveTab(s)?.toolbar)
   const autoFetchError = useApp((s) => selectActiveTab(s)?.autoFetchError)
   const running = useApp((s) => (s.activePath ? runningLabel(s, s.activePath) : undefined))
+  const reviews = useApp((s) => selectReviewList(s.activePath ?? '')(s))
+  const reviewing = useApp((s) => (s.activePath ? selectReview(s.activePath)(s)?.branch : undefined))
   const [open, setOpen] = useState<OpenMenu | null>(null)
   type Pending = { control: Control; label: string }
   const [pending, setPending] = useState<Record<string, Pending>>({})
@@ -93,7 +96,12 @@ export function Toolbar() {
     more: [
       { label: 'Descartar tudo', reason: reason.mutation, run: () => void actions.requestDiscard(path, []) },
     ],
+    reviews: reviewMenu(reviews, reviewing, {
+      open: (branch) => void actions.openReview(path, branch), next: (branch) => void actions.requestReview(path, branch),
+      end: (branch) => actions.requestEndReview(path, branch), back: () => actions.closeReview(path),
+    }),
   }
+  const openReviews = reviews.filter((r) => r.open).length
   const menuButton = (which: OpenMenu['name'], label: string, blocked?: string) => <button
     aria-label={label} aria-haspopup="menu" aria-expanded={open?.name === which} disabled={!!blocked} title={blocked ?? label}
     onClick={(e) => toggle(which, e.currentTarget)}><Icon name="chevronDown" size={14} /></button>
@@ -136,6 +144,9 @@ export function Toolbar() {
       </div>
       <button className="temporary-action" disabled={!!reason.mutation} title={reason.mutation ?? 'Descartar todas as mudanças'} onClick={() => void actions.requestDiscard(path, [])}>
         {spinLabel('discard') ? <Spinner label={spinLabel('discard')!} /> : 'Descartar tudo'}</button>
+      <button className={reviewing ? 'review-button active' : 'review-button'} aria-haspopup="menu" aria-expanded={open?.name === 'reviews'}
+        title={reviewing ? `Revisando ${reviewing}` : 'Revisões deste repositório'} onClick={(e) => toggle('reviews', e.currentTarget)}>
+        <Icon name="shown" size={16} /> Revisões{openReviews > 0 && <span className="count-badge blue">{openReviews}</span>}</button>
       <div className="toolbar-more">{menuButton('more', 'Mais ações do repositório', reason.mutation)}</div>
       {executing && <span className="operation-indicator" role="status">{executing}</span>}
       <button className="toolbar-search" aria-label="Buscar branch" disabled={!!reason.busy} title={reason.busy ?? 'Buscar branch (Ctrl+P)'} onClick={() => actions.setPalette('checkout')}>
@@ -154,6 +165,6 @@ export function Toolbar() {
       <button disabled={!!executing} title={reason.busy} onClick={() => void run('abort', 'Abortando…', () => actions.progressAction(path, 'abort'))}>
         {spinLabel('abort') ? <Spinner label={spinLabel('abort')!} /> : 'Abortar'}</button>
     </div>}
-    {open && <Menu items={menuItems[open.name]} anchor={open.anchor} label={open.name === 'pull' ? 'Opções de pull' : open.name === 'stash' ? 'Opções de stash' : 'Mais ações'} onClose={() => setOpen(null)} />}
+    {open && <Menu items={menuItems[open.name]} anchor={open.anchor} label={open.name === 'pull' ? 'Opções de pull' : open.name === 'stash' ? 'Opções de stash' : open.name === 'reviews' ? 'Revisões' : 'Mais ações'} onClose={() => setOpen(null)} />}
   </>
 }

@@ -73,6 +73,7 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .tabbar { display: flex; align-items: flex-end; gap: 2px; padding-left: var(--space-2); height: var(--h-tabs); background: var(--bg-rail); border-bottom: 1px solid var(--border-subtle); }
 .tab { display: flex; align-items: center; height: 33px; max-width: 220px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: var(--text-muted); }
 .tab.active { background: var(--surface-1); color: var(--text); box-shadow: inset 0 2px 0 var(--accent); }
+.tab.reviewing { max-width: 360px; }
 .tab button, .tab-add { display: flex; align-items: center; background: transparent; border: 0; color: inherit; }
 .tab button:hover:not(:disabled), .tab-add:hover:not(:disabled) { background: transparent; color: var(--text); }
 .tab-label { height: 100%; min-width: 0; padding: 0 6px 0 var(--space-3); overflow: hidden; text-overflow: ellipsis; }
@@ -287,6 +288,8 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .toast.error .toast-text { font: var(--fs-code) / 1.5 var(--font-mono); }
 .toast-title { display: block; font: 600 11px/1.4 var(--font-ui); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .toast-actions { flex: none; display: flex; gap: 2px; }
+.toast:has(.toast-actions.below) { flex-wrap: wrap; }
+.toast-actions.below { flex-basis: 100%; padding-left: 22px; }
 .toast-actions button { height: 26px; padding: 0 9px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--tone-text); font-size: var(--fs-caption); font-weight: 600; white-space: nowrap; cursor: pointer; }
 .toast-actions button:hover { background: var(--surface-1); }
 .toast-close { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 0 var(--radius-md) 0 var(--radius-md); background: transparent; color: var(--text-subtle); cursor: pointer; }
@@ -636,3 +639,53 @@ button.diff-gutter[aria-pressed="true"] { background: var(--accent-primary); col
 .push-dialog .primary.danger { background: var(--danger); color: #fff; }
 ::highlight(find) { background: color-mix(in srgb, var(--warning-text) 45%, transparent); color: inherit; }
 .diff-row.find-current { box-shadow: inset 3px 0 var(--warning-text); }
+
+/* Revisão */
+.toolbar > .review-button.active { color: var(--accent-link); background: var(--accent-tint); }
+.graph-review-mark { display: inline-grid; place-items: center; width: 18px; height: 16px; margin-right: 6px; padding: 0; border: 0; border-radius: var(--radius-xs); background: var(--accent-tint); color: var(--accent-link); vertical-align: -3px; }
+.graph-review-mark.rewritten { background: var(--warning-bg); color: var(--warning-text); }
+.graph-review-mark:hover:not(:disabled) { background: var(--menu-highlight-hover); border: 0; }
+.diff-reviewed { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; }
+.diff-row-free { width: 100%; }
+.review-note { max-width: 760px; margin: 6px 12px 8px 56px; padding: 8px 12px 10px; border: 1px solid var(--border-strong); border-left: 3px solid var(--accent); border-radius: var(--radius-sm); background: var(--surface-2); font-family: var(--font-ui); font-size: var(--fs-body-sm); line-height: 1.5; white-space: normal; }
+.review-note-head { display: flex; align-items: center; gap: 8px; min-height: 24px; font: 11.5px var(--font-mono); color: var(--accent-link); }
+.review-note-head button { height: 22px; padding: 0 8px; border: 0; background: transparent; color: var(--text-muted); font: 12px var(--font-ui); }
+.review-note-head button:hover:not(:disabled) { color: var(--text); }
+.review-note-body { color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.review-note.composer { border-left-color: var(--accent-primary); }
+.review-note.right { max-width: none; margin-left: calc(50% + 56px); }
+.diff-body { position: relative; }
+.review-select-comment { position: absolute; z-index: 5; height: 26px; padding: 0 10px; font-size: 12px; box-shadow: var(--shadow-menu); }
+.review-note.left { max-width: none; margin-right: calc(50% + 12px); }
+.review-note.composer textarea { display: block; width: 100%; min-height: 76px; margin: 4px 0 8px; resize: vertical; font-size: var(--fs-body-sm); line-height: 1.5; }
+.review-note.composer textarea:focus { border-color: var(--accent); }
+.review-note-actions { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.review-note-actions button { height: 28px; padding: 0 12px; }
+.review-note-actions kbd { font-size: 10.5px; }
+.review-file-notes .review-note { margin-left: 24px; }
+.review-head { gap: 6px; }
+.review-title { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--accent-link); }
+.review-title h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-family: var(--font-mono); font-size: 14px; }
+.review-title .muted { flex: none; font: 12px var(--font-mono); }
+.review-round { font-size: 12px; }
+.review-progress { height: 4px; margin-top: 4px; border-radius: var(--radius-full); background: var(--surface-3); overflow: hidden; }
+.review-progress > div { height: 100%; background: var(--success-solid); transition: width .2s ease-out; }
+.review-count { font-size: 12px; color: var(--text-secondary); }
+.review-notice { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 8px 12px 0; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--accent-tint); color: var(--accent-text); font-size: 12px; line-height: 1.45; }
+.review-notice.warning { background: var(--warning-bg); color: var(--warning-text); }
+.review-notice button { height: 24px; padding: 0 8px; font-size: 12px; }
+.review-file input[type="checkbox"] { margin-left: 2px; }
+.review-file.done .commit-name, .review-file.done .commit-dirpath { color: var(--text-muted); }
+.review-file.reverted { cursor: default; }
+.review-file.reverted:hover { background: transparent; }
+.review-file.reverted .commit-name { color: var(--text-muted); font-style: italic; }
+.review-tag { flex: none; padding: 0 6px; border-radius: 9px; background: var(--surface-3); color: var(--text-muted); font-size: 11px; }
+.review-file .count-badge { flex: none; margin-right: 4px; }
+.review-empty { padding: 16px 10px; font-size: 12px; }
+.review-actions { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border-subtle); }
+.review-actions button { display: inline-flex; align-items: center; gap: 6px; height: 30px; }
+.review-idle { display: grid; place-items: center; }
+.review-report { width: min(720px, calc(100vw - 32px)); max-width: none; }
+.review-report-text { max-height: 50vh; margin: 0 0 var(--space-2); padding: var(--space-3); overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.push-dialog input[type="text"], .push-dialog input:not([type]) { width: 100%; margin-bottom: var(--space-3); }
+@media (prefers-reduced-motion: reduce) { .review-progress > div { transition: none; } }

@@ -19,11 +19,13 @@ interface Props {
   gutter?: number
   hit?: number
   onScroll?: () => void
+  /** Linha de altura livre (comentário da Revisão): o virtualizador mede depois de desenhar. */
+  measured?: (index: number) => boolean
   renderRow: (index: number) => ReactNode
 }
 
 /** Corpo virtualizado compartilhado por diff e conflito: linhas, destaque da busca e rolagem horizontal das metades. */
-export function SplitScroll({ virtual, scroller, split, cols, gutter = 76, hit, onScroll, renderRow }: Props) {
+export function SplitScroll({ virtual, scroller, split, cols, gutter = 76, hit, onScroll, measured, renderRow }: Props) {
   // as duas barras horizontais andam juntas; o deslocamento vai por CSS variable, sem re-render
   const syncX = (e: UIEvent<HTMLDivElement>) => {
     const x = (e.target as HTMLElement).scrollLeft
@@ -33,8 +35,11 @@ export function SplitScroll({ virtual, scroller, split, cols, gutter = 76, hit, 
   return <div className="diff-main" style={{ '--cols': cols, '--gutter': `${gutter}px` } as CSSProperties}>
     <div className={`diff-scroll ${split ? 'split' : 'unified'}`} ref={scroller} onScroll={onScroll} onPointerDown={(e: PointerEvent<HTMLDivElement>) => selectSide(e)}>
       <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
-        {virtual.getVirtualItems().map((item) => <div key={item.key} className={item.index === hit ? 'diff-row find-current' : 'diff-row'} style={{ transform: `translateY(${item.start}px)`, height: item.size }}>
-          {renderRow(item.index)}</div>)}
+        {virtual.getVirtualItems().map((item) => measured?.(item.index)
+          ? <div key={item.key} data-index={item.index} ref={virtual.measureElement} className="diff-row diff-row-free" style={{ transform: `translateY(${item.start}px)` }}>
+            {renderRow(item.index)}</div>
+          : <div key={item.key} className={item.index === hit ? 'diff-row find-current' : 'diff-row'} style={{ transform: `translateY(${item.start}px)`, height: item.size }}>
+            {renderRow(item.index)}</div>)}
       </div>
     </div>
     {split && <div className="diff-hbars">

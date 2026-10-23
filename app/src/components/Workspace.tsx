@@ -12,6 +12,7 @@ import { Toolbar } from './Toolbar'
 import { PushDialog } from './PushDialog'
 import { ForcePushDialog } from './ForcePushDialog'
 import { PushRejectedBar } from './PushRejectedBar'
+import { ReviewDialogs } from './ReviewDialogs'
 
 export function Workspace() {
   const path = useApp((s) => selectActiveTab(s)?.path)
@@ -42,6 +43,7 @@ export function Workspace() {
       <DiscardDialogs />
       <PushDialog />
       <ForcePushDialog />
+      <ReviewDialogs />
 
       <Toasts />
       {palette && <Palette key={palette} mode={palette} />}

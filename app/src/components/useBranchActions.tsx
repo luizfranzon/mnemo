@@ -36,7 +36,7 @@ export function useBranchActions(path: string) {
       head: head!, toolbar: toolbar!, remoteUrl, mutation: toolbarAvailability(head!, toolbar!, running).mutation,
       execute: (kind) => void actions.execute(path, kind), checkout: () => checkout(t), pull: () => void actions.pullNow(path),
       push: () => void actions.requestPush(path), newBranch: (start) => actions.setPalette('createBranch', start),
-      resetHard: (sha) => void actions.requestResetHard(path, sha), dialog: setDialog,
+      resetHard: (sha) => void actions.requestResetHard(path, sha), review: (branch) => void actions.requestReview(path, branch), dialog: setDialog,
       copy: (text) => void navigator.clipboard.writeText(text).catch(() => undefined),
       view: { hidden: vis.hidden.includes(name), solo: vis.solo === name, highlight: vis.highlight === name },
       toggleView: (what) => updateVisibility(path, (v) => ({ hidden: toggleHidden, solo: toggleSolo, highlight: toggleHighlight })[what](v, name)),
