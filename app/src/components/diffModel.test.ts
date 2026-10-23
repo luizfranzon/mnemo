@@ -66,6 +66,6 @@ test('trecho atual: o último cabeçalho na linha ou antes dela', () => {
 test('busca: devolve as linhas com o texto em qualquer lado, sem diferenciar maiúsculas', () => {
   const d = diff([line('context', 'Alpha'), line('del', 'beta'), line('add', 'BETA'), line('context', 'gama')])
   assert.deepEqual(findRows(d, diffRows(d, 'hunks'), 'beta'), [2, 3])
-  assert.deepEqual(findRows(d, diffRows(d, 'split'), 'beta'), [2])
+  assert.deepEqual(findRows(d, diffRows(d, 'split'), 'beta'), [1])
   assert.deepEqual(findRows(d, diffRows(d, 'hunks'), ''), [])
 })

@@ -31,7 +31,6 @@ export function diffRows(diff: FileDiff, layout: DiffLayout): DiffRow[] {
   }
   const split = (left: number | null, right: number | null) => rows.push({ type: 'split', key: `s${left}:${right}`, left, right })
   for (let i = 0; i < lines.length;) {
-    hunkHead(i)
     const kind = lines[i]!.kind
     if (kind === 'context') { split(i, i); i++; continue }
     // um bloco de remoções seguido das adições do mesmo trecho: pareados linha a linha
