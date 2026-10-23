@@ -71,11 +71,13 @@ export function ConflictEditor({ path }: { path: string }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!isActiveTab(path) || e.key !== 'Escape' || e.defaultPrevented || ask || document.querySelector('.menu-overlay, dialog[open], .modal')) return
-      actions.closeConflict(path)
+      e.preventDefault() // o Esc fechou algo daqui: a busca do grafo, por baixo, espera o próximo
+      if (find) setFind(null)
+      else actions.closeConflict(path)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [ask])
+  }, [ask, !find])
 
   const done = () => { actions.wipChanged(path); actions.closeConflict(path) }
   const fail = (err: unknown) => actions.reportError(err, path)

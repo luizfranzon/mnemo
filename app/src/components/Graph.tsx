@@ -332,6 +332,15 @@ export function Graph({ path }: { path: string }) {
   }, [selectedSha, path])
   // com diff ou conflito aberto, o Ctrl+F é deles
   useFindShortcut(path, () => openFind(), () => !!(selectDiff(path)(useApp.getState()) || selectConflict(path)(useApp.getState())))
+  // Esc fecha a busca mesmo com o foco fora dela (ex.: depois de clicar num commit)
+  useEffect(() => {
+    if (!find) return
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented && isActiveTab(path) && !selectDiff(path)(useApp.getState()) && !selectConflict(path)(useApp.getState())) setFind(null)
+    }
+    window.addEventListener('keydown', onEsc)
+    return () => window.removeEventListener('keydown', onEsc)
+  }, [!find, path])
   const hasText = (c: GraphCommit, needle: string) => `${c.subject}\n${c.description}\n${c.sha}\n${c.refs.map((r) => r.name).join('\n')}`.toLocaleLowerCase().includes(needle)
   const byAuthor = (c: GraphCommit) => !authors?.length || authors.includes(c.email.toLowerCase())
   const needle = find?.text.trim().toLocaleLowerCase() ?? ''

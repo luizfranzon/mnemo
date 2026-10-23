@@ -361,7 +361,7 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .col-handle.after { right: -3px; }
 .col-handle.before { left: -3px; }
 .col-handle:hover, .col-handle.dragging { background: var(--accent); opacity: .5; }
-.graph-view { position: relative; }
+.graph-view { position: relative; isolation: isolate; }
 .graph-gear { margin-left: auto; }
 .graph-pop-overlay { position: fixed; inset: 0; z-index: 20; }
 .graph-pop { position: absolute; top: 36px; right: 8px; z-index: 21; min-width: 220px; padding: 8px; background: var(--surface-3); border: 1px solid var(--border-strong); border-radius: var(--radius-menu); box-shadow: var(--shadow-menu); display: flex; flex-direction: column; gap: 2px; }

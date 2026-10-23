@@ -67,11 +67,13 @@ export function DiffView({ path }: { path: string }) {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
       if (!isActiveTab(path) || e.key !== 'Escape' || e.defaultPrevented || typing || document.querySelector('.menu-overlay, dialog[open], .modal')) return
-      actions.closeDiff(path)
+      e.preventDefault() // o Esc fechou algo daqui: a busca do grafo, por baixo, espera o próximo
+      if (find) setFind(null)
+      else actions.closeDiff(path)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [!find])
 
   // useMemo manual: o Compiler pula componente com useVirtualizer, e sem isso o parse do arquivo inteiro roda a cada frame de scroll
   const rows = useMemo(() => (diff && !diff.binary && !diff.tooLarge ? diffRows(diff, layout) : []), [diff, layout])
