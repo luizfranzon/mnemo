@@ -7,7 +7,7 @@ Git client desktop visual, local. Mostra o histórico como grafo e executa açõ
 ### Janela
 
 **Aba**:
-Um diretório de trabalho aberto: o repositório principal ou um worktree. O mesmo diretório nunca fica aberto em duas abas, e abrir um worktree abre uma aba nova ou foca a que já existe. A única mudança de diretório permitida é entrar num submódulo e voltar ao pai. Cada nível (repositório e cada submódulo) tem HEAD, WIP e Histórico de Operações próprios, e a aba mostra o nível em que está. O nome da aba é o da pasta; se duas abas abertas têm o mesmo nome, ambas ganham o menor trecho do caminho pai que as diferencia (`MobileCore — projects`).
+Um diretório de trabalho aberto: o repositório principal ou um worktree. O mesmo diretório nunca fica aberto em duas abas, e abrir um worktree abre uma aba nova ou foca a que já existe. A única mudança de diretório permitida é entrar num submódulo e voltar ao pai. Cada nível (repositório e cada submódulo) tem HEAD, WIP e Histórico de Operações próprios, e a aba mostra o nível em que está. O nome da aba é o da pasta; se duas abas abertas têm o mesmo nome, ambas ganham o menor trecho do caminho pai que as diferencia (`MobileCore — projects`). No modo Revisão, o nome vira `Revisão: <nome> - <branch>`.
 _Avoid_: janela, projeto
 
 **Favorito**:
@@ -62,6 +62,19 @@ _Avoid_: fixar, pinned, solo
 **Base**:
 A branch de onde uma branch saiu. O Mnemo registra a base quando cria a branch, sempre pelo nome sem o remoto (saiu de `origin/12.x` → base `12.x`). Se a branch foi criada fora do Mnemo ou a partir de um commit solto, vale a branch padrão do repositório. O usuário pode trocar a base.
 _Avoid_: upstream (upstream é a remota que a branch rastreia), branch pai
+
+### Revisão
+
+**Revisão**:
+Code review de uma branch feito no Mnemo, uma por branch. Mostra só o que a branch introduz em relação à Base (do merge-base até a ponta), sem criar branch nem fazer checkout. É composta de Rodadas. Abre como um modo da Aba, no lugar do grafo, e não bloqueia as outras ações.
+_Avoid_: review, code review, branch de revisão
+
+**Rodada**:
+Uma passada de Revisão, presa ao commit que era a ponta da branch quando ela começou. Guarda os arquivos revisados e os comentários, e termina quando o usuário a conclui. Commits que chegam durante uma Rodada ficam para a próxima, que mostra só o que mudou desde o commit da última Rodada concluída.
+_Avoid_: sessão, passada, iteração
+
+**Commit revisado**:
+Commit em que uma Rodada foi concluída. Ganha um marcador no grafo e continua guardado mesmo se a branch sofrer rebase ou force push.
 
 ### Identidade
 

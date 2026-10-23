@@ -109,6 +109,10 @@ pub enum OperationKind {
     Pull {
         strategy: Option<PullStrategy>,
     },
+    /// Avança uma branch que não é a atual até a remota que ela rastreia, sem checkout. Só fast-forward.
+    FastForward {
+        branch: String,
+    },
     /// `paths` vazio = todo o WIP; senão só esses arquivos/pastas. Com arquivo em conflito o git recusa o stash (erro com os caminhos).
     StashCreate {
         message: Option<String>,
@@ -190,6 +194,7 @@ impl OperationKind {
             CherryPick { commit } => format!("cherry-pick de {commit}"),
             Revert { commit } => format!("revert de {commit}"),
             Pull { .. } => "pull".into(),
+            FastForward { branch } => format!("avançar {branch} até a remota"),
             StashCreate { paths, .. } if paths.len() == 1 => format!("guardar {} no stash", paths[0]),
             StashCreate { paths, .. } if !paths.is_empty() => format!("guardar {} itens no stash", paths.len()),
             StashCreate { .. } => "criar stash".into(),
@@ -225,6 +230,7 @@ impl OperationKind {
             Merge { target } => format!("{current} já contém {}", short(target)),
             Rebase { onto } => format!("{current} já está sobre {}", short(onto)),
             Pull { .. } => format!("{current} já está em dia com o remoto"),
+            FastForward { branch } => format!("{branch} já está em dia com o remoto"),
             Fetch { .. } => "Nada novo no remoto".into(),
             Push { branch, .. } => format!("O remoto já está em dia com {}", branch.as_deref().unwrap_or(current)),
             Checkout { target } => format!("Você já está em {}", short(target)),
