@@ -1,8 +1,11 @@
 import { create } from 'zustand'
 import { core, errorCode, errorMessage } from '../bridge'
-import type { DiffSource, DiscardPreview, FileChange, ForcePushPreview, GraphPage, ResetPreview, HeadInfo, OperationKind, PullMode, RepoPrefs, RepositoryInfo, ToolbarInfo, UndoRedoState, UpdateState } from '../bridge/types'
+import type { DiffSource, DiscardPreview, FileChange, ForcePushPreview, GraphPage, ResetPreview, HeadInfo, OperationKind, PullMode, RepoPrefs, RepositoryInfo, Review, ReviewComment, ReviewFile, ReviewScope, ReviewState, ReviewSummary, ToolbarInfo, UndoRedoState, UpdateState } from '../bridge/types'
+import { nextFile, rangeOf } from '../components/reviewModel'
 import { toolbarAvailability } from '../components/toolbarModel'
 import { graphVisibility, selectVisibility, useVisibility } from './visibility'
+import { overwrittenPaths } from './overwritten'
+import { tabLabel } from './tabLabel'
 
 export interface Tab {
   /** Diretório de trabalho: a identidade da Aba (o mesmo diretório nunca abre duas vezes). */
@@ -13,12 +16,16 @@ export interface Tab {
   toolbar: ToolbarInfo
   /** Emails (minúsculos) do filtro de Autores do grafo; vazio = sem filtro. Vive só enquanto a aba está aberta. */
   authors: string[]
+  /** Diretório do repositório pai, quando a aba é um submódulo aberto a partir dele (alimenta o breadcrumb). */
+  parent?: string
   /** Erro do último auto-fetch; `null`/ausente = deu certo. */
   autoFetchError?: string | null
 }
 
 export interface Toast {
   id: number
+  /** Nome da aba de onde veio; toast global (preferências, atualização) não tem. */
+  title?: string
   text: string
   /** Mostra o botão "Desfazer" (Operação desfazível). */
   undoPath?: string
@@ -28,6 +35,8 @@ export interface Toast {
   /** Aviso neutro (azul). */
   info?: boolean
   retry?: () => Promise<void>
+  /** Botões extras do toast (ex.: resolver e repetir a Operação). */
+  buttons?: { label: string; run: () => Promise<unknown> }[]
 }
 
 export type PaletteMode = 'checkout' | 'createBranch'
@@ -38,14 +47,11 @@ interface AppState {
   git: GitStatus
   tabs: Tab[]
   activePath: string | null
-  selectedSha: string | null
+  /** Seleção, diff e conflito por diretório: cada aba é isolada e volta como foi deixada. */
+  views: Record<string, TabView>
   graphRevision: Record<string, number>
   /** Muda quando o WIP muda sem Operação (preparar, tirar, ignorar): painel WIP e diff releem. */
   wipRevision: Record<string, number>
-  /** Diff aberto no centro (o grafo fica montado por baixo). */
-  diff: DiffTarget | null
-  /** Editor de conflito aberto no centro (mesmo lugar do diff). */
-  conflict: { path: string; file: string } | null
   /** Operação em curso, por diretório (a toolbar mostra o texto). */
   running: Record<string, string>
   toasts: Toast[]
@@ -55,6 +61,8 @@ interface AppState {
   palette: PaletteMode | null
   /** Ponto de partida da nova branch (nulo = HEAD). */
   paletteStart: string | null
+  /** Diretório a que a paleta se aplica quando não é o da aba ativa (submódulo aberto pelo painel de refs). */
+  paletteTarget: string | null
   checkoutPrompt: { path: string; target: string; remote: string | null; conflicts: number; behind: number } | null
   pushPrompt: { path: string; branch: string; remotes: string[] } | null
   /** Push que o remoto rejeitou (branch atrás): a barra sobre o grafo oferece Pull, Force Push e Cancelar. */
@@ -71,7 +79,19 @@ interface AppState {
   prefsOpen: boolean
   /** Preferências de repositório já lidas do `.git/config`, por diretório. */
   repoPrefs: Record<string, RepoPrefs>
+  /** Revisão aberta na Aba (modo Revisão): o diff do centro e o painel direito são dela. */
+  reviews: Record<string, ReviewView>
+  /** Revisões do repositório, para o menu da toolbar e os marcadores do grafo. */
+  reviewList: Record<string, ReviewSummary[]>
+  /** Começar Revisão ou Rodada: o diálogo confirma a Base. */
+  reviewPrompt: { path: string; branch: string; base: string; round: number } | null
+  /** Encerrar Revisão aguardando confirmação (apaga as rodadas). */
+  reviewEndPrompt: { path: string; branch: string } | null
 }
+
+export interface ReviewView { branch: string; state: ReviewState; scope: ReviewScope }
+
+interface TabView { selectedSha: string | null; diff: DiffTarget | null; conflict: { path: string; file: string } | null }
 
 export interface DiffTarget { path: string; file: FileChange; source: DiffSource }
 
@@ -103,16 +123,15 @@ export const useApp = create<AppState>(() => ({
   git: { phase: 'checking' },
   tabs: [],
   activePath: null,
-  selectedSha: null,
+  views: {},
   graphRevision: {},
   wipRevision: {},
-  diff: null,
-  conflict: null,
   running: {},
   toasts: [],
   update: { status: 'none' },
   palette: null,
   paletteStart: null,
+  paletteTarget: null,
   checkoutPrompt: null,
   pushPrompt: null,
   pushRejected: null,
@@ -123,6 +142,10 @@ export const useApp = create<AppState>(() => ({
   prefs: loadPrefs(),
   prefsOpen: false,
   repoPrefs: {},
+  reviews: {},
+  reviewList: {},
+  reviewPrompt: null,
+  reviewEndPrompt: null,
 }))
 
 const set = useApp.setState
@@ -138,10 +161,14 @@ function patchTab(path: string, patch: Partial<Tab>) {
   set((s) => ({ tabs: s.tabs.map((t) => (same(t.path, path) ? { ...t, ...patch } : t)) }))
 }
 
-function pushToast(toast: Omit<Toast, 'id'>) {
+/** `path`: a aba de onde o toast veio, que vira o título (fixado agora: sobrevive à aba fechar). */
+function pushToast({ path, ...toast }: Omit<Toast, 'id' | 'title'> & { path?: string }) {
   const id = ++toastSeq
+  const tabs = get().tabs
+  const tab = path === undefined ? undefined : tabs.find((t) => same(t.path, path))
+  const title = tab && tabLabel(tabs, tab.path)
   // O "Desfazer" do toast age na última Operação: toasts antigos perdem o botão.
-  set((s) => ({ toasts: [...s.toasts.map(stripUndo), { ...toast, id }] }))
+  set((s) => ({ toasts: [...s.toasts.map(stripUndo), { ...toast, title, id }] }))
   setTimeout(() => dismissToast(id), toast.error ? 12000 : 6000)
 }
 
@@ -151,17 +178,38 @@ export function dismissToast(id: number) {
   set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
 }
 
+const EMPTY_VIEW: TabView = { selectedSha: null, diff: null, conflict: null }
+function patchView(path: string, patch: Partial<TabView> | ((v: TabView) => Partial<TabView>)) {
+  set((s) => {
+    const v = s.views[norm(path)] ?? EMPTY_VIEW
+    return { views: { ...s.views, [norm(path)]: { ...v, ...(typeof patch === 'function' ? patch(v) : patch) } } }
+  })
+}
+
 function clearPushRejected(path: string) {
   if (get().pushRejected && same(get().pushRejected!.path, path)) set({ pushRejected: null })
 }
 
-function fail(err: unknown, retry?: () => Promise<void>) {
+function fail(err: unknown, path?: string, retry?: () => Promise<void>) {
   const text = errorMessage(err)
-  pushToast({ text: text.length > 300 ? `${text.slice(0, 300)}…` : text, error: true, retry: errorCode(err) === 'indexLocked' ? retry : undefined })
+  pushToast({ path, text: text.length > 300 ? `${text.slice(0, 300)}…` : text, error: true, retry: errorCode(err) === 'indexLocked' ? retry : undefined,
+    buttons: path === undefined ? undefined : blockedPullButtons(err, path) })
+}
+
+/** Pull barrado por arquivos que seriam sobrescritos: guardar no stash ou descartar, e repetir o pull. */
+function blockedPullButtons(err: unknown, path: string): Toast['buttons'] {
+  const { args = '', stderr = '' } = err as { args?: string; stderr?: string }
+  const paths = errorCode(err) === 'gitFailed' && /^pull\b/.test(args) ? overwrittenPaths(stderr) : []
+  if (paths.length === 0) return undefined
+  const then = async (kind: OperationKind) => { if (await actions.execute(path, kind)) await actions.pullNow(path) }
+  return [
+    { label: 'Stash e tentar de novo', run: () => then({ type: 'stashCreate', message: null, includeUntracked: true, paths }) },
+    { label: 'Descartar e tentar de novo', run: () => then({ type: 'discard', paths }) },
+  ]
 }
 
 export const actions = {
-  reportError(err: unknown) { fail(err) },
+  reportError(err: unknown, path?: string) { fail(err, path) },
   async refreshUpdate() { set({ update: await core.updateState().catch(() => ({ status: 'none' as const })) }) },
   /** Clique na versão: checa na hora; sem novidade, avisa. */
   async checkUpdate() {
@@ -175,7 +223,7 @@ export const actions = {
     if (Object.keys(get().running).length > 0) return pushToast({ text: 'Aguarde a Operação terminar para reiniciar e atualizar', info: true })
     void core.updateInstall()
   },
-  info(text: string) { pushToast({ text, info: true }) },
+  info(text: string, path?: string) { pushToast({ path, text, info: true }) },
   async checkoutRef(path: string, kind: Extract<OperationKind, { type: 'checkout' | 'checkoutRemote' }>, behind = 0) {
     const target = kind.type === 'checkout' ? kind.target : kind.branch
     const remote = kind.type === 'checkoutRemote' ? kind.remote : null
@@ -185,11 +233,11 @@ export const actions = {
         set({ checkoutPrompt: { path, target, remote, conflicts, behind } })
         return
       }
-    } catch (err) { fail(err); return }
+    } catch (err) { fail(err, path); return }
     const executed = await actions.execute(path, kind)
     const head = get().tabs.find((tab) => same(tab.path, path))?.head
     if (behind > 0 && head?.kind === 'branch' && head.name === target && executed)
-      pushToast({ text: `${target} está ${behind} commit(s) atrás do remoto`, pullPath: path })
+      await actions.execute(path, { type: 'pull', strategy: 'ffOnly' })
   },
   async confirmCheckout(mode: 'stash' | 'carry') {
     const prompt = get().checkoutPrompt
@@ -198,7 +246,7 @@ export const actions = {
     const executed = await actions.execute(prompt.path, { type: 'checkoutWithChanges', target: prompt.target, remote: prompt.remote, mode })
     const head = get().tabs.find((tab) => same(tab.path, prompt.path))?.head
     if (prompt.behind > 0 && head?.kind === 'branch' && head.name === prompt.target && executed)
-      pushToast({ text: `${prompt.target} está ${prompt.behind} commit(s) atrás do remoto`, pullPath: prompt.path })
+      await actions.execute(prompt.path, { type: 'pull', strategy: 'ffOnly' })
   },
   cancelCheckout() { set({ checkoutPrompt: null }) },
   async pullNow(path: string) {
@@ -240,23 +288,41 @@ export const actions = {
     }
   },
 
+  /** Abre o submódulo (caminho relativo ao pai, como o `git submodule status` devolve) numa aba própria, com o pai no breadcrumb. */
+  async openSubmodule(parent: string, name: string) {
+    try {
+      const info = await core.openRepository(submodulePath(parent, name))
+      // pasta vazia (submódulo não iniciado): o git sobe até o repositório pai
+      if (same(info.path, parent)) throw new Error(`O submódulo ${name} não foi iniciado`)
+      adoptRepository(info, parent)
+    } catch (err) {
+      fail(err)
+    }
+  },
+
   closeTab(path: string) {
     void core.closeRepository(path)
     set((s) => {
       const tabs = s.tabs.filter((t) => !same(t.path, path))
+      const { [norm(path)]: _closed, ...views } = s.views
+      const { [norm(path)]: _review, ...reviews } = s.reviews
       const activePath = s.activePath && same(s.activePath, path) ? (tabs.at(-1)?.path ?? null) : s.activePath
-      return { tabs, activePath, diff: s.diff && same(s.diff.path, path) ? null : s.diff, selectedSha: activePath !== s.activePath ? null : s.selectedSha, pushPrompt: s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt } // o retry pendente era de uma aba que pode ser esta
+      return { tabs, views, reviews, activePath, pushPrompt: s.pushPrompt && same(s.pushPrompt.path, path) ? null : s.pushPrompt } // o retry pendente era de uma aba que pode ser esta
     })
   },
 
   focusTab(path: string) {
-    set({ activePath: path, selectedSha: null, diff: null, conflict: null })
+    set({ activePath: path })
   },
-  selectCommit(sha: string) { set((s) => ({ selectedSha: sha, diff: s.selectedSha === sha ? s.diff : null })) },
-  openDiff(diff: DiffTarget) { set({ diff, conflict: null }) },
-  closeDiff() { set({ diff: null }) },
-  openConflict(path: string, file: string) { set({ conflict: { path, file }, diff: null }) },
-  closeConflict() { set({ conflict: null }) },
+  selectCommit(path: string, sha: string) { patchView(path, (v) => ({ selectedSha: sha, diff: v.selectedSha === sha ? v.diff : null })) },
+  openDiff(diff: DiffTarget) { patchView(diff.path, { diff, conflict: null }) },
+  /** No modo Revisão, fechar o diff volta ao grafo (a Revisão continua salva). */
+  closeDiff(path: string) {
+    patchView(path, { diff: null })
+    if (get().reviews[norm(path)]) actions.closeReview(path)
+  },
+  openConflict(path: string, file: string) { patchView(path, { conflict: { path, file }, diff: null }) },
+  closeConflict(path: string) { patchView(path, { conflict: null }) },
   /** Preparar/tirar/ignorar mudaram o WIP: quem mostra o WIP relê. */
   wipChanged(path: string) { set((s) => ({ wipRevision: { ...s.wipRevision, [norm(path)]: (s.wipRevision[norm(path)] ?? 0) + 1 } })) },
   setAuthorFilter(path: string, authors: string[]) { patchTab(path, { authors }) },
@@ -267,14 +333,15 @@ export const actions = {
       const r = await core.execute(path, kind.type === 'fetch' ? { ...kind, prune: get().prefs.prune } : kind)
       patchTab(path, { undo: r.state })
       await refreshHead(path)
-      if (r.status === 'conflict') pushToast({ text: `${r.progress} parou em conflito` })
+      if (r.status === 'conflict') pushToast({ path, text: `${r.progress} parou em conflito` })
+      else if (r.noEffect !== null) pushToast({ path, text: r.noEffect, info: true })
       else if (r.opId !== null) {
         const tracking = kind.type === 'checkoutRemote' ? { branch: kind.branch, remote: kind.remote }
           : kind.type === 'checkoutWithChanges' && kind.remote ? { branch: kind.target, remote: kind.remote } : null
-        pushToast({ text: tracking ? `criada ${tracking.branch} rastreando ${tracking.remote}/${tracking.branch}` : capitalize(r.label),
+        pushToast({ path, text: tracking ? `criada ${tracking.branch} rastreando ${tracking.remote}/${tracking.branch}` : capitalize(r.label),
           undoPath: r.undoable ? path : undefined })
       }
-      r.status === 'completed' && r.warnings.forEach((w) => pushToast({ text: w }))
+      r.status === 'completed' && r.warnings.forEach((w) => pushToast({ path, text: w }))
       if (kind.type === 'push' || kind.type === 'pull') clearPushRejected(path)
       return true
     } catch (err) {
@@ -283,7 +350,7 @@ export const actions = {
         set({ pushRejected: { path, branch, upstream } })
         return false
       }
-      fail(err, async () => void (await actions.execute(path, kind)))
+      fail(err, path, async () => void (await actions.execute(path, kind)))
       return false
     }
   },
@@ -291,14 +358,14 @@ export const actions = {
   async setPullMode(path: string, mode: PullMode) {
     try {
       patchTab(path, { toolbar: await core.setPullMode(path, mode) })
-    } catch (err) { fail(err) }
+    } catch (err) { fail(err, path) }
   },
 
   async requestPush(path: string) {
     const tab = get().tabs.find((t) => same(t.path, path))
     if (!tab || tab.head.kind !== 'branch') return
     const reason = toolbarAvailability(tab.head, tab.toolbar, runningLabel(get(), path)).push
-    if (reason) return fail(new Error(reason))
+    if (reason) return fail(new Error(reason), path)
     if (tab.head.upstream !== null) {
       return actions.execute(path, { type: 'push', remote: null, branch: null, setUpstream: false })
     }
@@ -315,7 +382,7 @@ export const actions = {
     const tab = get().tabs.find((t) => same(t.path, prompt.path))
     if (!tab || tab.head.kind !== 'branch' || tab.head.name !== prompt.branch) return
     const reason = toolbarAvailability(tab.head, tab.toolbar, runningLabel(get(), prompt.path)).push
-    if (reason) return fail(new Error(reason))
+    if (reason) return fail(new Error(reason), prompt.path)
     await actions.execute(prompt.path, { type: 'push', remote, branch: prompt.branch, setUpstream: true })
   },
 
@@ -329,13 +396,13 @@ export const actions = {
   async pullAfterRejection(path: string) {
     if (!(await actions.execute(path, { type: 'pull', strategy: 'merge' }))) return
     const progress = get().tabs.find((t) => same(t.path, path))?.toolbar.progress
-    if (!progress) pushToast({ text: 'Pull concluído. Faça o push de novo.' })
+    if (!progress) pushToast({ path, text: 'Pull concluído. Faça o push de novo.' })
   },
 
   async requestForcePush(path: string) {
     try {
       set({ forcePrompt: { path, preview: await core.pushForcePreview(path) } })
-    } catch (err) { fail(err) }
+    } catch (err) { fail(err, path) }
   },
 
   async confirmForcePush() {
@@ -357,7 +424,7 @@ export const actions = {
       }
       await refreshHead(path)
       return true
-    } catch (err) { fail(err); return false }
+    } catch (err) { fail(err, path); return false }
   },
 
   async undo(path: string) {
@@ -371,10 +438,10 @@ export const actions = {
   async requestDiscard(path: string, paths: string[]) {
     try {
       const preview = await core.discardPreview(path, paths)
-      if (preview.trackedChanges + preview.untrackedFiles === 0) return pushToast({ text: 'Não há mudanças para descartar' })
+      if (preview.trackedChanges + preview.untrackedFiles === 0) return pushToast({ path, text: 'Não há mudanças para descartar' })
       set({ discardPrompt: { path, paths, preview } })
     } catch (err) {
-      fail(err)
+      fail(err, path)
     }
   },
 
@@ -392,7 +459,7 @@ export const actions = {
     try {
       set({ resetPrompt: { path, target, preview: await core.resetPreview(path, target) } })
     } catch (err) {
-      fail(err)
+      fail(err, path)
     }
   },
 
@@ -412,9 +479,9 @@ export const actions = {
     if (!c) return
     try {
       const copies = await core.restoreDiscardAsCopies(c.path, c.opId)
-      pushToast({ text: `${copies.length} arquivo(s) restaurado(s) como cópia ao lado (.mnemo-restaurado)` })
+      pushToast({ path: c.path, text: `${copies.length} arquivo(s) restaurado(s) como cópia ao lado (.mnemo-restaurado)` })
     } catch (err) {
-      fail(err)
+      fail(err, c.path)
     }
   },
 
@@ -437,19 +504,19 @@ export const actions = {
     try {
       const prefs = await core.repoPrefs(path)
       set((s) => ({ repoPrefs: { ...s.repoPrefs, [norm(path)]: prefs } }))
-    } catch (err) { fail(err) }
+    } catch (err) { fail(err, path) }
   },
 
   async setRepoPref(path: string, key: keyof RepoPrefs, value: boolean) {
     try {
       const prefs = await core.setRepoPref(path, key, value)
       set((s) => ({ repoPrefs: { ...s.repoPrefs, [norm(path)]: prefs } }))
-      pushToast({ text: 'Preferências salvas' })
-    } catch (err) { fail(err) }
+      pushToast({ path, text: 'Preferências salvas' })
+    } catch (err) { fail(err, path) }
   },
 
-  setPalette(palette: PaletteMode | null, start: string | null = null) {
-    set({ palette, paletteStart: start })
+  setPalette(palette: PaletteMode | null, start: string | null = null, target: string | null = null) {
+    set({ palette, paletteStart: start, paletteTarget: target })
   },
 
   clearError() {
@@ -470,24 +537,137 @@ export const actions = {
   async runMaintenance(path: string) {
     try {
       await core.maintenance(path)
-      pushToast({ text: 'Manutenção concluída' })
-    } catch (err) { fail(err, () => actions.runMaintenance(path)) }
+      pushToast({ path, text: 'Manutenção concluída' })
+    } catch (err) { fail(err, path, () => actions.runMaintenance(path)) }
   },
 
   /** Janela voltou ao foco: relê todas as abas, que podem ter mudado fora (VS Code, terminal). */
   async refreshAll() {
-    await Promise.all(get().tabs.map(async ({ path }) => {
-      const r = await core.refreshExternal(path).catch(() => null)
-      if (r?.status === 'completed' && r.opId !== null) pushToast({ text: capitalize(r.label), undoPath: r.undoable ? path : undefined })
-      set((s) => ({ graphRevision: { ...s.graphRevision, [norm(path)]: (s.graphRevision[norm(path)] ?? 0) + 1 } }))
-      await refreshHead(path).catch(() => undefined)
-    }))
+    await Promise.all(get().tabs.map(({ path }) => refreshTab(path)))
+  },
+
+  async loadReviews(path: string) {
+    try {
+      const list = await core.reviewList(path)
+      set((s) => ({ reviewList: { ...s.reviewList, [norm(path)]: list } }))
+    } catch (err) { fail(err, path) }
+  },
+
+  /** Revisar branch: Rodada aberta continua direto; senão o diálogo confirma a Base antes de começar. */
+  async requestReview(path: string, branch: string) {
+    await actions.loadReviews(path)
+    const current = get().reviewList[norm(path)]?.find((r) => r.branch === branch)
+    if (current?.open) return actions.openReview(path, branch)
+    const base = await core.reviewBase(path, branch).catch(() => null)
+    set({ reviewPrompt: { path, branch, base: base ?? '', round: current ? current.round + 1 : 1 } })
+  },
+  cancelReviewPrompt() { set({ reviewPrompt: null }) },
+
+  /** Busca a branch, avança a local até a remota (Operação desfazível) e começa a Revisão ou a próxima Rodada. */
+  async startReview(path: string, branch: string, base: string): Promise<boolean> {
+    const offline = await core.reviewFetch(path, branch).catch((err: unknown) => errorMessage(err))
+    await syncLocalBranch(path, branch)
+    try {
+      enterReview(path, branch, await core.reviewStart(path, branch, base))
+    } catch (err) { fail(err, path); return false }
+    set({ reviewPrompt: null })
+    if (offline) pushToast({ path, text: `Não foi possível buscar ${branch} no remoto. A revisão usa o que já está neste computador.`, info: true })
+    void actions.loadReviews(path)
+    return true
+  },
+
+  async openReview(path: string, branch: string) {
+    try { enterReview(path, branch, await core.reviewOpen(path, branch)) } catch (err) { fail(err, path) }
+  },
+
+  /** Relê a Rodada aberta (a branch pode ter andado: os avisos do painel acompanham). */
+  async refreshReview(path: string) {
+    const r = get().reviews[norm(path)]
+    if (!r) return
+    const state = await core.reviewOpen(path, r.branch).catch(() => null)
+    if (state && get().reviews[norm(path)]?.branch === r.branch) patchReview(path, { state })
+  },
+
+  closeReview(path: string) {
+    set((s) => { const { [norm(path)]: _closed, ...reviews } = s.reviews; return { reviews } })
+    patchView(path, { diff: null })
+  },
+
+  openReviewFile(path: string, file: ReviewFile) {
+    const r = get().reviews[norm(path)]
+    const round = r?.state.review.rounds.at(-1)
+    if (!r || !round) return
+    const { from, to } = rangeOf(round, r.scope)
+    patchView(path, { diff: { path, file, source: { kind: 'range', from, to, oldPath: file.oldPath } }, conflict: null })
+  },
+
+  setReviewScope(path: string, scope: ReviewScope) {
+    patchReview(path, { scope })
+    const open = get().views[norm(path)]?.diff
+    if (open?.source.kind === 'range') actions.openReviewFile(path, open.file as ReviewFile)
+  },
+
+  /** Marca (ou desmarca) o arquivo. `advance`: abre o próximo que falta revisar. */
+  async markReviewed(path: string, file: string, reviewed: boolean, advance = false) {
+    const r = get().reviews[norm(path)]
+    if (!r) return
+    try {
+      const review = await core.reviewMark(path, r.branch, file, reviewed)
+      setReviewData(path, review)
+      const next = advance && reviewed ? nextFile(r.state.files, review.rounds.at(-1)!.reviewed, file) : null
+      if (next) actions.openReviewFile(path, next)
+    } catch (err) { fail(err, path) }
+  },
+
+  async saveComment(path: string, comment: ReviewComment): Promise<boolean> {
+    const r = get().reviews[norm(path)]
+    if (!r) return false
+    try {
+      setReviewData(path, await core.reviewComment(path, r.branch, comment))
+      return true
+    } catch (err) { fail(err, path); return false }
+  },
+
+  async deleteComment(path: string, id: string) {
+    const r = get().reviews[norm(path)]
+    if (!r) return
+    try { setReviewData(path, await core.reviewUncomment(path, r.branch, id)) } catch (err) { fail(err, path) }
+  },
+
+  async concludeRound(path: string): Promise<Review | null> {
+    const r = get().reviews[norm(path)]
+    if (!r) return null
+    try {
+      const review = await core.reviewConclude(path, r.branch)
+      setReviewData(path, review)
+      void actions.loadReviews(path)
+      return review
+    } catch (err) { fail(err, path); return null }
+  },
+
+  requestEndReview(path: string, branch: string) { set({ reviewEndPrompt: { path, branch } }) },
+  cancelEndReview() { set({ reviewEndPrompt: null }) },
+  async confirmEndReview() {
+    const prompt = get().reviewEndPrompt
+    set({ reviewEndPrompt: null })
+    if (!prompt) return
+    try {
+      await core.reviewEnd(prompt.path, prompt.branch)
+      if (get().reviews[norm(prompt.path)]?.branch === prompt.branch) actions.closeReview(prompt.path)
+      pushToast({ path: prompt.path, text: `Revisão de ${prompt.branch} encerrada` })
+      await actions.loadReviews(prompt.path)
+    } catch (err) { fail(err, prompt.path) }
   },
 
   /** Eventos push do core (`listen`): mantêm Desfazer/Refazer e a toolbar em dia. */
   applyCoreEvent(e: import('../bridge/types').CoreEvent) {
     if (e.type === 'update') { const { type: _type, ...update } = e; set({ update }); return }
-    if (e.type === 'historyChanged') {
+    if (e.type !== 'repoChanged') ownActivity.set(norm(e.workdir), Date.now())
+    if (e.type === 'repoChanged') {
+      // o app mesmo mexeu nas refs agora há pouco: o grafo já foi relido pelos eventos da Operação
+      if (get().running[norm(e.workdir)] || Date.now() - (ownActivity.get(norm(e.workdir)) ?? 0) < 1500) return
+      void refreshTab(e.workdir)
+    } else if (e.type === 'historyChanged') {
       patchTab(e.workdir, { undo: e.state })
       set((s) => ({ graphRevision: { ...s.graphRevision, [norm(e.workdir)]: (s.graphRevision[norm(e.workdir)] ?? 0) + 1 } }))
       void refreshHead(e.workdir).catch(() => undefined) // a branch mostrada acompanha o histórico
@@ -512,11 +692,54 @@ async function stepHistory(path: string, fn: (p: string) => Promise<UndoRedoStat
       set({ restoreConflict: { path, opId: c.op_id!, paths: c.paths ?? [] } })
       return
     }
-    fail(err, () => stepHistory(path, fn))
+    fail(err, path, () => stepHistory(path, fn))
     // a Mudança externa corta o histórico: relê o estado para o botão refletir o motivo
     await core.syncExternal(path).then((undo) => patchTab(path, { undo }), () => undefined)
   }
 }
+
+function patchReview(path: string, patch: Partial<ReviewView>) {
+  set((s) => { const r = s.reviews[norm(path)]; return r ? { reviews: { ...s.reviews, [norm(path)]: { ...r, ...patch } } } : {} })
+}
+
+/** Dados da Revisão que o core devolveu depois de gravar; arquivos e avisos ficam como estão. */
+function setReviewData(path: string, review: Review) {
+  set((s) => {
+    const r = s.reviews[norm(path)]
+    return r && r.branch === review.branch ? { reviews: { ...s.reviews, [norm(path)]: { ...r, state: { ...r.state, review } } } } : {}
+  })
+}
+
+/** Entra no modo Revisão e abre o primeiro arquivo que falta revisar. */
+function enterReview(path: string, branch: string, state: ReviewState) {
+  set((s) => ({ reviews: { ...s.reviews, [norm(path)]: { branch, state, scope: 'round' } } }))
+  const round = state.review.rounds.at(-1)
+  const first = round && (nextFile(state.files, round.reviewed, null) ?? state.files.find((f) => !f.reverted))
+  if (first) actions.openReviewFile(path, first)
+  else patchView(path, { diff: null })
+}
+
+/** Local atrás da remota que rastreia: avança (pull na branch atual). Divergiu: a Revisão segue a remota e avisa. */
+async function syncLocalBranch(path: string, branch: string) {
+  const local = (await core.listRefs(path).catch(() => null))?.local.find((b) => b.name === branch)
+  if (!local?.upstream?.endsWith(`/${branch}`) || !local.behind) return
+  if (local.ahead) return pushToast({ path, text: `${branch} local divergiu de ${local.upstream}. A revisão usa ${local.upstream}.`, info: true })
+  await actions.execute(path, local.current ? { type: 'pull', strategy: 'ffOnly' } : { type: 'fastForward', branch })
+}
+
+/** Diretório de um submódulo, a partir do nome (caminho relativo) que o `git submodule status` devolve. */
+export const submodulePath = (parent: string, name: string) => `${parent.replace(/[\\/]+$/, '')}/${name}`
+
+/** Relê uma aba que mudou fora do app: Mudança externa no histórico, grafo e HEAD. */
+async function refreshTab(path: string) {
+  const r = await core.refreshExternal(path).catch(() => null)
+  if (r?.status === 'completed' && r.opId !== null) pushToast({ path, text: capitalize(r.label), undoPath: r.undoable ? path : undefined })
+  set((s) => ({ graphRevision: { ...s.graphRevision, [norm(path)]: (s.graphRevision[norm(path)] ?? 0) + 1 } }))
+  await refreshHead(path).catch(() => undefined)
+}
+
+/** Quando o core falou de cada diretório pela última vez, para o watcher não reler o que o app mesmo acabou de fazer. */
+const ownActivity = new Map<string, number>()
 
 const refreshing = new Map<string, Promise<void>>()
 
@@ -555,16 +778,15 @@ export function firstGraphPage(path: string, args: GraphArgs): Promise<GraphPage
   return hit ?? core.graphPage(path, null, GRAPH_PAGE, args)
 }
 
-function adoptRepository(info: RepositoryInfo) {
+function adoptRepository(info: RepositoryInfo, parent?: string) {
   if (!get().tabs.some((t) => same(t.path, info.path))) prefetchGraph(info.path)
   set((s) => {
     const exists = s.tabs.some((t) => same(t.path, info.path))
     const authors = s.tabs.find((t) => same(t.path, info.path))?.authors ?? []
-    const tab: Tab = { path: info.path, name: info.name, head: info.head, undo: info.undo, toolbar: info.toolbar, authors }
+    const tab: Tab = { path: info.path, name: info.name, head: info.head, undo: info.undo, toolbar: info.toolbar, authors, parent: parent ?? s.tabs.find((t) => same(t.path, info.path))?.parent }
     return {
       tabs: exists ? s.tabs.map((t) => (same(t.path, info.path) ? tab : t)) : [...s.tabs, tab],
       activePath: info.path,
-      selectedSha: s.activePath && same(s.activePath, info.path) ? s.selectedSha : null,
     }
   })
 }
@@ -589,10 +811,19 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 export const selectActiveTab = (s: AppState) => s.tabs.find((t) => s.activePath !== null && same(t.path, s.activePath))
 export const runningLabel = (s: AppState, path: string) => s.running[norm(path)]
+/** Muda quando refs ou HEAD mudam (Operação, fetch, mudança externa). */
+export const selectGraphRevision = (path: string) => (s: AppState) => s.graphRevision[norm(path)] ?? 0
 export const selectWipRevision = (path: string) => (s: AppState) => (s.graphRevision[norm(path)] ?? 0) + (s.wipRevision[norm(path)] ?? 0)
 /** Diff aberto nesta Aba (o de outra Aba não aparece aqui). */
-export const selectDiff = (path: string) => (s: AppState) => (s.diff && same(s.diff.path, path) ? s.diff : null)
+/** Só a aba ativa reage a atalhos globais; as outras seguem montadas, escondidas. */
+export const isActiveTab = (path: string) => { const a = get().activePath; return !!a && same(a, path) }
+export const selectSha = (path: string) => (s: AppState) => s.views[norm(path)]?.selectedSha ?? null
+export const selectDiff = (path: string) => (s: AppState) => s.views[norm(path)]?.diff ?? null
 export const selectRepoPrefs = (path: string) => (s: AppState): RepoPrefs | undefined => s.repoPrefs[norm(path)]
 /** Opções do painel WIP com o padrão das Preferências do repositório (antes de ler o config: tudo desligado, hooks ligados). */
 export const commitOptions = (p: RepoPrefs | undefined) => ({ sign: p?.signCommits ?? false, hooks: !p?.skipHooks, pushAfter: p?.pushAfterCommit ?? false })
-export const selectConflict = (path: string) => (s: AppState) => (s.conflict && same(s.conflict.path, path) ? s.conflict : null)
+export const selectConflict = (path: string) => (s: AppState) => s.views[norm(path)]?.conflict ?? null
+/** Revisão aberta nesta Aba (`undefined` = fora do modo Revisão). */
+export const selectReview = (path: string) => (s: AppState): ReviewView | undefined => s.reviews[norm(path)]
+const NO_REVIEWS: ReviewSummary[] = []
+export const selectReviewList = (path: string) => (s: AppState) => s.reviewList[norm(path)] ?? NO_REVIEWS

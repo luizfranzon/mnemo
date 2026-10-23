@@ -27,7 +27,7 @@ export function AuthorFilter({ path, anchor, onClose }: { path: string; anchor: 
       const current = useApp.getState().tabs.find((t) => t.path === path)?.authors ?? NONE
       const kept = current.filter((e) => emails.has(e))
       if (kept.length !== current.length) actions.setAuthorFilter(path, kept)
-    }, (err) => { if (active) actions.reportError(err) })
+    }, (err) => { if (active) actions.reportError(err, path) })
     return () => { active = false }
   }, [path])
   useLayoutEffect(() => {

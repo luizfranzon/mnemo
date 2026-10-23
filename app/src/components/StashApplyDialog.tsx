@@ -23,7 +23,7 @@ export function StashApplyDialog({ path, index, name, close }: { path: string; i
   useEffect(() => {
     let active = true
     void core.stashFiles(path, index).then((list) => { if (active) setFiles([...list].sort((a, b) => a.path.localeCompare(b.path))) },
-      (err) => { if (active) { actions.reportError(err); close() } })
+      (err) => { if (active) { actions.reportError(err, path); close() } })
     return () => { active = false }
   }, [path, index])
   const rows = files ? fileRows(files, 'tree', collapsed) : []

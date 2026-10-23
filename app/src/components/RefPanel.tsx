@@ -2,12 +2,13 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import type { LocalRef, RefListing, RemoteRef } from '../bridge/types'
-import { actions, runningLabel, useApp } from '../store/app'
+import { actions, isActiveTab, runningLabel, useApp } from '../store/app'
 import { localRef, remoteRef, selectVisibility, toggleHidden, updateVisibility, useVisibility } from '../store/visibility'
 import type { BranchTarget } from './branchMenu'
 import { Menu } from './Menu'
 import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
 import { Icon, type IconName } from './Icon'
+import { SubmoduleCard } from './SubmoduleCard'
 import { StashApplyDialog } from './StashApplyDialog'
 import { useBranchActions } from './useBranchActions'
 
@@ -27,6 +28,7 @@ const ICON: Record<Section, IconName> = {
 }
 const SECTION_HEIGHT = 36
 const ROW_HEIGHT = 30
+const SUBMODULE_HEIGHT = ROW_HEIGHT + 38
 
 /** Ref completa de uma linha de branch (a chave da visibilidade); linhas sem branch nunca chegam aqui. */
 function refName(row: Row): string {
@@ -91,6 +93,8 @@ function loadCollapsed(path: string): Set<string> {
   catch { return new Set() }
 }
 
+const isSubmodule = (r: Row | undefined): r is Extract<Row, { type: 'plain' }> => r?.type === 'plain' && r.section === 'submodules'
+
 /** A lista inteira tem uma só área de rolagem virtualizada; pastas vêm agrupadas do core. */
 export function RefPanel({ path, rail, expand, collapse }: { path: string; rail: boolean; expand: () => void; collapse: () => void }) {
   const [refs, setRefs] = useState<RefListing | null>(null)
@@ -119,12 +123,12 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
   useEffect(() => {
     if (running) return
     let active = true
-    void core.listRefs(path).then((next) => { if (active) setRefs(next) }, (err) => { if (active) actions.reportError(err) })
+    void core.listRefs(path).then((next) => { if (active) setRefs(next) }, (err) => { if (active) actions.reportError(err, path) })
     return () => { active = false }
   }, [path, running, undo])
   useEffect(() => {
     const focus = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey && e.altKey && e.key.toLowerCase() === 'f')) return
+      if (!isActiveTab(path) || !(e.ctrlKey && e.altKey && e.key.toLowerCase() === 'f')) return
       e.preventDefault()
       if (rail) expand()
       requestAnimationFrame(() => input.current?.focus())
@@ -142,7 +146,7 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
   const rows = refs && !rail ? visibleRows(refs, collapsed, query) : []
   const sectionCounts = refs ? counts(refs) : null
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current,
-    estimateSize: (index) => rows[index]?.type === 'section' ? SECTION_HEIGHT : ROW_HEIGHT, overscan: 10, getItemKey: (index) => rows[index]!.key })
+    estimateSize: (index) => { const r = rows[index]; return r?.type === 'section' ? SECTION_HEIGHT : isSubmodule(r) ? SUBMODULE_HEIGHT : ROW_HEIGHT }, overscan: 10, getItemKey: (index) => rows[index]!.key })
   const checkout = (row: Row) => {
     const target = targetOf(row)
     if (target) branch.checkout(target)
@@ -184,7 +188,7 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
           if (!row) return null
           const open = !collapsed.has(row.type === 'section' ? row.section : row.key)
           const point = (e: React.MouseEvent) => ({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY })
-          return <div key={row.key} className="refs-virtual-row" style={{ transform: `translateY(${item.start}px)`, height: item.size }}
+          return <div key={row.key} className={isSubmodule(row) ? 'refs-virtual-row refs-submodule' : 'refs-virtual-row'} style={{ transform: `translateY(${item.start}px)`, height: item.size }}
             onContextMenu={(e) => {
               if (row.type === 'plain' && row.section === 'stashes') { e.preventDefault(); openStashMenu(row.name, point(e)); return }
               if (!targetOf(row)) return; e.preventDefault(); openMenu(row, point(e))
@@ -198,18 +202,22 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
                   {(row.type === 'section' || row.depth > 1) && <span className="refs-count">{row.count.toLocaleString('pt-BR')}</span>}
                 </button>
               : <button className={`refs-row refs-item depth-${row.depth}${selected === row.key ? ' selected' : ''}${row.type === 'local' && row.ref.current ? ' current' : ''}`}
-                  title={row.type === 'remote' ? `${row.ref.remote}/${row.ref.name}` : row.type === 'local' ? row.ref.name : row.name}
+                  title={row.type === 'remote' ? `${row.ref.remote}/${row.ref.name}` : row.type === 'local' ? row.ref.name : row.type === 'plain' && row.section === 'submodules' ? `${row.name} (duplo clique abre em nova aba)` : row.name}
                   onClick={() => {
                     setSelected(row.key)
-                    if (row.type === 'local' || row.type === 'remote') actions.selectCommit(row.ref.sha)
-                    else if (row.type === 'plain' && row.section === 'tags' && row.sha) actions.selectCommit(row.sha)
-                  }} onDoubleClick={() => { if (doubleClickCheckout) checkout(row) }}>
+                    if (row.type === 'local' || row.type === 'remote') actions.selectCommit(path, row.ref.sha)
+                    else if (row.type === 'plain' && row.section === 'tags' && row.sha) actions.selectCommit(path, row.sha)
+                  }} onDoubleClick={() => {
+                    if (row.type === 'plain' && row.section === 'submodules') void actions.openSubmodule(path, row.name)
+                    else if (doubleClickCheckout) checkout(row)
+                  }}>
                   <span className="refs-symbol"><Icon name={row.type === 'local' && row.ref.current ? 'check' : row.type === 'plain' ? ICON[row.section] : 'branch'} /></span>
                   <span className="refs-label">{row.type === 'remote' ? row.ref.name.split('/').at(-1) : row.type === 'local' ? row.ref.name : row.name}</span>
                   {(row.type === 'local' || row.type === 'remote') && vis.highlight === refName(row) && <span className="refs-highlight" title="Branch em destaque"><Icon name="highlight" size={12} /></span>}
                   {row.type === 'local' && row.ref.upstream && <span className="refs-tracking" title={`Upstream: ${row.ref.upstream}`}>
                     {!!row.ref.behind && <span><Icon name="arrowDown" size={11} strokeWidth={2.2} />{row.ref.behind}</span>}{!!row.ref.ahead && <span><Icon name="arrowUp" size={11} strokeWidth={2.2} />{row.ref.ahead}</span>}</span>}
                 </button>}
+            {isSubmodule(row) && <SubmoduleCard parent={path} name={row.name} />}
             {row.type === 'plain' && row.section === 'stashes' && <button className="refs-more" aria-label="Menu do stash" title="Menu do stash"
               onClick={(e) => openStashMenu(row.name, e.currentTarget.getBoundingClientRect())}><Icon name="more" size={14} /></button>}
             {(row.type === 'local' || row.type === 'remote') && <>

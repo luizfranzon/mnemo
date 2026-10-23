@@ -10,8 +10,9 @@ export function Toasts() {
         <div className={t.error ? 'toast error' : t.info ? 'toast info' : 'toast'} key={t.id} role={t.error ? 'alert' : undefined}
           style={{ '--toast-dur': `${t.error ? 12000 : 6000}ms` } as CSSProperties}>
           <span className="toast-node" aria-hidden="true" />
-          <span className="toast-text">{t.text}</span>
-          {(t.undoPath || t.pullPath || t.retry) && <span className="toast-actions">
+          <span className="toast-text">{t.title && <span className="toast-title">{t.title}</span>}{t.text}</span>
+          {(t.undoPath || t.pullPath || t.retry || t.buttons) && <span className={t.buttons ? "toast-actions below" : "toast-actions"}>
+            {t.buttons?.map((b) => <button key={b.label} onClick={() => { dismissToast(t.id); void b.run() }}>{b.label}</button>)}
             {t.undoPath && <button onClick={() => { dismissToast(t.id); void actions.undo(t.undoPath!) }}>Desfazer</button>}
             {t.retry && <button onClick={() => { dismissToast(t.id); void t.retry!() }}>Tentar de novo</button>}
             {t.pullPath && <button onClick={() => { dismissToast(t.id); void actions.pullNow(t.pullPath!) }}>Pull agora</button>}

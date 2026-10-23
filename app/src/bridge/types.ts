@@ -83,6 +83,7 @@ export type OperationKind =
   | { type: 'push'; remote: string | null; branch: string | null; setUpstream: boolean; lease?: string }
   | { type: 'fetch'; remote: string | null; prune?: boolean }
   | { type: 'pull'; strategy: 'merge' | 'ffOnly' | 'rebase' }
+  | { type: 'fastForward'; branch: string }
   | { type: 'stashCreate'; message: string | null; includeUntracked: boolean; paths?: string[] }
   | { type: 'stashApplyPaths'; index: number; paths: string[] }
   | { type: 'stashApply'; index: number }
@@ -99,7 +100,7 @@ export type OperationKind =
   | { type: 'deleteFile'; path: string }
 
 export type ExecuteResult =
-  | { status: 'completed'; opId: number | null; label: string; undoable: boolean; warnings: string[]; state: UndoRedoState }
+  | { status: 'completed'; opId: number | null; label: string; /** Operação sem efeito: por que nada mudou. */ noEffect: string | null; undoable: boolean; warnings: string[]; state: UndoRedoState }
   | { status: 'conflict'; label: string; progress: string; state: UndoRedoState }
 
 /** Atualização do app pelo GitHub Releases (vem do processo main, não do core). */
@@ -113,6 +114,8 @@ export type CoreEvent =
   | { type: 'operationStarted'; workdir: string; label: string }
   | { type: 'operationFinished'; workdir: string; label: string; ok: boolean }
   | { type: 'historyChanged'; workdir: string; state: UndoRedoState }
+  /** HEAD ou refs mudaram por fora do app (terminal, outro cliente). */
+  | { type: 'repoChanged'; workdir: string }
   | ({ type: 'update' } & UpdateState)
 
 export interface DiscardPreview {
@@ -158,7 +161,30 @@ export interface CommitDetail {
 export interface WipStatus { unstaged: FileChange[]; staged: FileChange[] }
 
 /** De onde vem o diff de um arquivo: commit (contra o 1º pai), index → diretório, HEAD → index. */
-export type DiffSource = { kind: 'commit'; sha: string; oldPath?: string | null } | { kind: 'unstaged' } | { kind: 'staged' }
+export type DiffSource = { kind: 'commit'; sha: string; oldPath?: string | null } | { kind: 'range'; from: string; to: string; oldPath?: string | null } | { kind: 'unstaged' } | { kind: 'staged' }
+
+/** Revisão de uma branch (ADR 0008). `scope`: o diff em que o comentário foi feito (o da Rodada ou o da branch inteira). */
+export type ReviewScope = 'round' | 'branch'
+export interface ReviewComment {
+  id: string; file: string; oldPath: string | null
+  /** `null` = arquivo inteiro. */
+  lines: { side: 'old' | 'new'; start: number; end: number } | null
+  snippet: string[]; body: string; scope: ReviewScope
+}
+export interface ReviewRound {
+  number: number; base: string; mergeBase: string
+  /** Commit da Rodada anterior; `null` na primeira. */
+  from: string | null
+  tip: string; startedMs: number; concludedMs: number | null; reviewed: string[]; comments: ReviewComment[]
+}
+export interface Review { branch: string; rounds: ReviewRound[] }
+/** `reverted`: voltou a ficar igual à Base desde a Rodada anterior (sem diff). */
+export interface ReviewFile extends FileChange { reverted: boolean }
+export interface BranchStatus { tip: string | null; ahead: number; rewritten: boolean; merged: boolean }
+export interface ReviewState { review: Review; files: ReviewFile[]; status: BranchStatus }
+/** `reviewed`: o commit que a Rodada revisou; difere de `sha` quando a branch foi reescrita. */
+export interface ReviewMarker { sha: string; round: number; comments: number; concludedMs: number; rewritten: boolean; reviewed: string }
+export interface ReviewSummary { branch: string; round: number; open: boolean; reviewed: number; files: number; status: BranchStatus; markers: ReviewMarker[] }
 export interface DiffLine { kind: 'context' | 'add' | 'del'; old: number | null; new: number | null; text: string; noNewline: boolean; hunk: number | null }
 export interface DiffHunk { header: string; oldStart: number; oldLines: number; newStart: number; newLines: number; start: number; len: number }
 export interface EncodingInfo { id: string; label: string; group: string }

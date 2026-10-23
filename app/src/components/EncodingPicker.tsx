@@ -18,7 +18,7 @@ export function EncodingPicker({ path, anchor, value, onPick, onClose }: { path:
   useEffect(() => {
     if (cache) return
     let live = true
-    void core.listEncodings(path).then((next) => { cache = next; if (live) setList(next) }, (err) => { if (live) actions.reportError(err) })
+    void core.listEncodings(path).then((next) => { cache = next; if (live) setList(next) }, (err) => { if (live) actions.reportError(err, path) })
     return () => { live = false }
   }, [path])
   useLayoutEffect(() => {

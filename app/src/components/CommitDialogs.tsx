@@ -46,7 +46,7 @@ function Reword({ path, sha, close, run }: Props & { path: string; sha: string }
   useEffect(() => {
     let active = true
     void core.commitDetail(path, sha, false).then((d) => { if (active) setText(d.body ? `${d.subject}\n\n${d.body}` : d.subject) },
-      (err) => { if (active) { actions.reportError(err); close() } })
+      (err) => { if (active) { actions.reportError(err, path); close() } })
     return () => { active = false }
   }, [path, sha])
   const valid = text !== null && text.trim() !== ''

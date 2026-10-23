@@ -821,6 +821,38 @@ impl Mnemo {
             crate::application::wip::stage(&git, &paths, cmd == "stage")?;
             return Ok(Value::Null);
         }
+        if let Some(action) = cmd.strip_prefix("review_") {
+            use crate::application::review;
+            let session = self.session_for(Path::new(&path))?;
+            let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+            if action == "list" {
+                return out(review::list(&git)?);
+            }
+            let text =
+                |k: &str| args.get(k).and_then(Value::as_str).ok_or_else(|| CoreError::invalid(format!("{k} ausente")));
+            let branch = text("branch")?;
+            return match action {
+                "base" => out(review::base_of(&git, branch)?),
+                "fetch" => out(review::fetch(&git, branch)?),
+                "start" => out(review::start(&git, branch, text("base")?)?),
+                "open" => out(review::open(&git, branch)?),
+                "mark" => {
+                    let reviewed = args.get("reviewed").and_then(Value::as_bool).unwrap_or(true);
+                    out(review::mark(&git, branch, text("file")?, reviewed)?)
+                }
+                "comment" => {
+                    let comment = parse(&json!(args.get("comment").cloned().unwrap_or(Value::Null)))?;
+                    out(review::comment(&git, branch, comment)?)
+                }
+                "uncomment" => out(review::uncomment(&git, branch, text("id")?)?),
+                "conclude" => out(review::conclude(&git, branch)?),
+                "end" => {
+                    review::end(&git, branch)?;
+                    Ok(Value::Null)
+                }
+                other => Err(CoreError::invalid(format!("comando desconhecido: review_{other}"))),
+            };
+        }
         if cmd == "remote_url" {
             let remote =
                 args.get("remote").and_then(Value::as_str).ok_or_else(|| CoreError::invalid("remote ausente"))?;
