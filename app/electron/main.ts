@@ -192,6 +192,9 @@ function parseError(err: unknown): { code: string; message: string } {
   return { code: 'internal', message: text }
 }
 
+// ANGLE escolhe Vulkan, incompatível com ozone/wayland; forçar GL evita o erro no log.
+app.commandLine.appendSwitch('use-angle', 'gl')
+
 void app.whenReady().then(() => {
   mark('main: app ready')
   native = loadNative()
