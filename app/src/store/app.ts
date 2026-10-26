@@ -407,10 +407,11 @@ export const actions = {
 
   async confirmForcePush() {
     const prompt = get().forcePrompt
-    set({ forcePrompt: null })
     if (!prompt) return
     const { remote, branch, sha } = prompt.preview
+    // o diálogo fica aberto (com loading) até o push terminar
     await actions.execute(prompt.path, { type: 'push', remote, branch, setUpstream: false, lease: sha })
+    set({ forcePrompt: null })
   },
 
   cancelForcePush() { set({ forcePrompt: null }) },

@@ -44,6 +44,7 @@ export function CommitPanel({ path }: { path: string }) {
   const [detail, setDetail] = useState<CommitDetail | null>(null)
   const [draft, setDraft] = useState({ subject: '', body: '' })
   const [all, setAll] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [view, setView] = useState<View>('path')
   const [sort, setSort] = useState<Sort>('path')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
@@ -82,7 +83,11 @@ export function CommitPanel({ path }: { path: string }) {
   const dirty = draft.subject.trim() !== detail.subject.trim() || draft.body.trim() !== detail.body.trim()
   const update = async () => {
     const subject = draft.subject.trim()
-    if (!subject) return
+    if (!subject || busy) return
+    setBusy(true)
+    try { await reword(subject) } finally { setBusy(false) }
+  }
+  const reword = async (subject: string) => {
     const wasHead = (await core.commitDetail(path, 'HEAD', false).catch(() => null))?.sha === detail.sha
     await actions.execute(path, { type: 'reword', commit: detail.sha, message: draft.body.trim() ? `${subject}\n\n${draft.body.trim()}` : subject })
     // o hash muda (e o dos descendentes): acompanha o HEAD; um commit mais antigo deixa de existir e a seleção vai para o WIP
@@ -103,8 +108,9 @@ export function CommitPanel({ path }: { path: string }) {
           onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
       </div>
       <div className="commit-msg-actions">
-        <button className="wip-commit" disabled={!dirty || !draft.subject.trim()} onClick={() => void update()}>Atualizar mensagem</button>
-        <button className="commit-msg-cancel" disabled={!dirty} onClick={() => setDraft({ subject: detail.subject, body: detail.body })}>Cancelar</button>
+        <button className="wip-commit" disabled={!dirty || !draft.subject.trim() || busy} aria-busy={busy} onClick={() => void update()}>
+          {busy ? <><Icon name="refresh" size={14} spin />Atualizando…</> : 'Atualizar mensagem'}</button>
+        <button className="commit-msg-cancel" disabled={!dirty || busy}onClick={() => setDraft({ subject: detail.subject, body: detail.body })}>Cancelar</button>
       </div>
       <div className="commit-author">
         <Avatar name={detail.author} email={detail.email} />

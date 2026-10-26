@@ -475,6 +475,8 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .commit-msg-actions button { display: inline-flex; align-items: center; justify-content: center; border: 0; font: inherit; cursor: pointer; }
 .commit-msg-actions .wip-commit { flex: 1; height: 40px; background: #237A3B; color: #fff; font-size: 13.5px; font-weight: 500; border-radius: 8px; }
 .commit-msg-actions .wip-commit:disabled { background: #1C1C1E; color: #8A877F; cursor: default; }
+.commit-msg-actions .wip-commit[aria-busy="true"]:disabled { gap: 8px; background: #237A3B; color: #fff; opacity: .75; cursor: progress; }
+.push-dialog .actions button[aria-busy="true"] { display: inline-flex; align-items: center; gap: 8px; cursor: progress; }
 .commit-msg-cancel { height: 40px; padding: 0 14px; border: 1px solid var(--border) !important; border-radius: 8px; background: transparent; color: var(--text-secondary); font-size: 13px; }
 .commit-msg-cancel:disabled { opacity: .48; cursor: default !important; }
 
