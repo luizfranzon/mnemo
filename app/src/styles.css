@@ -139,7 +139,9 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .refs-search kbd { flex: none; color: var(--text-subtle); font: 10px var(--font-mono); white-space: nowrap; }
 .refs-search:focus-within kbd { display: none; }
 .refs-heading .refs-collapse { flex: none; width: 32px; height: 32px; padding: 0; display: grid; place-items: center; border: 0; background: transparent; color: var(--text-secondary); }
-.refs-scroll { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+.refs-sections { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
+.refs-section-head { flex: none; }
+.refs-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
 .refs-virtual-row { position: absolute; top: 0; left: 0; width: 100%; }
 .refs-virtual-row.refs-submodule { flex-direction: column; align-items: stretch; } /* o align-items: center das linhas centralizava o card */
 .refs-submodule .refs-row { height: 30px; flex: none; }
@@ -166,7 +168,7 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .refs-row.current.selected { outline: 1px solid var(--accent); outline-offset: -1px; }
 .refs-item { width: calc(100% - 16px); margin: 0 8px; border-radius: 8px; font-family: var(--font-mono); }
 .refs-section { padding-left: 10px; border-top: 1px solid var(--border-subtle); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-.refs-virtual-row:first-child .refs-section { border-top: 0; }
+.refs-section-head:first-child .refs-section { border-top: 0; }
 .refs-section .refs-count { color: #8fb2ff; font-size: 12px; }
 .refs-folder .icon { color: var(--text-muted); }
 .refs-chevron { display: grid; place-items: center; color: var(--text-muted); }
@@ -237,9 +239,16 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .graph-pills { min-width: 0; }
 .graph-pills > .graph-pill { flex: none; }
 .graph-pill-more { flex: none; padding: 2px 6px; border: 1px solid var(--pill); border-radius: 7px; background: color-mix(in srgb, var(--pill) 16%, var(--bg)); color: var(--text); font: 12px var(--font-mono); line-height: 1.3; cursor: default; }
-.graph-pill-list { position: fixed; z-index: 40; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding-top: 10px; }
-.graph-pill-list.dim { filter: brightness(.45); } /* opaco, senão a linha de baixo transparece */
-.graph-pill-list .graph-pill { box-shadow: 0 4px 12px rgba(0, 0, 0, .4); }
+.graph-pill-more.open:not(:focus) { display: none; }
+.graph-pill-list { position: fixed; z-index: 40; display: flex; flex-direction: column; align-items: stretch; border: 1px solid var(--pill); border-radius: 7px; background: color-mix(in srgb, var(--pill) 16%, var(--bg)); box-shadow: 0 4px 12px rgba(0, 0, 0, .4); overflow: hidden; }
+.graph-pill-list.dim { filter: brightness(.45); }
+.graph-pill-list .graph-pill { border: 0; border-radius: 0; background: transparent; }
+.graph-pill-list .graph-pill.current { background: var(--dark); }
+.graph-pill-list .graph-pill + .graph-pill { border-top: 1px solid color-mix(in srgb, var(--pill) 35%, transparent); }
+.graph-pill:not(.graph-ghost):hover { background: color-mix(in srgb, var(--pill, var(--surface-2)) 28%, var(--bg)); }
+.graph-pill.current:not(.graph-ghost):hover { background: color-mix(in srgb, var(--pill, var(--surface-2)) 68%, black); }
+.graph-pill-list .graph-pill:hover { background: color-mix(in srgb, var(--pill) 14%, transparent); }
+.graph-pill-list .graph-pill.current:hover { background: color-mix(in srgb, var(--pill) 68%, black); }
 .graph-message { color: var(--text); font-size: 12px; }
 .graph-row > .graph-message { background: linear-gradient(var(--lane), var(--lane)) 0 1px / 2px calc(100% - 2px) no-repeat; padding-left: 10px; }
 .graph-message.merge { color: var(--text-muted); }
@@ -465,12 +474,11 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .toolbar .icon, .toolbar .behind .icon { flex: none; }
 .toolbar .behind, .toolbar .ahead { display: inline-flex; }
 
-/* Mensagem do commit: altura fixa, o texto rola dentro e o painel não pula entre commits */
 .commit-msg { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
 .commit-msg:focus-within { border-color: var(--accent, #6c8cff); }
-.commit-subject, .commit-body { border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; padding: 8px 10px; }
-.commit-subject { font-size: 14px; font-weight: 600; border-bottom: 1px solid var(--border-subtle); }
-.commit-body { height: 88px; resize: none; font-size: 12px; line-height: 1.45; }
+.commit-subject, .commit-body { display: block; width: 100%; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; padding: 8px 10px; resize: none; overflow: hidden; overflow-wrap: anywhere; }
+.commit-subject { font-size: 14px; font-weight: 600; line-height: 1.35; border-bottom: 1px solid var(--border-subtle); }
+.commit-body { font-size: 12px; line-height: 1.45; }
 .commit-msg-actions { height: 40px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .commit-msg-actions button { display: inline-flex; align-items: center; justify-content: center; border: 0; font: inherit; cursor: pointer; }
 .commit-msg-actions .wip-commit { flex: 1; height: 40px; background: #237A3B; color: #fff; font-size: 13.5px; font-weight: 500; border-radius: 8px; }

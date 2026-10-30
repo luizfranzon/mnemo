@@ -105,6 +105,10 @@ interface PillHandlers {
   menu(pill: Pill, e: React.MouseEvent): void
 }
 
+interface PillsHandlers extends Omit<PillHandlers, 'menu'> {
+  menu(pill: Pill, e: React.MouseEvent, onClosed: () => void): void
+}
+
 function PillView({ pill, on, highlight }: { pill: Pill; on: PillHandlers; highlight: string | null }) {
   const highlighted = !!highlight && (highlight === (pill.local && localRef(pill.local)) || highlight === (pill.remote && `refs/remotes/${pill.remote}`))
   return <span className={`graph-pill ${pill.kind}${pill.current ? ' current' : ''}`} title={highlighted ? `${pill.title}\nBranch em destaque` : pill.title}
@@ -119,10 +123,11 @@ function PillView({ pill, on, highlight }: { pill: Pill; on: PillHandlers; highl
 }
 
 /** Mostra só a primeira pill; as demais abrem numa lista sobreposta (portal, fora do clip da linha e sem mudar a altura dela). */
-function Pills({ refs, color, on, highlight }: { refs: GraphCommit['refs']; color: string; on: PillHandlers; highlight: string | null }) {
+function Pills({ refs, color, on, highlight }: { refs: GraphCommit['refs']; color: string; on: PillsHandlers; highlight: string | null }) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
   const [dim, setDim] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  const pinned = useRef(false)
   const pills = pillsOf(refs)
   useEffect(() => {
     if (!anchor) return
@@ -138,13 +143,13 @@ function Pills({ refs, color, on, highlight }: { refs: GraphCommit['refs']; colo
     setAnchor(box.current.getBoundingClientRect())
   }
   const style = { '--pill': color } as CSSProperties
-  const close: PillHandlers = { checkout: (p) => { setAnchor(null); on.checkout(p) }, menu: (p, e) => { setAnchor(null); on.menu(p, e) } }
-  return <div ref={box} className="graph-pills" style={style} onMouseEnter={open} onMouseLeave={() => setAnchor(null)}>
+  const close: PillHandlers = { checkout: (p) => { setAnchor(null); on.checkout(p) }, menu: (p, e) => { pinned.current = true; on.menu(p, e, () => { pinned.current = false; setAnchor(null) }) } }
+  return <div ref={box} className="graph-pills" style={style} onMouseEnter={open} onMouseLeave={() => { if (!pinned.current) setAnchor(null) }}>
     <PillView pill={first!} on={close} highlight={highlight} />
-    {rest.length > 0 && <button className="graph-pill-more" aria-haspopup="true" aria-expanded={!!anchor} aria-label={`Mais ${rest.length} refs`}
+    {rest.length > 0 && <button className={anchor ? 'graph-pill-more open' : 'graph-pill-more'} aria-haspopup="true" aria-expanded={!!anchor} aria-label={`Mais ${rest.length} refs`}
       onFocus={open} onBlur={() => setAnchor(null)}>+{rest.length}</button>}
-    {anchor && createPortal(<div className={dim ? 'graph-pill-list dim' : 'graph-pill-list'} style={{ ...style, left: anchor.left, top: anchor.bottom - 4 }}>
-      {rest.map((pill) => <PillView key={pill.key} pill={pill} on={close} highlight={highlight} />)}
+    {anchor && createPortal(<div className={dim ? 'graph-pill-list dim' : 'graph-pill-list'} style={{ ...style, left: anchor.left, top: anchor.top }}>
+      {pills.map((pill) => <PillView key={pill.key} pill={pill} on={close} highlight={highlight} />)}
     </div>, document.body)}
   </div>
 }
@@ -402,11 +407,11 @@ export function Graph({ path }: { path: string }) {
     const remote = refs.remotes.flatMap((g) => [...g.branches, ...g.folders.flatMap((f) => f.branches)]).find((r) => `${r.remote}/${r.name}` === pill.remote)
     return remote ? { kind: 'remote', ref: remote, local: refs.local.find((b) => b.name === remote.name) } : null
   }
-  const pillHandlers: PillHandlers = {
+  const pillHandlers: PillsHandlers = {
     checkout: (pill) => { if (doubleClickCheckout) void targetOf(pill).then((t) => { if (t) branchActions.checkout(t) }) },
-    menu: (pill, e) => {
+    menu: (pill, e, onClosed) => {
       const anchor = { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }
-      void targetOf(pill).then((t) => { if (t) void branchActions.open(t, anchor) })
+      void targetOf(pill).then((t) => { if (t) void branchActions.open(t, anchor, onClosed); else onClosed() })
     },
   }
   const branch = head?.kind === 'branch' ? head.name : head?.sha ?? 'HEAD'

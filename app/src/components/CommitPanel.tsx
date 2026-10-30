@@ -1,6 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Segmented, FILE_VIEWS } from './Segmented'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type TextareaHTMLAttributes } from 'react'
 import { core } from '../bridge'
 import type { CommitDetail, FileChange } from '../bridge/types'
 import { actions, selectDiff, selectSha, useApp } from '../store/app'
@@ -36,6 +36,27 @@ function summary(files: FileChange[]) {
     { cls: 'modified', icon: 'modified', n: n('M') + n('T'), label: 'modificados' }, { cls: 'added', icon: 'plus', n: n('A') + n('C'), label: 'adicionados' },
     { cls: 'removed', icon: 'minus', n: n('D'), label: 'removidos' }, { cls: 'renamed', icon: 'renamed', n: n('R'), label: 'renomeados' },
   ] satisfies { cls: string; icon: IconName; n: number; label: string }[]).filter((s) => s.n)
+}
+
+
+function AutoTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  const fit = () => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }
+  useLayoutEffect(fit, [props.value])
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    let width = el.clientWidth
+    const observer = new ResizeObserver(() => { if (el.clientWidth !== width) { width = el.clientWidth; fit() } })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return <textarea rows={1} {...props} ref={ref} />
 }
 
 export function CommitPanel({ path }: { path: string }) {
@@ -102,9 +123,10 @@ export function CommitPanel({ path }: { path: string }) {
       <div className="commit-sha"><code title={detail.sha}>{detail.sha.slice(0, 10)}</code>
         <button onClick={copy} aria-label="Copiar SHA" title="Copiar SHA">{copied ? 'Copiado' : <Icon name="copy" size={13} />}</button></div>
       <div className="commit-msg">
-        <input className="commit-subject" aria-label="Título do commit" value={draft.subject}
-          onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
-        <textarea className="commit-body" aria-label="Descrição do commit" placeholder="Descrição" value={draft.body}
+        <AutoTextarea className="commit-subject" aria-label="Título do commit" value={draft.subject}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
+          onChange={(e) => setDraft({ ...draft, subject: e.target.value.replace(/\r?\n/g, ' ') })} />
+        <AutoTextarea className="commit-body" aria-label="Descrição do commit" placeholder="Descrição" value={draft.body}
           onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
       </div>
       <div className="commit-msg-actions">

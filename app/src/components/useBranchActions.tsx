@@ -17,7 +17,7 @@ export function useBranchActions(path: string) {
   const head = useApp((s) => s.tabs.find((t) => t.path === path)?.head)
   const toolbar = useApp((s) => s.tabs.find((t) => t.path === path)?.toolbar)
   const vis = useVisibility(selectVisibility(path))
-  const [menu, setMenu] = useState<{ items: MenuEntry[]; anchor: Rect } | null>(null)
+  const [menu, setMenu] = useState<{ items: MenuEntry[]; anchor: Rect; onClosed?: () => void } | null>(null)
   const [dialog, setDialog] = useState<BranchDialog | null>(null)
 
   const checkout = (t: BranchTarget) => {
@@ -42,14 +42,14 @@ export function useBranchActions(path: string) {
       toggleView: (what) => updateVisibility(path, (v) => ({ hidden: toggleHidden, solo: toggleSolo, highlight: toggleHighlight })[what](v, name)),
     })
   }
-  const open = async (t: BranchTarget, anchor: Rect) => {
-    if (!head || !toolbar) return
+  const open = async (t: BranchTarget, anchor: Rect, onClosed?: () => void) => {
+    if (!head || !toolbar) { onClosed?.(); return }
     const remote = remoteOf(t, toolbar.remotes)
     const url = remote ? await core.remoteUrl(path, remote.remote).catch(() => null) : null
-    setMenu({ items: entries(t, url), anchor })
+    setMenu({ items: entries(t, url), anchor, onClosed })
   }
   const overlay = <>
-    {menu && <Menu items={menu.items} anchor={menu.anchor} label="Menu da branch" onClose={() => setMenu(null)} />}
+    {menu && <Menu items={menu.items} anchor={menu.anchor} label="Menu da branch" onClose={() => { menu.onClosed?.(); setMenu(null) }} />}
     {dialog && <BranchDialogs path={path} dialog={dialog} close={() => setDialog(null)} />}
   </>
   return { checkout, entries, open, overlay, ready: !!head && !!toolbar }
