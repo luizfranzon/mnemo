@@ -193,7 +193,14 @@ function clearPushRejected(path: string) {
 function fail(err: unknown, path?: string, retry?: () => Promise<void>) {
   const text = errorMessage(err)
   pushToast({ path, text: text.length > 300 ? `${text.slice(0, 300)}…` : text, error: true, retry: errorCode(err) === 'indexLocked' ? retry : undefined,
-    buttons: path === undefined ? undefined : blockedPullButtons(err, path) })
+    buttons: path === undefined ? undefined : blockedPullButtons(err, path) ?? unmergedBranchButtons(err, path) })
+}
+
+/** `branch -d` barrado por commits fora de merge: oferece excluir com `-D`. */
+function unmergedBranchButtons(err: unknown, path: string): Toast['buttons'] {
+  const name = errorCode(err) === 'gitFailed' && /^branch -d (\S+)$/.exec((err as { args?: string }).args ?? '')?.[1]
+  if (!name) return undefined
+  return [{ label: 'Excluir mesmo assim', run: () => actions.execute(path, { type: 'branchDelete', name, force: true }) }]
 }
 
 /** Pull barrado por arquivos que seriam sobrescritos: guardar no stash ou descartar, e repetir o pull. */

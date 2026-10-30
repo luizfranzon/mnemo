@@ -3,7 +3,9 @@ import { isAbsolute, join, resolve } from 'node:path'
 
 const DEBOUNCE_MS = 400
 /** Arquivos que o git mexe a cada comando e não mudam o grafo. */
-const NOISE = /(\.lock|^index|^FETCH_HEAD|^ORIG_HEAD|^COMMIT_EDITMSG)$/
+const NOISE = /(\.lock|^index|^FETCH_HEAD|^ORIG_HEAD|^COMMIT_EDITMSG|^mnemo-conflict-.*)$/
+
+export const isNoise = (name: string) => NOISE.test(name.split(/[\\/]/).at(-1)!)
 
 /** `.git` pode ser pasta ou, em worktree e submódulo, um arquivo `gitdir: <caminho>`. */
 function gitDirOf(workdir: string): string | null {
@@ -41,7 +43,7 @@ export function watchRepository(workdir: string, onChange: () => void) {
   const common = commonDirOf(gitDir)
   let timer: NodeJS.Timeout | undefined
   const bump = (_event: string, name: string | Buffer | null) => {
-    if (name && NOISE.test(String(name).split(/[\\/]/).at(-1)!)) return
+    if (name && isNoise(String(name))) return
     clearTimeout(timer)
     timer = setTimeout(onChange, DEBOUNCE_MS)
   }

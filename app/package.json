@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit",
     "bench:startup": "node scripts/bench-startup.mjs",
     "native:release": "node scripts/build-native.mjs --release",
-    "test": "tsx --test \"src/**/*.test.ts\"",
+    "test": "tsx --test \"src/**/*.test.ts\" \"electron/**/*.test.ts\"",
     "dist": "bun run native:release && bun run build:renderer && bun run build:electron && electron-builder --publish never"
   },
   "dependencies": {
