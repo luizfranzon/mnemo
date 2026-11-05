@@ -1,0 +1,38 @@
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1-5);
+  font: inherit; white-space: nowrap; cursor: pointer;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--control); color: var(--text-secondary);
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.btn:disabled { color: var(--text-disabled); cursor: not-allowed; }
+.btn--sm { height: var(--btn-sm); padding: 0 var(--space-2); font-size: var(--fs-caption); }
+.btn--md { height: var(--btn-md); padding: 0 var(--space-2-5); font-size: var(--fs-body-sm); }
+.btn--lg { height: var(--btn-lg); padding: 0 var(--space-4); font-size: var(--fs-body); font-weight: 500; }
+.btn--icon { padding: 0; }
+.btn--icon.btn--sm { width: var(--btn-sm); }
+.btn--icon.btn--md { width: var(--btn-md); }
+.btn--icon.btn--lg { width: var(--btn-lg); }
+
+.btn--secondary:hover:not(:disabled) { background: var(--hover); border-color: var(--border-hover); }
+
+.btn--primary { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--accent-text); }
+.btn--primary:hover:not(:disabled) { background: var(--accent-primary-hover); border-color: var(--accent-primary-hover); }
+
+.btn--ghost { background: transparent; border-color: transparent; }
+.btn--ghost:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+
+.btn--success { background: var(--success-button); border-color: var(--success-button); color: var(--text-on-solid); }
+.btn--success:hover:not(:disabled) { background: var(--success-solid); border-color: var(--success-solid); }
+.btn--success:disabled { background: var(--control); border-color: var(--border-strong); color: var(--text-subtle); }
+
+.btn--danger { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger-text); }
+.btn--danger:hover:not(:disabled) { background: var(--danger-bg-hover); border-color: var(--danger); color: var(--danger-text); }
+
+.btn--danger-solid { background: var(--danger); border-color: var(--danger); color: var(--text-on-solid); }
+.btn--danger-solid:hover:not(:disabled) { background: var(--danger-solid-hover); border-color: var(--danger-solid-hover); }
+
+.btn--ai { background: var(--ai-bg); border-color: var(--ai-border); color: var(--ai-text); }
+.btn--ai:hover:not(:disabled) { background: var(--ai-bg-hover); border-color: var(--ai); }
+
+.btn[aria-busy="true"] { cursor: progress; opacity: .75; }
