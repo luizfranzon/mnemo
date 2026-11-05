@@ -38,7 +38,7 @@ function CommitSvg({ row, width, geo, compact, wipLink, wipColor, wipX }: { row:
     {row.segments.map((segment, index) => <path key={`${segment.kind}:${segment.fromLane}:${segment.toLane}:${index}`}
       d={segmentPath(segment, geo)} fill="none" stroke={segment.color} strokeWidth="2" />)}
     {wipLink && <path d={`M${wipX} 0 V${wipLink === 'end' ? 14 : 28}`} fill="none" stroke={wipColor} strokeWidth="2" strokeDasharray="3 3" />}
-    {row.head && <circle cx={x} cy="14" r={compact ? 8 : 12} fill="none" stroke="#5b8def" strokeWidth="2" />}
+    {row.head && <circle cx={x} cy="14" r={compact ? 8 : 12} fill="none" stroke="var(--accent)" strokeWidth="2" />}
     {compact
       ? row.parents.length > 1
         ? <circle cx={x} cy="14" r="4" fill="none" stroke={row.color} strokeWidth="2" />
@@ -416,7 +416,7 @@ export function Graph({ path }: { path: string }) {
   }
   const branch = head?.kind === 'branch' ? head.name : head?.sha ?? 'HEAD'
   const headCommit = commits.find((c) => c.head)
-  const headColor = headCommit?.color ?? '#5b8def'
+  const headColor = headCommit?.color ?? 'var(--accent)'
   const wipSpan = new Set<string>()
   if (top) for (const c of commits) { wipSpan.add(c.sha); if (c.head) break }
   const wipX = geo.first + (headCommit?.lane ?? 0) * geo.lane // o WIP fica na lane do HEAD

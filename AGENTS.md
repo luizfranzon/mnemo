@@ -39,6 +39,15 @@ A `main` é protegida: só entra por PR, com o CI verde, em squash merge. Nunca 
 - Release: subir a versão em `app/package.json` e `Cargo.toml` (iguais) e acrescentar a seção `## [x.y.z]` no `CHANGELOG.md`. O CI falha se divergirem ou faltar a seção. No merge, a Release `vx.y.z` sai sozinha se a tag ainda não existe.
 - Títulos de PR e o `CHANGELOG.md` são públicos: sem detalhes internos.
 
+## Design system (regra)
+
+Storybook em `app/` (`bun run storybook`), ADR 0009. Processo por componente em `docs/design/05-ciclo-do-componente.md`.
+
+- Tokens em `app/design-system/tokens.json`. O `tokens.css` é gerado (`bun run tokens`), nunca editado à mão.
+- Nenhuma cor literal fora dos tokens. Gap, padding e margem só com `--space-*`.
+- Cada token só vale no escopo do nome: `--lane-*` só no grafo, `--conflict-*` só em conflito. Não reaproveitar token de outro escopo pela semelhança do valor.
+- Componente novo: CSS puro ao lado (`Button.css`), classes com prefixo, story ao lado. Sem `<button>`/`<input>` cru quando já existe o componente central.
+
 ## React: evitar re-render desnecessário (regra)
 
 Sempre pensar no custo de render antes de escrever um componente.

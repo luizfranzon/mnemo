@@ -1,6 +1,15 @@
 # Design system
 
-Este doc é a fonte do design system. Tokens prontos em `app/design-system/tokens.css` e `tokens.json`.
+Este doc é a fonte do design system. A fonte dos tokens é `app/design-system/tokens.json` (formato DTCG); `bun run tokens` gera o `tokens.css`. Os componentes vivem no Storybook (`bun run storybook`, ADR 0009), e o processo de cada um está em `05-ciclo-do-componente.md`.
+
+## Classificação dos componentes
+
+| Nível | O que é |
+|---|---|
+| Fundamentos | Tokens: cor, espaço, raio, tipografia, elevação |
+| Primitivos | Sem domínio git e sem store; só props. Button, Input, Checkbox, Radio, Segmented, Chip, Icon, Avatar, Kbd |
+| Compostos | Montam primitivos, ainda sem domínio git. Menu, Dialog, Toast, faixas, FindBar |
+| Features e Telas | Conhecem commits, refs e diff. Entram no Storybook só depois de receber dados por props |
 
 **Tema escuro, denso e calmo**, feito para passar horas olhando histórico e diff.
 
@@ -94,7 +103,7 @@ Avatares de pessoa: fundo escuro + iniciais na cor clara do mesmo matiz (ex.: `#
 
 ## Espaço, raio, elevação
 
-- Espaçamento base 4: 4, 8 (gap de chips), 12 (padding de card), 16 (painel), 20, 24 (conteúdo), 32, 48 (entre seções).
+- Espaçamento base 4, com meio-passos: 2 (`space-0-5`), 4, 6 (`space-1-5`), 8 (gap de chips), 10 (`space-2-5`), 12 (padding de card), 16 (painel), 20, 24 (conteúdo), 32, 48 (entre seções). Gap, padding e margem só usam `--space-*`.
 - Raio: 4 (checkbox, pill), 6 (chip, item de menu), 8 (botão, input), 10 (menu), 12 (card, diálogo), full (badge, avatar).
 - Elevação: flat em listas · menu `0 12px 32px rgba(0,0,0,.5)` · diálogo `0 24px 60px rgba(0,0,0,.6)`.
 - Foco: anel 2px `#5B8DEF`, offset 2px.

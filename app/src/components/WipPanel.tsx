@@ -12,8 +12,8 @@ import { pickFiles, wipFilesMenu, wipFolderMenu, type WipMenuContext } from './w
 import { Icon, type IconName } from './Icon'
 
 const GLYPH: Record<string, { icon: IconName; color: string }> = {
-  A: { icon: 'plus', color: '#7FDC95' }, M: { icon: 'modified', color: '#F0C06A' }, T: { icon: 'modified', color: '#F0C06A' },
-  D: { icon: 'minus', color: '#F0877F' }, R: { icon: 'renamed', color: '#7FB0F0' }, C: { icon: 'copy', color: '#7FB0F0' },
+  A: { icon: 'plus', color: 'var(--success-text)' }, M: { icon: 'modified', color: 'var(--warning-text)' }, T: { icon: 'modified', color: 'var(--warning-text)' },
+  D: { icon: 'minus', color: 'var(--danger-text)' }, R: { icon: 'renamed', color: 'var(--info-text)' }, C: { icon: 'copy', color: 'var(--info-text)' },
 }
 type Row = { type: 'head'; key: string; staged: boolean; count: number } | (TreeRow<FileChange> & { staged: boolean })
 const SUMMARY_LIMIT = 72
@@ -188,7 +188,7 @@ export function WipPanel({ path }: { path: string }) {
             onContextMenu={(e) => { e.preventDefault(); fileMenu(row, point(e)) }}>
             <span className="wip-glyph" style={{ color: g.color }}><Icon name={g.icon} size={12} strokeWidth={2.2} /></span>
             <span className="wip-path"><span className="wip-dir">{row.dir}</span><span className="wip-name">{row.name}</span></span>
-            {file.added !== null && <span className="wip-lines"><span style={{ color: '#7FDC95' }}>+{file.added}</span> <span style={{ color: '#F0877F' }}>−{file.removed}</span></span>}
+            {file.added !== null && <span className="wip-lines"><span style={{ color: 'var(--success-text)' }}>+{file.added}</span> <span style={{ color: 'var(--danger-text)' }}>−{file.removed}</span></span>}
             <span className="wip-actions" onClick={(e) => e.stopPropagation()}>
               <button className="wip-icon" aria-label={`Ações de ${file.path}`} title="Mais ações" onClick={(e) => fileMenu(row, e.currentTarget.getBoundingClientRect())}><Icon name="more" size={14} /></button>
               {!row.staged && <button className="wip-danger" title={paths.length > 1 ? `Descartar mudanças dos ${paths.length} selecionados` : 'Descartar mudanças deste arquivo'}
@@ -213,7 +213,7 @@ export function WipPanel({ path }: { path: string }) {
         <div className="wip-summary">
           <label htmlFor="wip-sum" className="sr-only">Resumo</label>
           <input id="wip-sum" type="text" value={summary} placeholder={tab === 'commit' ? 'Resumo' : 'Mensagem do stash (opcional)'} onChange={(e) => setSummary(e.target.value)} />
-          {tab === 'commit' && <span title="Limite recomendado de 72 caracteres" className="wip-count" style={summary.length > SUMMARY_LIMIT ? { color: '#F0C06A' } : undefined}>{summary.length}/{SUMMARY_LIMIT}</span>}
+          {tab === 'commit' && <span title="Limite recomendado de 72 caracteres" className="wip-count" style={summary.length > SUMMARY_LIMIT ? { color: 'var(--warning-text)' } : undefined}>{summary.length}/{SUMMARY_LIMIT}</span>}
         </div>
         {tab === 'commit' && <>
           <label htmlFor="wip-desc" className="sr-only">Descrição</label>
