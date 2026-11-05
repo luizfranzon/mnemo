@@ -1,5 +1,6 @@
 import { useShallow } from 'zustand/react/shallow'
-import { actions, useApp } from '../store/app'
+import { actions, selectReview, useApp } from '../store/app'
+import { tabLabel } from '../store/tabLabel'
 import { Icon } from './Icon'
 
 export function TabBar() {
@@ -17,12 +18,27 @@ export function TabBar() {
   )
 }
 
+const TAB_DRAG = 'application/x-mnemo-tab'
+
 function TabItem({ path }: { path: string }) {
-  const name = useApp((s) => s.tabs.find((t) => t.path === path)?.name ?? path)
+  const name = useApp((s) => {
+    const label = tabLabel(s.tabs, path) ?? path
+    const review = selectReview(path)(s)
+    return review ? `Revisão: ${label} - ${review.branch}` : label
+  })
   const active = useApp((s) => s.activePath === path)
+  const reviewing = useApp((s) => selectReview(path)(s) !== undefined)
   return (
-    <div role="tab" aria-selected={active} className={active ? 'tab active' : 'tab'}>
-      <button className="tab-label" onClick={() => actions.focusTab(path)} title={path}>
+    <div
+      role="tab"
+      aria-selected={active}
+      className={`tab${active ? ' active' : ''}${reviewing ? ' reviewing' : ''}`}
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData(TAB_DRAG, path); e.dataTransfer.effectAllowed = 'move' }}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes(TAB_DRAG)) e.preventDefault() }}
+      onDrop={(e) => { const from = e.dataTransfer.getData(TAB_DRAG); if (from) actions.moveTab(from, path) }}
+    >
+      <button className="tab-label" onClick={() => actions.focusTab(path)} title={reviewing ? `${name}\n${path}` : path}>
         {name}
       </button>
       <button className="tab-close" aria-label={`Fechar ${name}`} onClick={() => actions.closeTab(path)}>

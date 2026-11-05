@@ -1,4 +1,6 @@
+import { useShallow } from 'zustand/react/shallow'
 import { actions, selectActiveTab, useApp } from '../store/app'
+import { Breadcrumb } from './Breadcrumb'
 import { DiscardDialogs } from './DiscardDialogs'
 import { Graph } from './Graph'
 import { Palette } from './Palette'
@@ -10,19 +12,28 @@ import { Toolbar } from './Toolbar'
 import { PushDialog } from './PushDialog'
 import { ForcePushDialog } from './ForcePushDialog'
 import { PushRejectedBar } from './PushRejectedBar'
+import { ReviewDialogs } from './ReviewDialogs'
 
 export function Workspace() {
   const path = useApp((s) => selectActiveTab(s)?.path)
+  const tabs = useApp(useShallow((s) => s.tabs.map((t) => t.path)))
   const palette = useApp((s) => s.palette)
   return (
     <div className="workspace">
       <TabBar />
       {path && <Toolbar />}
+      {path && <Breadcrumb path={path} />}
       <PushRejectedBar />
-      {path ? (
-        <Panels key={path} path={path}>
-          <Graph key={path} path={path} />
-        </Panels>
+      {tabs.length ? (
+        <div className="tab-stack">
+          {tabs.map((p) => (
+            <div key={p} className={p === path ? 'tab-view' : 'tab-view inactive'}>
+              <Panels path={p}>
+                <Graph path={p} />
+              </Panels>
+            </div>
+          ))}
+        </div>
       ) : (
         <main className="main">
           <Empty />
@@ -32,6 +43,7 @@ export function Workspace() {
       <DiscardDialogs />
       <PushDialog />
       <ForcePushDialog />
+      <ReviewDialogs />
 
       <Toasts />
       {palette && <Palette key={palette} mode={palette} />}

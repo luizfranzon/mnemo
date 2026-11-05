@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { onCoreEvent } from '../bridge'
+import { core, onCoreEvent } from '../bridge'
 import { actions, useApp } from '../store/app'
 import { GitMissing } from './GitMissing'
 import { Preferences } from './Preferences'
@@ -9,6 +9,7 @@ import { useUndoShortcuts } from './useUndoShortcuts'
 
 export function App() {
   const phase = useApp((s) => s.git.phase)
+  const activePath = useApp((s) => s.activePath)
   const autoFetchMinutes = useApp((s) => s.prefs.autoFetchMinutes)
 
   useEffect(() => {
@@ -19,6 +20,11 @@ export function App() {
     const off = onCoreEvent(actions.applyCoreEvent)
     return () => { window.removeEventListener('focus', refresh); off() }
   }, [])
+
+  // observa só a aba ativa; as outras se atualizam ao ganhar o foco da janela
+  useEffect(() => {
+    void core.watchRepository(activePath).catch(() => undefined)
+  }, [activePath])
 
   useEffect(() => {
     if (!autoFetchMinutes) return

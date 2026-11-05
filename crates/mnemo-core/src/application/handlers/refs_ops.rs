@@ -22,6 +22,7 @@ impl Handler for RefsOps {
                 | BranchDelete { .. }
                 | TagCreate { .. }
                 | TagDelete { .. }
+                | FastForward { .. }
         )
     }
 
@@ -188,6 +189,23 @@ impl Handler for RefsOps {
             }
             TagDelete { name } => {
                 git.run(["tag", "-d", name.as_str()])?;
+                RefsStrategy::Refs
+            }
+            FastForward { branch } => {
+                require(branch, "branch")?;
+                let local = crate::application::git::RepoGit::branch_ref(branch);
+                if ctx.before.head_ref.as_deref() == Some(local.as_str()) {
+                    return Err(CoreError::invalid("a branch atual avança com Pull"));
+                }
+                let upstream = git
+                    .upstream(branch)?
+                    .ok_or_else(|| CoreError::invalid(format!("{branch} não rastreia nenhuma remota")))?;
+                let (old, new) = (git.rev_parse(&local)?, git.rev_parse(&format!("refs/remotes/{upstream}"))?);
+                let ff = git.exec(&GitCmd::new(["merge-base", "--is-ancestor", &old, &new]).also_ok(1))?;
+                if ff.code != 0 {
+                    return Err(CoreError::invalid(format!("{branch} e {upstream} divergiram: não dá para avançar")));
+                }
+                git.run(["update-ref", local.as_str(), new.as_str(), old.as_str()])?;
                 RefsStrategy::Refs
             }
             _ => return Err(CoreError::internal("kind fora do handler")),

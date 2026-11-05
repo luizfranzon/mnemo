@@ -21,6 +21,8 @@ export interface BranchMenuContext {
   push(): void
   newBranch(start: string): void
   resetHard(sha: string): void
+  /** Revisão da branch pelo nome sem o remoto (local e remota são a mesma Revisão). */
+  review(branch: string): void
   dialog(d: BranchDialog): void
   copy(text: string): void
   /** Estado atual desta branch no grafo e como alterná-lo. */
@@ -90,6 +92,8 @@ export function branchMenu(t: BranchTarget, c: BranchMenuContext): MenuEntry[] {
     { label: `Fazer checkout de ${name}`, shortcut: 'duplo clique', reason: mut ?? (current ? 'Já é a branch atual' : undefined), run: c.checkout },
     { label: `Merge ${name} em ${cur ?? 'HEAD'}`, reason: integrate, run: () => c.execute({ type: 'merge', target: name }) },
     { label: `Rebase ${cur ?? 'HEAD'} sobre ${name}`, reason: integrate, run: () => c.execute({ type: 'rebase', onto: name }) },
+    '-',
+    { label: `Revisar ${t.ref.name}`, run: () => c.review(t.ref.name) },
   ]
   if (local) {
     const noUpstream = local.upstream ? undefined : 'Esta branch não tem upstream'

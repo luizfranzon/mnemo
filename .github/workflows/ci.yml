@@ -29,30 +29,30 @@ jobs:
         working-directory: app
       - run: cargo test --workspace
 
-  package:
-    name: Instalador (${{ matrix.os }})
-    needs: checks
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  # Núcleo contra o git mais novo (compilado, o do runner é antigo). Outras versões: scripts/test-git.sh
+  git-latest:
+    name: Git mais novo
+    runs-on: ubuntu-latest
+    env:
+      GIT_VERSION: '2.56.0'
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y rpm
-      - run: bun install --frozen-lockfile
-        working-directory: app
-      - run: bun run dist
-        working-directory: app
-      - uses: actions/upload-artifact@v4
+      - id: cache
+        uses: actions/cache@v4
         with:
-          name: instalador-${{ matrix.os }}
-          path: |
-            app/release/*.exe
-            app/release/*.deb
-            app/release/*.rpm
-          if-no-files-found: error
+          path: ~/git-${{ env.GIT_VERSION }}
+          key: git-${{ env.GIT_VERSION }}
+      - name: Compilar git ${{ env.GIT_VERSION }}
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          cd "$RUNNER_TEMP"  # fora do workspace: o git 2.55+ builda Rust e o cargo acharia o Cargo.toml do repo
+          curl -fsSL "https://mirrors.edge.kernel.org/pub/software/scm/git/git-${{ env.GIT_VERSION }}.tar.gz" | tar xz
+          make -C "git-${{ env.GIT_VERSION }}" -j"$(nproc)" prefix="$HOME/git-${{ env.GIT_VERSION }}" \
+            NO_OPENSSL=1 NO_CURL=1 NO_GETTEXT=1 NO_TCLTK=1 NO_PERL=1 NO_EXPAT=1 NO_PYTHON=1 install
+      - name: Testes do núcleo com git ${{ env.GIT_VERSION }}
+        run: |
+          export PATH="$HOME/git-${{ env.GIT_VERSION }}/bin:$PATH"
+          test "$(git --version)" = "git version ${{ env.GIT_VERSION }}"
+          cargo test -p mnemo-core

@@ -9,7 +9,7 @@ const ctx = (over: Partial<BranchMenuContext> = {}): BranchMenuContext => ({
   toolbar: { remotes: ['origin'], ahead: 0, behind: 0, lastFetchEpoch: null, stashCount: 0, pullMode: 'merge', progress: null },
   remoteUrl: 'git@github.com:acme/app.git',
   execute: (k) => calls.push(k), checkout: () => calls.push('checkout'), pull: () => {}, push: () => {}, newBranch: () => {},
-  resetHard: () => {}, dialog: (d) => calls.push(d), copy: (t) => calls.push(t),
+  resetHard: () => {}, review: (b) => calls.push(`review:${b}`), dialog: (d) => calls.push(d), copy: (t) => calls.push(t),
   view: { hidden: false, solo: false, highlight: false }, toggleView: (w) => calls.push(w), ...over,
 })
 const local = { name: 'feat', sha: 'abcdef1234', current: false, upstream: 'origin/feat', ahead: 2, behind: 0 }
@@ -20,6 +20,12 @@ test('rótulos com os nomes e cabeçalho com ↑↓ e upstream', () => {
   assert.equal(find(items, 'feat ·').label, 'feat · ↑2 ↓0 · rastreia origin/feat')
   assert.equal(find(items, 'Merge').label, 'Merge feat em main')
   assert.equal(find(items, 'Rebase').label, 'Rebase main sobre feat')
+})
+
+test('revisar usa o nome sem o remoto: local e remota são a mesma Revisão', () => {
+  find(branchMenu({ kind: 'remote', ref: { remote: 'origin', name: 'feat/x', sha: 'abcdef1234', localExists: false } }, ctx()), 'Revisar').run!()
+  assert.equal(calls.at(-1), 'review:feat/x')
+  assert.equal(find(branchMenu({ kind: 'local', ref: local }, ctx()), 'Revisar').label, 'Revisar feat')
 })
 
 test('branch atual: merge/rebase/checkout desabilitados com motivo; excluir sem remota também', () => {
