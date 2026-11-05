@@ -321,6 +321,16 @@ export const actions = {
   focusTab(path: string) {
     set({ activePath: path })
   },
+  moveTab(from: string, to: string) {
+    set((s) => {
+      const tab = s.tabs.find((t) => same(t.path, from))
+      const at = s.tabs.findIndex((t) => same(t.path, to))
+      if (!tab || at < 0 || tab === s.tabs[at]) return s
+      const tabs = s.tabs.filter((t) => t !== tab)
+      tabs.splice(at, 0, tab)
+      return { tabs }
+    })
+  },
   selectCommit(path: string, sha: string) { patchView(path, (v) => ({ selectedSha: sha, diff: v.selectedSha === sha ? v.diff : null })) },
   openDiff(diff: DiffTarget) { patchView(diff.path, { diff, conflict: null }) },
   /** No modo Revisão, fechar o diff volta ao grafo (a Revisão continua salva). */
@@ -813,7 +823,8 @@ function saveSession() {
   const { tabs, activePath } = get()
   try { localStorage.setItem(SESSION_KEY, JSON.stringify({ paths: tabs.map((t) => t.path), active: activePath })) } catch { /* sem storage */ }
 }
-useApp.subscribe((state, prev) => { if (sessionReady && (state.tabs.length !== prev.tabs.length || state.activePath !== prev.activePath)) saveSession() })
+const tabOrder = (s: AppState) => s.tabs.map((t) => t.path).join('\n')
+useApp.subscribe((state, prev) => { if (sessionReady && (state.activePath !== prev.activePath || (state.tabs !== prev.tabs && tabOrder(state) !== tabOrder(prev)))) saveSession() })
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 

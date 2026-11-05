@@ -1,5 +1,5 @@
 // Revisão: relatório, âncora dos comentários e onde eles entram no diff. Funções puras: os componentes só desenham.
-import type { FileDiff, Review, ReviewComment, ReviewFile, ReviewRound, ReviewScope, ReviewSummary } from '../bridge/types'
+import type { FileDiff, Review, ReviewComment, ReviewFile, ReviewRound, ReviewScope, ReviewState, ReviewSummary } from '../bridge/types'
 import type { DiffRow } from './diffModel'
 import type { MenuEntry } from './menuModel'
 
@@ -88,12 +88,16 @@ export function reviewReport(review: Review, round: ReviewRound, files: ReviewFi
     out.push('', `## ${old ? `${file} (renomeado de ${old})` : file}`)
     for (const c of [...byFile.get(file)!].sort((a, b) => order(a) - order(b))) {
       const wide = c.scope === 'branch' && round.from ? ' (branch inteira)' : ''
-      out.push('', `**${lineLabel(c.lines)}**${wide}`)
+      out.push('', `**${lineLabel(c.lines)}**${wide}${c.author === 'agent' ? ' (IA)' : ''}`)
       if (c.lines && c.snippet.length) {
         const f = fence(c.snippet)
         out.push(f, ...c.snippet, f)
       }
       out.push(c.body)
+      if (c.suggestion) {
+        const f = fence(c.suggestion)
+        out.push('', 'Sugestão de troca:', f, ...c.suggestion, f)
+      }
     }
   }
   return `${out.join('\n')}\n`
@@ -130,6 +134,12 @@ export function reviewMarks(list: ReviewSummary[]) {
     out.set(m.sha, [...(out.get(m.sha) ?? []), { branch: r.branch, rewritten: m.rewritten, title }])
   }
   return out
+}
+
+export function agentRef(repo: string, state: ReviewState, round: ReviewRound): string {
+  const { from, to } = rangeOf(round, 'round')
+  const pending = state.files.filter((f) => !f.reverted && !round.reviewed.includes(f.path)).map((f) => f.path)
+  return JSON.stringify({ mnemoReview: 1, repo, branch: state.review.branch, base: round.base, round: round.number, from, to, pending, inbox: state.inbox }, null, 2)
 }
 
 /** Nome do arquivo ao salvar o relatório. */

@@ -170,6 +170,7 @@ export interface ReviewComment {
   /** `null` = arquivo inteiro. */
   lines: { side: 'old' | 'new'; start: number; end: number } | null
   snippet: string[]; body: string; scope: ReviewScope
+  author: 'reviewer' | 'agent'; suggestion: string[] | null
 }
 export interface ReviewRound {
   number: number; base: string; mergeBase: string
@@ -181,7 +182,7 @@ export interface Review { branch: string; rounds: ReviewRound[] }
 /** `reverted`: voltou a ficar igual à Base desde a Rodada anterior (sem diff). */
 export interface ReviewFile extends FileChange { reverted: boolean }
 export interface BranchStatus { tip: string | null; ahead: number; rewritten: boolean; merged: boolean }
-export interface ReviewState { review: Review; files: ReviewFile[]; status: BranchStatus }
+export interface ReviewState { review: Review; files: ReviewFile[]; status: BranchStatus; inbox: string }
 /** `reviewed`: o commit que a Rodada revisou; difere de `sha` quando a branch foi reescrita. */
 export interface ReviewMarker { sha: string; round: number; comments: number; concludedMs: number; rewritten: boolean; reviewed: string }
 export interface ReviewSummary { branch: string; round: number; open: boolean; reviewed: number; files: number; status: BranchStatus; markers: ReviewMarker[] }

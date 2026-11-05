@@ -23,11 +23,20 @@ pub enum Side {
 }
 
 /// Diff em que o comentário foi feito: o da Rodada ou o da branch inteira.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Scope {
+    #[default]
     Round,
     Branch,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Author {
+    #[default]
+    Reviewer,
+    Agent,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -41,6 +50,7 @@ pub struct LineRange {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Comment {
+    #[serde(default)]
     pub id: String,
     pub file: String,
     #[serde(default)]
@@ -52,7 +62,12 @@ pub struct Comment {
     #[serde(default)]
     pub snippet: Vec<String>,
     pub body: String,
+    #[serde(default)]
     pub scope: Scope,
+    #[serde(default)]
+    pub author: Author,
+    #[serde(default)]
+    pub suggestion: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -108,6 +123,7 @@ pub struct ReviewState {
     pub review: Review,
     pub files: Vec<ReviewFile>,
     pub status: BranchStatus,
+    pub inbox: PathBuf,
 }
 
 /// Commit revisado no grafo. Reescrita a branch, o marcador da última Rodada vai para a ponta atual.
@@ -319,6 +335,7 @@ pub fn start(git: &RepoGit, branch: &str, base: &str) -> Result<ReviewState> {
 
 pub fn open(git: &RepoGit, branch: &str) -> Result<ReviewState> {
     check_branch(git, branch)?;
+    import_inbox(git, branch)?;
     let review = load(git, branch)?.ok_or_else(|| unavailable(format!("Não há Revisão de {branch}")))?;
     state(git, review)
 }
@@ -327,7 +344,65 @@ fn state(git: &RepoGit, review: Review) -> Result<ReviewState> {
     let round = review.rounds.last().ok_or_else(|| CoreError::internal("Revisão sem Rodada"))?;
     let files = files(git, &review, round)?;
     let status = status(git, &review.branch, round)?;
-    Ok(ReviewState { review, files, status })
+    let inbox = inbox_dir(git, &review.branch)?;
+    Ok(ReviewState { review, files, status, inbox })
+}
+
+#[derive(Deserialize)]
+struct Inbox {
+    round: u32,
+    comments: Vec<Comment>,
+}
+
+fn inbox_dir(git: &RepoGit, branch: &str) -> Result<PathBuf> {
+    let name = file_name(branch);
+    Ok(dir(git)?.join("inbox").join(name.strip_suffix(".json").unwrap_or(&name)))
+}
+
+fn import_inbox(git: &RepoGit, branch: &str) -> Result<()> {
+    let entries = match std::fs::read_dir(inbox_dir(git, branch)?) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e.into()),
+    };
+    let mut files: Vec<PathBuf> =
+        entries.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "json")).collect();
+    files.sort();
+    for file in files {
+        let Some(inbox) = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice::<Inbox>(&b).ok()) else {
+            continue;
+        };
+        let stem: String = file
+            .file_stem()
+            .map(|s| {
+                s.to_string_lossy()
+                    .chars()
+                    .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
+                    .take(40)
+                    .collect()
+            })
+            .unwrap_or_default();
+        let comments: Vec<Comment> = inbox
+            .comments
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, c)| {
+                let id = if c.id.is_empty() { format!("ag-{stem}-{i}") } else { c.id };
+                checked(Comment { id, author: Author::Agent, ..c }).ok()
+            })
+            .collect();
+        let imported = edit(git, branch, |round| {
+            if round.number != inbox.round {
+                return Err(unavailable("rodada diferente"));
+            }
+            comments.into_iter().for_each(|c| upsert(round, c));
+            Ok(())
+        });
+        if imported.is_ok() {
+            let _ = std::fs::remove_file(&file);
+        }
+    }
+    Ok(())
 }
 
 fn status(git: &RepoGit, branch: &str, round: &Round) -> Result<BranchStatus> {
@@ -428,7 +503,22 @@ pub fn mark(git: &RepoGit, branch: &str, file: &str, reviewed: bool) -> Result<R
 }
 
 /// Cria ou atualiza (mesmo `id`) um comentário da Rodada aberta.
-pub fn comment(git: &RepoGit, branch: &str, mut comment: Comment) -> Result<Review> {
+pub fn comment(git: &RepoGit, branch: &str, comment: Comment) -> Result<Review> {
+    let comment = checked(Comment { author: Author::Reviewer, suggestion: None, ..comment })?;
+    edit(git, branch, |round| {
+        upsert(round, comment);
+        Ok(())
+    })
+}
+
+fn upsert(round: &mut Round, comment: Comment) {
+    match round.comments.iter_mut().find(|c| c.id == comment.id) {
+        Some(existing) => *existing = comment,
+        None => round.comments.push(comment),
+    }
+}
+
+fn checked(mut comment: Comment) -> Result<Comment> {
     let id_ok = !comment.id.is_empty()
         && comment.id.len() <= 64
         && comment.id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
@@ -442,13 +532,10 @@ pub fn comment(git: &RepoGit, branch: &str, mut comment: Comment) -> Result<Revi
     if comment.lines.as_ref().is_some_and(|l| l.start == 0 || l.end < l.start) {
         return Err(CoreError::invalid("intervalo de linhas inválido"));
     }
-    edit(git, branch, |round| {
-        match round.comments.iter_mut().find(|c| c.id == comment.id) {
-            Some(existing) => *existing = comment,
-            None => round.comments.push(comment),
-        }
-        Ok(())
-    })
+    if comment.suggestion.is_some() && comment.lines.as_ref().is_none_or(|l| l.side != Side::New) {
+        return Err(CoreError::invalid("sugestão precisa de linhas do lado novo"));
+    }
+    Ok(comment)
 }
 
 pub fn uncomment(git: &RepoGit, branch: &str, id: &str) -> Result<Review> {
@@ -475,6 +562,7 @@ pub fn end(git: &RepoGit, branch: &str) -> Result<()> {
     if !stdin.is_empty() {
         git.exec(&GitCmd::new(["update-ref", "--stdin", "-z"]).stdin(stdin.into_bytes()))?;
     }
+    let _ = std::fs::remove_dir_all(inbox_dir(git, branch)?);
     match std::fs::remove_file(dir(git)?.join(file_name(branch))) {
         Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.into()),
         _ => Ok(()),

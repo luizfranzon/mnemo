@@ -81,6 +81,16 @@ test('fechar a aba ativa ativa a última restante e avisa o core', async () => {
   assert.deepEqual(calls.filter((c) => c.cmd === 'close_repository').map((c) => c.args.path), ['/c'])
 })
 
+test('moveTab leva a aba para a posição da aba de destino', async () => {
+  fakeCore()
+  for (const p of ['/a', '/b', '/c']) await actions.openRepository(p)
+  actions.moveTab('/c', '/a')
+  assert.deepEqual(useApp.getState().tabs.map((t) => t.path), ['/c', '/a', '/b'])
+  actions.moveTab('/c', '/b')
+  assert.deepEqual(useApp.getState().tabs.map((t) => t.path), ['/a', '/b', '/c'])
+  assert.equal(useApp.getState().activePath, '/c')
+})
+
 test('fechar outra aba mantém a ativa', async () => {
   fakeCore()
   for (const p of ['/a', '/b']) await actions.openRepository(p)

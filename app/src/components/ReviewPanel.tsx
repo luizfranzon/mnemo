@@ -6,7 +6,7 @@ import { actions, selectDiff, selectGraphRevision, selectReview, useApp } from '
 import { Icon, type IconName } from './Icon'
 import { copyText } from './menuBase'
 import { useModal } from './ReviewDialogs'
-import { reportName, reviewReport } from './reviewModel'
+import { agentRef, reportName, reviewReport } from './reviewModel'
 import { Segmented } from './Segmented'
 
 const ROW_HEIGHT = 26
@@ -107,6 +107,8 @@ export function ReviewPanel({ path }: { path: string }) {
     <div className="review-actions">
       <button onClick={copyReport} title="Arquivo, trecho e comentário de cada anotação, em Markdown">
         <Icon name="copy" size={13} /> Copiar relatório</button>
+      {open && <button onClick={() => { copyText(agentRef(path, state, round)); actions.info('Referência da rodada copiada', path) }}
+        title="Repositório, rodada, diff e arquivos pendentes, para a IA comentar esta rodada">Copiar para IA</button>}
       <span className="spacer" />
       {open ? <button className="primary" onClick={() => (missing > 0 ? setConfirm(true) : void conclude())}>Concluir rodada</button>
         : <button onClick={() => setReport({ review: state.review, round })}>Ver relatório</button>}

@@ -195,7 +195,7 @@ export function DiffView({ path }: { path: string }) {
     const anchor = existing ?? (draft.end === null ? { lines: null, snippet: [] } : range && anchorOf(diff, range.from, range.to, range.side))
     if (!anchor) return
     const saved = await actions.saveComment(path, { id: existing?.id ?? noteId(), file, oldPath: target.file.oldPath, lines: anchor.lines, snippet: anchor.snippet,
-      body: note, scope: existing?.scope ?? review.scope })
+      body: note, scope: existing?.scope ?? review.scope, author: 'reviewer', suggestion: null })
     if (saved) cancelNote()
   }
   const editNote = (c: ReviewComment) => {
@@ -300,13 +300,19 @@ type Pick = 'start' | 'extend' | 'shift' | 'one'
 
 /** Comentário da Revisão logo abaixo da linha. `half`: no lado a lado, a metade do lado comentado. */
 function NoteCard({ c, half, wide, editable, onEdit, onDelete }: { c: ReviewComment; half: string; wide: boolean; editable: boolean; onEdit: () => void; onDelete: () => void }) {
-  return <div className={`review-note ${half}`}>
+  const agent = c.author === 'agent'
+  return <div className={`review-note ${half}${agent ? ' agent' : ''}`}>
     <div className="review-note-head">
+      {agent && <span className="review-tag">IA</span>}
       <span>{lineLabel(c.lines)}</span>{wide && <span className="muted" title="Feito no diff da branch inteira">branch inteira</span>}
       <span className="spacer" />
-      {editable && <><button onClick={onEdit}>Editar</button><button onClick={onDelete}>Excluir</button></>}
+      {editable && <>{!agent && <button onClick={onEdit}>Editar</button>}<button onClick={onDelete}>Excluir</button></>}
     </div>
     <div className="review-note-body">{c.body}</div>
+    {c.suggestion && <div className="review-suggestion">
+      <div className="muted">Sugestão de troca</div>
+      <pre className="mono">{c.suggestion.length ? c.suggestion.join('\n') : '(remover as linhas)'}</pre>
+    </div>}
   </div>
 }
 

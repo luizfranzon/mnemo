@@ -153,6 +153,42 @@ fn marca_comenta_conclui_e_trava_a_rodada_concluida() {
 }
 
 #[test]
+fn abrir_importa_comentarios_do_inbox_da_rodada_aberta_como_do_agente() {
+    let repo = forked();
+    let state = ok(&repo, "review_start", json!({ "branch": "feature", "base": "main" }));
+    let inbox = std::path::PathBuf::from(state["inbox"].as_str().unwrap());
+    std::fs::create_dir_all(&inbox).unwrap();
+    let comments = json!({ "round": 1, "comments": [
+        { "file": "a.txt", "lines": { "side": "new", "start": 2, "end": 2 }, "body": "use minúsculo", "suggestion": ["dois"], "author": "reviewer" },
+        { "file": "b.txt", "body": "   " },
+        { "file": "b.txt", "body": "sugestão sem linha", "suggestion": ["x"] },
+    ] });
+    std::fs::write(inbox.join("run1.json"), comments.to_string()).unwrap();
+    std::fs::write(
+        inbox.join("velha.json"),
+        json!({ "round": 7, "comments": [{ "file": "a.txt", "body": "x" }] }).to_string(),
+    )
+    .unwrap();
+
+    let opened = ok(&repo, "review_open", json!({ "branch": "feature" }));
+    let saved = opened["review"]["rounds"][0]["comments"].as_array().unwrap();
+    assert_eq!(saved.len(), 1, "inválidos ficam de fora: {saved:?}");
+    assert_eq!(saved[0]["id"], "ag-run1-0");
+    assert_eq!(saved[0]["author"], "agent");
+    assert_eq!(saved[0]["suggestion"], json!(["dois"]));
+    assert!(!inbox.join("run1.json").exists());
+    assert!(inbox.join("velha.json").exists(), "outra rodada não entra");
+
+    let human = json!({ "id": "c1", "file": "a.txt", "body": "meu", "author": "agent", "suggestion": ["y"] });
+    let review = ok(&repo, "review_comment", json!({ "branch": "feature", "comment": human }));
+    assert_eq!(review["rounds"][0]["comments"][1]["author"], "reviewer");
+    assert!(review["rounds"][0]["comments"][1]["suggestion"].is_null());
+
+    ok(&repo, "review_end", json!({ "branch": "feature" }));
+    assert!(!inbox.exists());
+}
+
+#[test]
 fn encerrar_apaga_os_dados_e_as_refs_ocultas() {
     let repo = forked();
     ok(&repo, "review_start", json!({ "branch": "feature", "base": "main" }));

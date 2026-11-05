@@ -663,6 +663,8 @@ button.diff-gutter[aria-pressed="true"] { background: var(--accent-primary); col
 .review-note-head button:hover:not(:disabled) { color: var(--text); }
 .review-note-body { color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .review-note.composer { border-left-color: var(--accent-primary); }
+.review-suggestion { margin-top: 8px; font-size: 11.5px; }
+.review-suggestion pre { margin: 4px 0 0; padding: 6px 8px; border-radius: var(--radius-xs); background: var(--surface-1); color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .review-note.right { max-width: none; margin-left: calc(50% + 56px); }
 .diff-body { position: relative; }
 .review-select-comment { position: absolute; z-index: 5; height: 26px; padding: 0 10px; font-size: 12px; box-shadow: var(--shadow-menu); }

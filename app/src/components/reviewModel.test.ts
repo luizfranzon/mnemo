@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { DiffLine, FileDiff, Review, ReviewComment, ReviewFile, ReviewRound } from '../bridge/types'
 import { diffRows } from './diffModel'
-import { anchorOf, lineLabel, nextFile, rangeOf, reportName, reviewMarks, reviewMenu, reviewReport, reviewRows, visibleComments } from './reviewModel'
+import { agentRef, anchorOf, lineLabel, nextFile, rangeOf, reportName, reviewMarks, reviewMenu, reviewReport, reviewRows, visibleComments } from './reviewModel'
 
 /** `c 1 1` = contexto antigo 1 / novo 1; `- 2` = removida (antiga 2); `+ 2` = adicionada (nova 2). */
 function diff(spec: string[]): FileDiff {
@@ -18,7 +18,7 @@ function diff(spec: string[]): FileDiff {
 }
 
 const comment = (over: Partial<ReviewComment>): ReviewComment =>
-  ({ id: 'c', file: 'a.ts', oldPath: null, lines: { side: 'new', start: 1, end: 1 }, snippet: ['x'], body: 'b', scope: 'round', ...over })
+  ({ id: 'c', file: 'a.ts', oldPath: null, lines: { side: 'new', start: 1, end: 1 }, snippet: ['x'], body: 'b', scope: 'round', author: 'reviewer', suggestion: null, ...over })
 
 const round = (over: Partial<ReviewRound> = {}): ReviewRound => ({ number: 1, base: 'main', mergeBase: 'a'.repeat(40), from: null, tip: 'b'.repeat(40),
   startedMs: Date.UTC(2026, 9, 23, 12), concludedMs: null, reviewed: [], comments: [], ...over })
@@ -162,6 +162,19 @@ test('menu sem Revisões explica como começar', () => {
   const items = reviewMenu([], undefined, { open: () => {}, next: () => {}, end: () => {}, back: () => {} })
   assert.ok((items[1] as { reason?: string }).reason)
   assert.equal(items.some((i) => i !== '-' && i.label === 'Voltar ao grafo'), false)
+})
+
+test('referência da rodada para IA lista só os arquivos pendentes e o inbox', () => {
+  const r = round({ number: 2, from: 'c'.repeat(40), reviewed: ['a.ts'] })
+  const state = { review: { branch: 'feature/x', rounds: [r] }, files: [file('a.ts'), file('b.ts'), file('c.ts', { reverted: true })],
+    status: { tip: null, ahead: 0, rewritten: false, merged: false }, inbox: '/r/.git/mnemo/reviews/inbox/feature%2Fx' }
+  assert.deepEqual(JSON.parse(agentRef('/r', state, r)), { mnemoReview: 1, repo: '/r', branch: 'feature/x', base: 'main', round: 2,
+    from: 'c'.repeat(40), to: 'b'.repeat(40), pending: ['b.ts'], inbox: '/r/.git/mnemo/reviews/inbox/feature%2Fx' })
+})
+
+test('relatório marca comentário da IA e mostra a sugestão de troca', () => {
+  const r = round({ comments: [comment({ author: 'agent', suggestion: ['y'] })] })
+  assert.match(reviewReport({ branch: 'x', rounds: [r] }, r, []), /\*\*L1\*\* \(IA\)[\s\S]*Sugestão de troca:\n```\ny\n```/)
 })
 
 test('relatório sem comentários diz isso; nome do arquivo sem barras', () => {

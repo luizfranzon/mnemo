@@ -18,6 +18,8 @@ export function TabBar() {
   )
 }
 
+const TAB_DRAG = 'application/x-mnemo-tab'
+
 function TabItem({ path }: { path: string }) {
   const name = useApp((s) => {
     const label = tabLabel(s.tabs, path) ?? path
@@ -27,7 +29,15 @@ function TabItem({ path }: { path: string }) {
   const active = useApp((s) => s.activePath === path)
   const reviewing = useApp((s) => selectReview(path)(s) !== undefined)
   return (
-    <div role="tab" aria-selected={active} className={`tab${active ? ' active' : ''}${reviewing ? ' reviewing' : ''}`}>
+    <div
+      role="tab"
+      aria-selected={active}
+      className={`tab${active ? ' active' : ''}${reviewing ? ' reviewing' : ''}`}
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData(TAB_DRAG, path); e.dataTransfer.effectAllowed = 'move' }}
+      onDragOver={(e) => { if (e.dataTransfer.types.includes(TAB_DRAG)) e.preventDefault() }}
+      onDrop={(e) => { const from = e.dataTransfer.getData(TAB_DRAG); if (from) actions.moveTab(from, path) }}
+    >
       <button className="tab-label" onClick={() => actions.focusTab(path)} title={reviewing ? `${name}\n${path}` : path}>
         {name}
       </button>
