@@ -8,6 +8,7 @@ pub mod handlers;
 pub mod ports;
 pub mod queue;
 pub mod restore;
+pub mod review;
 pub mod session;
 pub mod snapshot;
 pub mod wip;

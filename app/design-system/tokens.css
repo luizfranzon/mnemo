@@ -33,6 +33,7 @@
   --accent-text: #DFE7FF;
   --accent-tint: #22325A;
   --menu-highlight: #2B3A5E;
+  --menu-highlight-hover: #34476F;
 
   /* Warning — "sua vez", modificado */
   --warning: #E0A43A;
@@ -46,6 +47,7 @@
   --success-button: #237A3B;
   --success-text: #7FDC95;
   --success-bg: #173020;
+  --success-bg-hover: #1E3E29;
 
   /* Danger */
   --danger: #E5534B;

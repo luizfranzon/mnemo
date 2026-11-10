@@ -133,12 +133,31 @@ fn pull_ff_only_guarda_e_devolve_o_wip_que_o_pull_tocaria() {
 }
 
 #[test]
-fn merge_ja_atualizado_nao_entra_no_historico() {
+fn merge_ja_atualizado_nao_entra_no_historico_e_diz_por_que() {
     let repo = TestRepo::new();
     repo.git(&["branch", "x"]);
     let r = repo.exec(OperationKind::Merge { target: "x".into() });
-    assert!(matches!(r, ExecuteResult::Completed { op_id: None, .. }));
+    let ExecuteResult::Completed { op_id: None, no_effect: Some(why), .. } = r else {
+        panic!("esperava sem efeito: {r:?}")
+    };
+    assert_eq!(why, "main já contém x");
     assert!(!repo.session().undo_state().undo.enabled);
+}
+
+#[test]
+fn fetch_e_push_sem_novidade_nao_entram_no_historico() {
+    let repo = TestRepo::new();
+    let _remote = repo.with_remote();
+
+    let r = repo.exec(OperationKind::Fetch { remote: None, prune: true });
+    assert!(
+        matches!(r, ExecuteResult::Completed { op_id: None, no_effect: Some(ref w), .. } if w == "Nada novo no remoto")
+    );
+    let r = repo.exec(OperationKind::Push { remote: None, branch: None, set_upstream: false, lease: None });
+    assert!(
+        matches!(r, ExecuteResult::Completed { op_id: None, no_effect: Some(ref w), .. } if w == "O remoto já está em dia com main")
+    );
+    assert_eq!(repo.session().undo_state().undo.reason.as_deref(), Some("Nada para desfazer"));
 }
 
 #[test]
@@ -354,6 +373,8 @@ fn push_fetch_e_excluir_remota_nao_sao_desfazíveis() {
     let remote = repo.with_remote();
     repo.git(&["branch", "velha"]);
     repo.git(&["push", "-q", "origin", "velha"]);
+    repo.write("novo.txt", "x");
+    repo.commit_all("novo");
 
     let r = repo.exec(OperationKind::Push {
         remote: Some("origin".into()),

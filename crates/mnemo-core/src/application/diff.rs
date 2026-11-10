@@ -19,6 +19,13 @@ pub enum DiffSource {
         #[serde(default)]
         old_path: Option<String>,
     },
+    /// Entre dois commits quaisquer (Revisão): `from` → `to`.
+    Range {
+        from: String,
+        to: String,
+        #[serde(default)]
+        old_path: Option<String>,
+    },
     /// Index → diretório de trabalho (inclui não rastreado).
     Unstaged,
     /// HEAD → index.
@@ -376,6 +383,15 @@ fn load(git: &RepoGit, path: &str, source: &DiffSource, as_text: bool) -> Result
             }
             git.exec(&diff_cmd(&extra))?
         }
+        DiffSource::Range { from, to, old_path } => {
+            let (from, to) = (commit_id(from)?, commit_id(to)?);
+            let mut extra = vec!["-M", from, to, "--", path];
+            extra.splice(0..0, text_flag.iter().copied());
+            if let Some(old) = old_path {
+                extra.push(old);
+            }
+            git.exec(&diff_cmd(&extra))?
+        }
     };
     if out.stdout.len() > DIFF_SIZE_LIMIT {
         return Ok(RawDiff { too_large: true, ..RawDiff::default() });
@@ -389,6 +405,9 @@ fn sides(git: &RepoGit, path: &str, source: &DiffSource) -> Result<(Option<Vec<u
         DiffSource::Unstaged => format!(":{path}"),
         DiffSource::Staged => format!("HEAD:{path}"),
         DiffSource::Commit { sha, old_path } => format!("{sha}^1:{}", old_path.as_deref().unwrap_or(path)),
+        DiffSource::Range { from, old_path, .. } => {
+            format!("{}:{}", commit_id(from)?, old_path.as_deref().unwrap_or(path))
+        }
     };
     let out = git.exec(&GitCmd::new(["cat-file", "blob", &old_spec]).also_ok(128))?;
     Ok(((out.code == 0).then_some(out.stdout), new_side(git, path, source)?))
@@ -419,9 +438,16 @@ fn new_side(git: &RepoGit, path: &str, source: &DiffSource) -> Result<Option<Vec
         DiffSource::Unstaged => return Ok(std::fs::read(git.workdir().join(path)).ok()),
         DiffSource::Staged => format!(":{path}"),
         DiffSource::Commit { sha, .. } => format!("{sha}:{path}"),
+        DiffSource::Range { to, .. } => format!("{}:{path}", commit_id(to)?),
     };
     let out = git.exec(&GitCmd::new(["cat-file", "blob", &spec]).also_ok(128))?;
     Ok((out.code == 0).then_some(out.stdout))
+}
+
+/// SHA completo vindo da UI: nunca vira opção do git (`--output=…`).
+fn commit_id(sha: &str) -> Result<&str> {
+    let hex = (sha.len() == 40 || sha.len() == 64) && sha.bytes().all(|b| b.is_ascii_hexdigit());
+    hex.then_some(sha).ok_or_else(|| CoreError::invalid(format!("commit inválido: {sha}")))
 }
 
 fn split_lines(bytes: &[u8]) -> Vec<&[u8]> {

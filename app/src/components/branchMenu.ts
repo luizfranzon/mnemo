@@ -21,6 +21,8 @@ export interface BranchMenuContext {
   push(): void
   newBranch(start: string): void
   resetHard(sha: string): void
+  /** Revisão da branch pelo nome sem o remoto (local e remota são a mesma Revisão). */
+  review(branch: string): void
   dialog(d: BranchDialog): void
   copy(text: string): void
   /** Estado atual desta branch no grafo e como alterná-lo. */
@@ -28,7 +30,9 @@ export interface BranchMenuContext {
   toggleView(what: 'hidden' | 'solo' | 'highlight'): void
 }
 
-export const targetName = (t: BranchTarget) => (t.kind === 'local' ? t.ref.name : `${t.ref.remote}/${t.ref.name}`)
+export const behindForAutoPull = (local: LocalRef, tracks: boolean) => (tracks && !(local.ahead && local.ahead > 0) ? (local.behind ?? 0) : 0)
+
+export const targetName =(t: BranchTarget) => (t.kind === 'local' ? t.ref.name : `${t.ref.remote}/${t.ref.name}`)
 
 /** `origin/feature/x` → `{ remote: 'origin', branch: 'feature/x' }` (o nome do remoto sai da lista configurada). */
 export function splitUpstream(upstream: string, remotes: string[]) {
@@ -90,6 +94,8 @@ export function branchMenu(t: BranchTarget, c: BranchMenuContext): MenuEntry[] {
     { label: `Fazer checkout de ${name}`, shortcut: 'duplo clique', reason: mut ?? (current ? 'Já é a branch atual' : undefined), run: c.checkout },
     { label: `Merge ${name} em ${cur ?? 'HEAD'}`, reason: integrate, run: () => c.execute({ type: 'merge', target: name }) },
     { label: `Rebase ${cur ?? 'HEAD'} sobre ${name}`, reason: integrate, run: () => c.execute({ type: 'rebase', onto: name }) },
+    '-',
+    { label: `Revisar ${t.ref.name}`, run: () => c.review(t.ref.name) },
   ]
   if (local) {
     const noUpstream = local.upstream ? undefined : 'Esta branch não tem upstream'

@@ -49,6 +49,7 @@ pub enum HeadInfo {
 pub struct RepositoryInfo {
     pub path: PathBuf,
     pub name: String,
+    pub main_repo_name: Option<String>,
     pub head: HeadInfo,
     pub undo: UndoRedoState,
     pub toolbar: ToolbarInfo,
@@ -241,7 +242,14 @@ impl Mnemo {
         };
         let name = session.workdir().file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let toolbar = self.toolbar_info(&git)?;
-        Ok(RepositoryInfo { path: session.workdir().to_path_buf(), name, head, undo: session.undo_state(), toolbar })
+        let worktrees = parse_worktrees(&git.text(["worktree", "list", "--porcelain"])?);
+        let same_dir = |a: &Path, b: &Path| a.canonicalize().ok().zip(b.canonicalize().ok()).map_or(a == b, |(x, y)| x == y);
+        let main_repo_name = worktrees
+            .first()
+            .map(|w| PathBuf::from(&w.path))
+            .filter(|main| !same_dir(main, session.workdir()))
+            .and_then(|main| main.file_name().map(|n| n.to_string_lossy().into_owned()));
+        Ok(RepositoryInfo { path: session.workdir().to_path_buf(), name, main_repo_name, head, undo: session.undo_state(), toolbar })
     }
 
     fn toolbar_info(&self, git: &RepoGit) -> Result<ToolbarInfo> {
@@ -820,6 +828,38 @@ impl Mnemo {
             let paths: Vec<String> = parse(&json!(args.get("paths").cloned().unwrap_or(json!([]))))?;
             crate::application::wip::stage(&git, &paths, cmd == "stage")?;
             return Ok(Value::Null);
+        }
+        if let Some(action) = cmd.strip_prefix("review_") {
+            use crate::application::review;
+            let session = self.session_for(Path::new(&path))?;
+            let git = RepoGit::new(self.git.clone(), session.workdir().to_path_buf());
+            if action == "list" {
+                return out(review::list(&git)?);
+            }
+            let text =
+                |k: &str| args.get(k).and_then(Value::as_str).ok_or_else(|| CoreError::invalid(format!("{k} ausente")));
+            let branch = text("branch")?;
+            return match action {
+                "base" => out(review::base_of(&git, branch)?),
+                "fetch" => out(review::fetch(&git, branch)?),
+                "start" => out(review::start(&git, branch, text("base")?)?),
+                "open" => out(review::open(&git, branch)?),
+                "mark" => {
+                    let reviewed = args.get("reviewed").and_then(Value::as_bool).unwrap_or(true);
+                    out(review::mark(&git, branch, text("file")?, reviewed)?)
+                }
+                "comment" => {
+                    let comment = parse(&json!(args.get("comment").cloned().unwrap_or(Value::Null)))?;
+                    out(review::comment(&git, branch, comment)?)
+                }
+                "uncomment" => out(review::uncomment(&git, branch, text("id")?)?),
+                "conclude" => out(review::conclude(&git, branch)?),
+                "end" => {
+                    review::end(&git, branch)?;
+                    Ok(Value::Null)
+                }
+                other => Err(CoreError::invalid(format!("comando desconhecido: review_{other}"))),
+            };
         }
         if cmd == "remote_url" {
             let remote =

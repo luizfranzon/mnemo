@@ -1,9 +1,9 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Segmented, FILE_VIEWS } from './Segmented'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type TextareaHTMLAttributes } from 'react'
 import { core } from '../bridge'
 import type { CommitDetail, FileChange } from '../bridge/types'
-import { actions, useApp } from '../store/app'
+import { actions, selectDiff, selectSha, useApp } from '../store/app'
 import { Avatar } from './avatar'
 import { dirMenu, fileMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
@@ -38,12 +38,34 @@ function summary(files: FileChange[]) {
   ] satisfies { cls: string; icon: IconName; n: number; label: string }[]).filter((s) => s.n)
 }
 
+
+function AutoTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  const fit = () => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }
+  useLayoutEffect(fit, [props.value])
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    let width = el.clientWidth
+    const observer = new ResizeObserver(() => { if (el.clientWidth !== width) { width = el.clientWidth; fit() } })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return <textarea rows={1} {...props} ref={ref} />
+}
+
 export function CommitPanel({ path }: { path: string }) {
-  const sha = useApp((s) => (s.selectedSha === 'wip' ? null : s.selectedSha))
-  const opened = useApp((s) => (s.diff?.source.kind === 'commit' ? s.diff.file.path : null))
+  const sha = useApp((s) => { const v = selectSha(path)(s); return v === 'wip' ? null : v })
+  const opened = useApp((s) => { const d = selectDiff(path)(s); return d?.source.kind === 'commit' ? d.file.path : null })
   const [detail, setDetail] = useState<CommitDetail | null>(null)
   const [draft, setDraft] = useState({ subject: '', body: '' })
   const [all, setAll] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [view, setView] = useState<View>('path')
   const [sort, setSort] = useState<Sort>('path')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
@@ -53,7 +75,7 @@ export function CommitPanel({ path }: { path: string }) {
   const scroller = useRef<HTMLDivElement>(null)
   const copyRestore = (cmd: string) => {
     copyText(cmd)
-    if (sha) void core.commitOnRemote(path, sha).then((on) => { if (!on) actions.info('Este commit só existe no seu repositório local (ainda não foi enviado ao remoto). Quem receber o comando precisa que você dê push antes.') }, () => {})
+    if (sha) void core.commitOnRemote(path, sha).then((on) => { if (!on) actions.info('Este commit só existe no seu repositório local (ainda não foi enviado ao remoto). Quem receber o comando precisa que você dê push antes.', path) }, () => {})
   }
   const openMenu = async (file: FileChange, anchor: Rect) => {
     if (!sha) return
@@ -62,7 +84,7 @@ export function CommitPanel({ path }: { path: string }) {
     const sep = path.includes('\\') ? '\\' : '/'
     setMenu({ anchor, items: fileMenu(sha, file, {
       ...base, dialog: setDialog, copyRestore, absolute: `${path.replace(/[\\/]$/, '')}${sep}${file.path.replaceAll('/', sep)}`,
-      open: (how) => void core.openFile(path, file.path, how).catch(actions.reportError),
+      open: (how) => void core.openFile(path, file.path, how).catch((err) => actions.reportError(err, path)),
     }) })
   }
   const openDirMenu = (dir: string, anchor: Rect) => { if (sha) setMenu({ anchor, items: dirMenu(sha, dir, { copyRestore }) }) }
@@ -72,7 +94,7 @@ export function CommitPanel({ path }: { path: string }) {
     void core.commitDetail(path, sha, all).then((next) => {
       if (!active) return
       setDetail(next); setCollapsed(new Set()); setDraft({ subject: next.subject, body: next.body })
-    }, (err) => { if (active) { setDetail(null); actions.reportError(err) } })
+    }, (err) => { if (active) { setDetail(null); actions.reportError(err, path) } })
     return () => { active = false }
   }, [path, sha, all])
   const rows = detail ? fileRows(sorted(detail.files, sort), view, collapsed) : []
@@ -82,13 +104,17 @@ export function CommitPanel({ path }: { path: string }) {
   const dirty = draft.subject.trim() !== detail.subject.trim() || draft.body.trim() !== detail.body.trim()
   const update = async () => {
     const subject = draft.subject.trim()
-    if (!subject) return
+    if (!subject || busy) return
+    setBusy(true)
+    try { await reword(subject) } finally { setBusy(false) }
+  }
+  const reword = async (subject: string) => {
     const wasHead = (await core.commitDetail(path, 'HEAD', false).catch(() => null))?.sha === detail.sha
     await actions.execute(path, { type: 'reword', commit: detail.sha, message: draft.body.trim() ? `${subject}\n\n${draft.body.trim()}` : subject })
     // o hash muda (e o dos descendentes): acompanha o HEAD; um commit mais antigo deixa de existir e a seleção vai para o WIP
     const head = await core.commitDetail(path, 'HEAD', false).catch(() => null)
     const gone = await core.commitDetail(path, detail.sha, false).then(() => false, () => true)
-    if (gone) actions.selectCommit(wasHead && head ? head.sha : 'wip')
+    if (gone) actions.selectCommit(path, wasHead && head ? head.sha : 'wip')
   }
   const openDiff = (file: FileChange) => actions.openDiff({ path, file, source: { kind: 'commit', sha: detail.sha, oldPath: file.oldPath } })
   const copy = () => { void navigator.clipboard.writeText(detail.sha).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) }, () => {}) }
@@ -97,20 +123,22 @@ export function CommitPanel({ path }: { path: string }) {
       <div className="commit-sha"><code title={detail.sha}>{detail.sha.slice(0, 10)}</code>
         <button onClick={copy} aria-label="Copiar SHA" title="Copiar SHA">{copied ? 'Copiado' : <Icon name="copy" size={13} />}</button></div>
       <div className="commit-msg">
-        <input className="commit-subject" aria-label="Título do commit" value={draft.subject}
-          onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
-        <textarea className="commit-body" aria-label="Descrição do commit" placeholder="Descrição" value={draft.body}
+        <AutoTextarea className="commit-subject" aria-label="Título do commit" value={draft.subject}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
+          onChange={(e) => setDraft({ ...draft, subject: e.target.value.replace(/\r?\n/g, ' ') })} />
+        <AutoTextarea className="commit-body" aria-label="Descrição do commit" placeholder="Descrição" value={draft.body}
           onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
       </div>
       <div className="commit-msg-actions">
-        <button className="wip-commit" disabled={!dirty || !draft.subject.trim()} onClick={() => void update()}>Atualizar mensagem</button>
-        <button className="commit-msg-cancel" disabled={!dirty} onClick={() => setDraft({ subject: detail.subject, body: detail.body })}>Cancelar</button>
+        <button className="wip-commit" disabled={!dirty || !draft.subject.trim() || busy} aria-busy={busy} onClick={() => void update()}>
+          {busy ? <><Icon name="refresh" size={14} spin />Atualizando…</> : 'Atualizar mensagem'}</button>
+        <button className="commit-msg-cancel" disabled={!dirty || busy}onClick={() => setDraft({ subject: detail.subject, body: detail.body })}>Cancelar</button>
       </div>
       <div className="commit-author">
         <Avatar name={detail.author} email={detail.email} />
         <div><div>{detail.author}</div><div className="muted">criou em {new Date(detail.timestamp * 1000).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</div></div>
         {detail.parents.length > 0 && <div className="commit-parents"><span className="muted">{detail.parents.length > 1 ? 'pais' : 'pai'}</span>
-          <span>{detail.parents.map((p, i) => <span key={p}>{i > 0 && ' · '}<a href="#" onClick={(e) => { e.preventDefault(); actions.selectCommit(p) }}>{p.slice(0, 6)}</a></span>)}</span></div>}
+          <span>{detail.parents.map((p, i) => <span key={p}>{i > 0 && ' · '}<a href="#" onClick={(e) => { e.preventDefault(); actions.selectCommit(path, p) }}>{p.slice(0, 6)}</a></span>)}</span></div>}
       </div>
     </div>
     <div className="commit-summary">

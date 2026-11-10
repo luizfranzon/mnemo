@@ -7,8 +7,12 @@ Git client desktop visual, local. Mostra o histórico como grafo e executa açõ
 ### Janela
 
 **Aba**:
-Um diretório de trabalho aberto: o repositório principal ou um worktree. O mesmo diretório nunca fica aberto em duas abas, e abrir um worktree abre uma aba nova ou foca a que já existe. A única mudança de diretório permitida é entrar num submódulo e voltar ao pai. Cada nível (repositório e cada submódulo) tem HEAD, WIP e Histórico de Operações próprios, e a aba mostra o nível em que está.
+Um diretório de trabalho aberto: o repositório principal ou um worktree. O mesmo diretório nunca fica aberto em duas abas, e abrir um worktree abre uma aba nova ou foca a que já existe. A única mudança de diretório permitida é entrar num submódulo e voltar ao pai. Cada nível (repositório e cada submódulo) tem HEAD, WIP e Histórico de Operações próprios, e a aba mostra o nível em que está. O nome da aba é o da pasta; a aba de um worktree se chama `<repo> - <branch>` (`repo` é a pasta do worktree principal), acompanha o checkout feito nela e, com HEAD destacado, vira `<repo> - <pasta>`. Se duas abas abertas têm o mesmo nome, ambas ganham o menor trecho do caminho pai que as diferencia (`MobileCore — projects`). No modo Revisão, o nome vira `Revisão: <nome> - <branch>`.
 _Avoid_: janela, projeto
+
+**Worktree**:
+Diretório de trabalho extra do mesmo repositório, com HEAD e WIP próprios, criado por `git worktree add`. Cada branch só pode estar em um worktree. O principal é o diretório original e não pode ser removido. Um worktree travado não pode ser removido até ser destravado (o lock aceita mensagem opcional). Um worktree cuja pasta sumiu fica como ausente e só a poda o limpa. Remover um worktree fecha a aba dele e não é desfazível; remover junto a branch também não volta.
+_Avoid_: árvore de trabalho
 
 **Favorito**:
 Repositório marcado pelo usuário como de interesse mesmo quando está fechado. Favoritos recebem fetch automático e notificações como se estivessem abertos.
@@ -29,11 +33,15 @@ Coluna vertical do grafo onde corre uma linha de desenvolvimento. Cada lane tem 
 _Avoid_: trilha, coluna (coluna é do cabeçalho da tabela do grafo)
 
 **Pill**:
-Rótulo de uma ref no grafo, na coluna Branch / Tag. Cada branch tem uma pill: a remota que a local rastreia entra na pill dela (💻☁). Remota de outro remoto, remota sem local e tag têm pill própria, com o nome completo. Duplo clique numa pill de branch faz checkout da branch (nunca do commit, que deixaria o HEAD destacado); tag não tem duplo clique.
+Rótulo de uma ref no grafo, na coluna Branch / Tag. Cada branch tem uma pill: a remota que a local rastreia entra na pill dela (💻☁). Remota de outro remoto, remota sem local e tag têm pill própria, com o nome completo. Duplo clique numa pill de branch faz checkout da branch (nunca do commit, que deixaria o HEAD destacado); tag não tem duplo clique. Se a branch está presa em outro Worktree, o duplo clique abre ou foca a Aba dele em vez de fazer checkout.
 _Avoid_: card, tag (tag é a ref `refs/tags`)
 
 **Pills de um commit**:
 Quando um commit tem várias pills, só a primeira aparece, mais um chip `+N` com as demais; passar o mouse sobre o conjunto abre a lista sobreposta, sem mudar a altura da linha. Ordem: branch atual, local com remota, só local, só remota, tags; alfabética dentro do nível.
+
+**Pill de worktree**:
+A pill de uma branch que está num Worktree com pasta existente, com o ícone de worktree no lugar do ícone local (e um cadeado se estiver travado). Não é uma pill a mais: segue a ordem e o `+N` das pills do commit. O tooltip mostra a pasta e o caminho; clique no ícone abre ou foca a Aba do Worktree, e o menu de contexto da pill ganha as ações de Worktree. O Worktree da Aba atual não troca o ícone. Worktree com HEAD destacado ganha uma pill própria só com o nome da pasta. Não há WIP de worktree no grafo.
+_Avoid_: chip de worktree
 
 **Pill fantasma**:
 Pill em opacidade baixa que a linha em hover ou selecionada mostra na coluna Branch / Tag quando o commit não tem pill própria. Indica a branch do commit: a branch atual, se ela contém o commit; senão, a ponta mais próxima subindo pela mesma lane (remota sem local leva o nome completo e ☁). Sem ponta acima na lane, não aparece.
@@ -63,6 +71,19 @@ _Avoid_: fixar, pinned, solo
 A branch de onde uma branch saiu. O Mnemo registra a base quando cria a branch, sempre pelo nome sem o remoto (saiu de `origin/12.x` → base `12.x`). Se a branch foi criada fora do Mnemo ou a partir de um commit solto, vale a branch padrão do repositório. O usuário pode trocar a base.
 _Avoid_: upstream (upstream é a remota que a branch rastreia), branch pai
 
+### Revisão
+
+**Revisão**:
+Code review de uma branch feito no Mnemo, uma por branch. Mostra só o que a branch introduz em relação à Base (do merge-base até a ponta), sem criar branch nem fazer checkout. É composta de Rodadas. Abre como um modo da Aba, no lugar do grafo, e não bloqueia as outras ações.
+_Avoid_: review, code review, branch de revisão
+
+**Rodada**:
+Uma passada de Revisão, presa ao commit que era a ponta da branch quando ela começou. Guarda os arquivos revisados e os comentários, e termina quando o usuário a conclui. Commits que chegam durante uma Rodada ficam para a próxima, que mostra só o que mudou desde o commit da última Rodada concluída.
+_Avoid_: sessão, passada, iteração
+
+**Commit revisado**:
+Commit em que uma Rodada foi concluída. Ganha um marcador no grafo e continua guardado mesmo se a branch sofrer rebase ou force push.
+
 ### Identidade
 
 **Autor**:
@@ -78,6 +99,10 @@ _Avoid_: conta, usuário
 **Operação**:
 Uma ação git disparada pelo Mnemo (checkout, commit, reset, descartar…). Ela guarda o estado anterior dos refs e sabe como se inverter. Cada repositório roda uma Operação por vez. Preparar e tirar arquivos do stage não são Operações. Um merge ou rebase parado em conflito ainda não é uma Operação: ele só entra no Histórico quando é concluído (e aí se desfaz inteiro) ou abortado. Um merge (inclusive o de um pull) concluído fora do Mnemo entra no Histórico do mesmo jeito, desde que o resultado seja exatamente aquele merge; se não for, ou se for rebase, cherry-pick ou revert concluído fora, é Mudança externa.
 _Avoid_: comando, ação git (no código)
+
+**Operação sem efeito**:
+Operação que termina sem mudar refs, WIP nem stash (merge de branch já contida, checkout da branch atual, fetch ou push sem novidade). Não entra no Histórico. Quando o usuário a disparou, o Mnemo diz por que nada mudou; mudança externa e fetch automático sem efeito ficam em silêncio.
+_Avoid_: no-op, nada a fazer
 
 **Desfazer**:
 Inverter a última Operação desfazível do repositório. Operações de refs feitas antes de uma Mudança externa não podem mais ser desfeitas. Desfazer não existe para Operações que mexem no remoto (push, fetch, excluir remota). Descartar mudanças do WIP também é desfazível. Desfazer um pull volta só a branch local; as refs remotas ficam como o fetch deixou.

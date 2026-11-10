@@ -9,6 +9,9 @@ export type DiffRow =
   | { type: 'line'; key: string; line: number }
   /** Lado a lado: `null` é a área vazia (hachurada). */
   | { type: 'split'; key: string; left: number | null; right: number | null }
+  /** Revisão: um comentário e a caixa de escrever, logo abaixo da linha (`reviewModel.ts`). */
+  | { type: 'comment'; key: string; id: string }
+  | { type: 'composer'; key: string }
 
 /** Trechos mostra só os trechos; Inline e Lado a lado usam o arquivo inteiro (linhas sem trecho entram sem cabeçalho). */
 export function diffRows(diff: FileDiff, layout: DiffLayout): DiffRow[] {
@@ -31,7 +34,6 @@ export function diffRows(diff: FileDiff, layout: DiffLayout): DiffRow[] {
   }
   const split = (left: number | null, right: number | null) => rows.push({ type: 'split', key: `s${left}:${right}`, left, right })
   for (let i = 0; i < lines.length;) {
-    hunkHead(i)
     const kind = lines[i]!.kind
     if (kind === 'context') { split(i, i); i++; continue }
     // um bloco de remoções seguido das adições do mesmo trecho: pareados linha a linha
@@ -47,6 +49,25 @@ export function diffRows(diff: FileDiff, layout: DiffLayout): DiffRow[] {
 
 /** Índices (em `rows`) dos cabeçalhos de trecho, para "Trecho 1 de 2" e anterior/próximo. */
 export const hunkRows = (rows: DiffRow[]) => rows.flatMap((r, i) => (r.type === 'hunk' ? [i] : []))
+
+/** Linhas (índice em `rows`) com `needle` (já minúsculo) em algum lado; cabeçalho de trecho não conta. */
+export function findRows(diff: FileDiff, rows: DiffRow[], needle: string) {
+  if (!needle) return []
+  const has = (i: number | null) => i !== null && diff.lines[i]!.text.toLocaleLowerCase().includes(needle)
+  return rows.flatMap((r, k) => ((r.type === 'line' ? has(r.line) : r.type === 'split' && (has(r.left) || has(r.right))) ? [k] : []))
+}
+
+/** Trecho (posição em `heads`) em que a linha `row` está; busca binária porque roda a cada evento de scroll. */
+export function hunkAt(heads: number[], row: number) {
+  let lo = 0
+  let hi = heads.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (heads[mid]! <= row) lo = mid + 1
+    else hi = mid
+  }
+  return Math.max(0, lo - 1)
+}
 
 export interface Marker { kind: 'add' | 'del'; top: number; height: number }
 

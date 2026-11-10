@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { OperationKind, PullMode } from '../bridge/types'
-import { actions, runningLabel, selectActiveTab, useApp } from '../store/app'
+import { actions, runningLabel, selectActiveTab, selectReview, selectReviewList, useApp } from '../store/app'
 import { Icon } from './Icon'
 import { Menu } from './Menu'
 import type { MenuEntry, Rect } from './menuModel'
+import { reviewMenu } from './reviewModel'
 import { PULL_MODES, toolbarAvailability } from './toolbarModel'
 
 function relativeFetch(epoch: number | null, now: number): string {
@@ -34,7 +35,7 @@ function Spinner({ label }: { label: string }) {
 }
 
 type Control = 'fetch' | 'pull' | 'push' | 'stash' | 'checkout' | 'branch' | 'discard' | 'undo' | 'redo' | 'continue' | 'skip' | 'abort'
-type OpenMenu = { name: 'pull' | 'stash' | 'more'; anchor: Rect }
+type OpenMenu = { name: 'pull' | 'stash' | 'more' | 'reviews'; anchor: Rect }
 
 /** Desfazer/Refazer agem na Operação, mesmo com foco em campo de texto. */
 export function Toolbar() {
@@ -45,21 +46,24 @@ export function Toolbar() {
   const toolbar = useApp((s) => selectActiveTab(s)?.toolbar)
   const autoFetchError = useApp((s) => selectActiveTab(s)?.autoFetchError)
   const running = useApp((s) => (s.activePath ? runningLabel(s, s.activePath) : undefined))
+  const reviews = useApp((s) => selectReviewList(s.activePath ?? '')(s))
+  const reviewing = useApp((s) => (s.activePath ? selectReview(s.activePath)(s)?.branch : undefined))
   const [open, setOpen] = useState<OpenMenu | null>(null)
-  const [pending, setPending] = useState<{ path: string; control: Control; label: string } | null>(null)
+  type Pending = { control: Control; label: string }
+  const [pending, setPending] = useState<Record<string, Pending>>({})
   useEffect(() => { setOpen(null) }, [path, running])
   if (!path || !name || !head || !undo || !toolbar) return null
 
-  const local = pending?.path === path ? pending : null
+  const local = pending[path]
   const executing = running ?? local?.label
   const reason = toolbarAvailability(head, toolbar, executing)
   const branchName = head.kind === 'branch' ? head.name : `HEAD ${head.sha}`
   const mode = PULL_MODES.find((m) => m.value === toolbar.pullMode) ?? PULL_MODES[1]!
   const run = async (control: Control, label: string, action: () => Promise<unknown>) => {
     setOpen(null)
-    const task = { path, control, label }
-    setPending(task)
-    try { await action() } finally { setPending((current) => current === task ? null : current) }
+    const task = { control, label }
+    setPending((p) => ({ ...p, [path]: task }))
+    try { await action() } finally { setPending(({ [path]: cur, ...rest }) => cur === task ? rest : { ...rest, [path]: cur! }) }
   }
   const execute = (control: Control, label: string, kind: OperationKind) => void run(control, label, () => actions.execute(path, kind))
   const fetching = () => execute('fetch', 'Fazendo fetch…', { type: 'fetch', remote: null })
@@ -92,7 +96,12 @@ export function Toolbar() {
     more: [
       { label: 'Descartar tudo', reason: reason.mutation, run: () => void actions.requestDiscard(path, []) },
     ],
+    reviews: reviewMenu(reviews, reviewing, {
+      open: (branch) => void actions.openReview(path, branch), next: (branch) => void actions.requestReview(path, branch),
+      end: (branch) => actions.requestEndReview(path, branch), back: () => actions.closeReview(path),
+    }),
   }
+  const openReviews = reviews.filter((r) => r.open).length
   const menuButton = (which: OpenMenu['name'], label: string, blocked?: string) => <button
     aria-label={label} aria-haspopup="menu" aria-expanded={open?.name === which} disabled={!!blocked} title={blocked ?? label}
     onClick={(e) => toggle(which, e.currentTarget)}><Icon name="chevronDown" size={14} /></button>
@@ -101,7 +110,7 @@ export function Toolbar() {
     <div className="toolbar" role="toolbar" aria-label="Repositório">
       <span className="repo-name" title={path}><Icon name="repo" size={14} /> {name}</span><span className="crumb">›</span>
       <button className="branch-button" disabled={!!reason.mutation} title={reason.mutation ?? 'Checkout de branch'} onClick={() => actions.setPalette('checkout')}>
-        {spinLabel('checkout') ? <Spinner label={spinLabel('checkout')!} /> : <><Icon name="branch" size={14} /> {branchName} <span className="muted"><Icon name="chevronDown" size={13} /></span></>}
+        {spinLabel('checkout') ? <Spinner label={spinLabel('checkout')!} /> : <><Icon name="branch" size={14} /><span className="branch-name">{branchName}</span><span className="muted"><Icon name="chevronDown" size={13} /></span></>}
       </button>
       <span className="sync-count" title={head.kind === 'branch' && head.upstream ? `Em relação a ${head.upstream}` : 'Sem upstream'}>
         <span className="behind"><Icon name="arrowDown" size={12} strokeWidth={2.2} />{toolbar.behind ?? '–'}</span><span className="ahead"><Icon name="arrowUp" size={12} strokeWidth={2.2} />{toolbar.ahead ?? '–'}</span>
@@ -126,15 +135,18 @@ export function Toolbar() {
       </button>
       <button disabled={!!reason.mutation} title={reason.mutation ?? 'Nova branch'} onClick={() => actions.setPalette('createBranch')}>
         {spinLabel('branch') ? <Spinner label={spinLabel('branch')!} /> : <><Icon name="branch" size={16} /> Branch</>}</button>
-      <div className="toolbar-split plain">
+      <div className="toolbar-split">
         <button disabled={!!reason.mutation} title={reason.mutation ?? 'Guardar mudanças locais'}
           onClick={() => execute('stash', 'Executando criar stash…', { type: 'stashCreate', message: null, includeUntracked: false })}>
-          {spinLabel('stash') ? <Spinner label={spinLabel('stash')!} /> : <><Icon name="stash" size={16} /> Stash</>}{!!toolbar.stashCount && <span className="stash-count">{toolbar.stashCount}</span>}
+          {spinLabel('stash') ? <Spinner label={spinLabel('stash')!} /> : <><Icon name="stash" size={16} /> Stash</>}{!!toolbar.stashCount && <span className="count-badge gray">{toolbar.stashCount}</span>}
         </button>
         {menuButton('stash', 'Opções de stash', reason.mutation)}
       </div>
       <button className="temporary-action" disabled={!!reason.mutation} title={reason.mutation ?? 'Descartar todas as mudanças'} onClick={() => void actions.requestDiscard(path, [])}>
         {spinLabel('discard') ? <Spinner label={spinLabel('discard')!} /> : 'Descartar tudo'}</button>
+      <button className={reviewing ? 'review-button active' : 'review-button'} aria-haspopup="menu" aria-expanded={open?.name === 'reviews'}
+        title={reviewing ? `Revisando ${reviewing}` : 'Revisões deste repositório'} onClick={(e) => toggle('reviews', e.currentTarget)}>
+        <Icon name="shown" size={16} /> Revisões{openReviews > 0 && <span className="count-badge blue">{openReviews}</span>}</button>
       <div className="toolbar-more">{menuButton('more', 'Mais ações do repositório', reason.mutation)}</div>
       {executing && <span className="operation-indicator" role="status">{executing}</span>}
       <button className="toolbar-search" aria-label="Buscar branch" disabled={!!reason.busy} title={reason.busy ?? 'Buscar branch (Ctrl+P)'} onClick={() => actions.setPalette('checkout')}>
@@ -153,6 +165,6 @@ export function Toolbar() {
       <button disabled={!!executing} title={reason.busy} onClick={() => void run('abort', 'Abortando…', () => actions.progressAction(path, 'abort'))}>
         {spinLabel('abort') ? <Spinner label={spinLabel('abort')!} /> : 'Abortar'}</button>
     </div>}
-    {open && <Menu items={menuItems[open.name]} anchor={open.anchor} label={open.name === 'pull' ? 'Opções de pull' : open.name === 'stash' ? 'Opções de stash' : 'Mais ações'} onClose={() => setOpen(null)} />}
+    {open && <Menu items={menuItems[open.name]} anchor={open.anchor} label={open.name === 'pull' ? 'Opções de pull' : open.name === 'stash' ? 'Opções de stash' : open.name === 'reviews' ? 'Revisões' : 'Mais ações'} onClose={() => setOpen(null)} />}
   </>
 }
