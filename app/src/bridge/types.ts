@@ -17,6 +17,7 @@ export type HeadInfo = { kind: 'branch'; name: string; upstream: string | null }
 export interface RepositoryInfo {
   path: string
   name: string
+  mainRepoName: string | null
   head: HeadInfo
   undo: UndoRedoState
   toolbar: ToolbarInfo

@@ -11,6 +11,8 @@ export interface Tab {
   /** Diretório de trabalho: a identidade da Aba (o mesmo diretório nunca abre duas vezes). */
   path: string
   name: string
+  /** Pasta do worktree principal, só quando a aba é um worktree. */
+  mainRepoName?: string | null
   head: HeadInfo
   undo: UndoRedoState
   toolbar: ToolbarInfo
@@ -801,7 +803,7 @@ function adoptRepository(info: RepositoryInfo, parent?: string) {
   set((s) => {
     const exists = s.tabs.some((t) => same(t.path, info.path))
     const authors = s.tabs.find((t) => same(t.path, info.path))?.authors ?? []
-    const tab: Tab = { path: info.path, name: info.name, head: info.head, undo: info.undo, toolbar: info.toolbar, authors, parent: parent ?? s.tabs.find((t) => same(t.path, info.path))?.parent }
+    const tab: Tab = { path: info.path, name: info.name, mainRepoName: info.mainRepoName, head: info.head, undo: info.undo, toolbar: info.toolbar, authors, parent: parent ?? s.tabs.find((t) => same(t.path, info.path))?.parent }
     return {
       tabs: exists ? s.tabs.map((t) => (same(t.path, info.path) ? tab : t)) : [...s.tabs, tab],
       activePath: info.path,

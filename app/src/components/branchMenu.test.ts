@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { branchMenu, githubBranchUrl, splitUpstream, type BranchMenuContext } from './branchMenu'
+import { behindForAutoPull, branchMenu, githubBranchUrl, splitUpstream, type BranchMenuContext } from './branchMenu'
 import type { MenuEntry } from './menuModel'
 
 const calls: unknown[] = []
@@ -65,4 +65,20 @@ test('Ocultar, Solo e Destacar alternam e o rótulo acompanha o estado', () => {
   assert.deepEqual(calls.slice(-3), ['hidden', 'solo', 'highlight'])
   const on = branchMenu({ kind: 'local', ref: local }, ctx({ view: { hidden: true, solo: true, highlight: true } }))
   for (const l of ['Mostrar no grafo', 'Sair do Solo', 'Remover destaque']) assert.ok(find(on, l), l)
+})
+
+const tracked = (ahead: number | null, behind: number | null) => ({ name: 'x', sha: 'a', current: false, upstream: 'origin/x', ahead, behind })
+
+test('behindForAutoPull devolve quantos commits faltam quando a branch está só atrás do remoto', () => {
+  assert.equal(behindForAutoPull(tracked(0, 3), true), 3)
+  assert.equal(behindForAutoPull(tracked(null, 3), true), 3)
+})
+
+test('behindForAutoPull devolve zero quando a branch divergiu do remoto', () => {
+  assert.equal(behindForAutoPull(tracked(2, 3), true), 0)
+})
+
+test('behindForAutoPull devolve zero quando a branch não acompanha a remota', () => {
+  assert.equal(behindForAutoPull(tracked(0, 3), false), 0)
+  assert.equal(behindForAutoPull(tracked(0, null), true), 0)
 })

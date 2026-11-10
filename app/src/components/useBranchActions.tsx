@@ -3,7 +3,7 @@ import { core } from '../bridge'
 import { actions, runningLabel, useApp } from '../store/app'
 import { localRef, remoteRef, selectVisibility, toggleHidden, toggleHighlight, toggleSolo, updateVisibility, useVisibility } from '../store/visibility'
 import { BranchDialogs } from './BranchDialogs'
-import { branchMenu, remoteOf, type BranchDialog, type BranchTarget } from './branchMenu'
+import { behindForAutoPull, branchMenu, remoteOf, type BranchDialog, type BranchTarget } from './branchMenu'
 import { Menu } from './Menu'
 import type { MenuEntry, Rect } from './menuModel'
 import { toolbarAvailability } from './toolbarModel'
@@ -27,7 +27,7 @@ export function useBranchActions(path: string) {
       const tracks = t.local.upstream === `${t.ref.remote}/${t.ref.name}`
       // remota da branch atual: só avança a local até ela
       if (tracks && t.local.current) void actions.execute(path, { type: 'pull', strategy: 'ffOnly' })
-      else void actions.checkoutRef(path, { type: 'checkout', target: t.local.name }, tracks ? (t.local.behind ?? 0) : 0)
+      else void actions.checkoutRef(path, { type: 'checkout', target: t.local.name }, behindForAutoPull(t.local, tracks))
     } else void actions.checkoutRef(path, { type: 'checkoutRemote', remote: t.ref.remote, branch: t.ref.name })
   }
   const entries = (t: BranchTarget, remoteUrl: string | null) => {

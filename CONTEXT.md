@@ -7,8 +7,12 @@ Git client desktop visual, local. Mostra o histórico como grafo e executa açõ
 ### Janela
 
 **Aba**:
-Um diretório de trabalho aberto: o repositório principal ou um worktree. O mesmo diretório nunca fica aberto em duas abas, e abrir um worktree abre uma aba nova ou foca a que já existe. A única mudança de diretório permitida é entrar num submódulo e voltar ao pai. Cada nível (repositório e cada submódulo) tem HEAD, WIP e Histórico de Operações próprios, e a aba mostra o nível em que está. O nome da aba é o da pasta; se duas abas abertas têm o mesmo nome, ambas ganham o menor trecho do caminho pai que as diferencia (`MobileCore — projects`). No modo Revisão, o nome vira `Revisão: <nome> - <branch>`.
+Um diretório de trabalho aberto: o repositório principal ou um worktree. O mesmo diretório nunca fica aberto em duas abas, e abrir um worktree abre uma aba nova ou foca a que já existe. A única mudança de diretório permitida é entrar num submódulo e voltar ao pai. Cada nível (repositório e cada submódulo) tem HEAD, WIP e Histórico de Operações próprios, e a aba mostra o nível em que está. O nome da aba é o da pasta; a aba de um worktree se chama `<repo> - <branch>` (`repo` é a pasta do worktree principal), acompanha o checkout feito nela e, com HEAD destacado, vira `<repo> - <pasta>`. Se duas abas abertas têm o mesmo nome, ambas ganham o menor trecho do caminho pai que as diferencia (`MobileCore — projects`). No modo Revisão, o nome vira `Revisão: <nome> - <branch>`.
 _Avoid_: janela, projeto
+
+**Worktree**:
+Diretório de trabalho extra do mesmo repositório, com HEAD e WIP próprios, criado por `git worktree add`. Cada branch só pode estar em um worktree. O principal é o diretório original e não pode ser removido. Um worktree travado não pode ser removido até ser destravado (o lock aceita mensagem opcional). Um worktree cuja pasta sumiu fica como ausente e só a poda o limpa. Remover um worktree fecha a aba dele e não é desfazível; remover junto a branch também não volta.
+_Avoid_: árvore de trabalho
 
 **Favorito**:
 Repositório marcado pelo usuário como de interesse mesmo quando está fechado. Favoritos recebem fetch automático e notificações como se estivessem abertos.
@@ -29,11 +33,15 @@ Coluna vertical do grafo onde corre uma linha de desenvolvimento. Cada lane tem 
 _Avoid_: trilha, coluna (coluna é do cabeçalho da tabela do grafo)
 
 **Pill**:
-Rótulo de uma ref no grafo, na coluna Branch / Tag. Cada branch tem uma pill: a remota que a local rastreia entra na pill dela (💻☁). Remota de outro remoto, remota sem local e tag têm pill própria, com o nome completo. Duplo clique numa pill de branch faz checkout da branch (nunca do commit, que deixaria o HEAD destacado); tag não tem duplo clique.
+Rótulo de uma ref no grafo, na coluna Branch / Tag. Cada branch tem uma pill: a remota que a local rastreia entra na pill dela (💻☁). Remota de outro remoto, remota sem local e tag têm pill própria, com o nome completo. Duplo clique numa pill de branch faz checkout da branch (nunca do commit, que deixaria o HEAD destacado); tag não tem duplo clique. Se a branch está presa em outro Worktree, o duplo clique abre ou foca a Aba dele em vez de fazer checkout.
 _Avoid_: card, tag (tag é a ref `refs/tags`)
 
 **Pills de um commit**:
 Quando um commit tem várias pills, só a primeira aparece, mais um chip `+N` com as demais; passar o mouse sobre o conjunto abre a lista sobreposta, sem mudar a altura da linha. Ordem: branch atual, local com remota, só local, só remota, tags; alfabética dentro do nível.
+
+**Pill de worktree**:
+A pill de uma branch que está num Worktree com pasta existente, com o ícone de worktree no lugar do ícone local (e um cadeado se estiver travado). Não é uma pill a mais: segue a ordem e o `+N` das pills do commit. O tooltip mostra a pasta e o caminho; clique no ícone abre ou foca a Aba do Worktree, e o menu de contexto da pill ganha as ações de Worktree. O Worktree da Aba atual não troca o ícone. Worktree com HEAD destacado ganha uma pill própria só com o nome da pasta. Não há WIP de worktree no grafo.
+_Avoid_: chip de worktree
 
 **Pill fantasma**:
 Pill em opacidade baixa que a linha em hover ou selecionada mostra na coluna Branch / Tag quando o commit não tem pill própria. Indica a branch do commit: a branch atual, se ela contém o commit; senão, a ponta mais próxima subindo pela mesma lane (remota sem local leva o nome completo e ☁). Sem ponta acima na lane, não aparece.

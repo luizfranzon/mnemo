@@ -49,6 +49,7 @@ pub enum HeadInfo {
 pub struct RepositoryInfo {
     pub path: PathBuf,
     pub name: String,
+    pub main_repo_name: Option<String>,
     pub head: HeadInfo,
     pub undo: UndoRedoState,
     pub toolbar: ToolbarInfo,
@@ -241,7 +242,14 @@ impl Mnemo {
         };
         let name = session.workdir().file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
         let toolbar = self.toolbar_info(&git)?;
-        Ok(RepositoryInfo { path: session.workdir().to_path_buf(), name, head, undo: session.undo_state(), toolbar })
+        let worktrees = parse_worktrees(&git.text(["worktree", "list", "--porcelain"])?);
+        let same_dir = |a: &Path, b: &Path| a.canonicalize().ok().zip(b.canonicalize().ok()).map_or(a == b, |(x, y)| x == y);
+        let main_repo_name = worktrees
+            .first()
+            .map(|w| PathBuf::from(&w.path))
+            .filter(|main| !same_dir(main, session.workdir()))
+            .and_then(|main| main.file_name().map(|n| n.to_string_lossy().into_owned()));
+        Ok(RepositoryInfo { path: session.workdir().to_path_buf(), name, main_repo_name, head, undo: session.undo_state(), toolbar })
     }
 
     fn toolbar_info(&self, git: &RepoGit) -> Result<ToolbarInfo> {

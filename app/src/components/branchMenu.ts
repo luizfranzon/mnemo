@@ -30,7 +30,9 @@ export interface BranchMenuContext {
   toggleView(what: 'hidden' | 'solo' | 'highlight'): void
 }
 
-export const targetName = (t: BranchTarget) => (t.kind === 'local' ? t.ref.name : `${t.ref.remote}/${t.ref.name}`)
+export const behindForAutoPull = (local: LocalRef, tracks: boolean) => (tracks && !(local.ahead && local.ahead > 0) ? (local.behind ?? 0) : 0)
+
+export const targetName =(t: BranchTarget) => (t.kind === 'local' ? t.ref.name : `${t.ref.remote}/${t.ref.name}`)
 
 /** `origin/feature/x` → `{ remote: 'origin', branch: 'feature/x' }` (o nome do remoto sai da lista configurada). */
 export function splitUpstream(upstream: string, remotes: string[]) {
