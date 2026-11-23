@@ -13,7 +13,9 @@ import type { BranchTarget } from './branchMenu'
 import { commitMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
 import { Menu } from './Menu'
+import { Button } from './Button'
 import { Checkbox } from './Checkbox'
+import { IconButton } from './IconButton'
 import { useBranchActions } from './useBranchActions'
 import { Icon } from './Icon'
 import { copyText, menuBase } from './menuBase'
@@ -468,24 +470,24 @@ export function Graph({ path }: { path: string }) {
         {layout.order.map((id, i) => <div key={id} className="graph-pop-row">
           <Checkbox checked={!layout.hidden.includes(id)} disabled={!COLUMNS[id].hideable} label={COLUMNS[id].label}
             onChange={(v) => update((l) => ({ ...l, hidden: v ? l.hidden.filter((h) => h !== id) : [...l.hidden, id] }))} />
-          <button aria-label={`Subir ${COLUMNS[id].label}`} disabled={i === 0} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, -1) }))}><Icon name="chevronUp" size={13} strokeWidth={2} /></button>
-          <button aria-label={`Descer ${COLUMNS[id].label}`} disabled={i === layout.order.length - 1} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, 1) }))}><Icon name="chevronDown" size={13} strokeWidth={2} /></button>
+          <IconButton icon="chevronUp" size={13} strokeWidth={2} label={`Subir ${COLUMNS[id].label}`} disabled={i === 0} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, -1) }))} />
+          <IconButton icon="chevronDown" size={13} strokeWidth={2} label={`Descer ${COLUMNS[id].label}`} disabled={i === layout.order.length - 1} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, 1) }))} />
         </div>)}
         <Checkbox className="graph-pop-row" checked={vis.smart} onChange={(smart) => updateVisibility(path, (v) => ({ ...v, smart }))} label="Visibilidade inteligente" />
         <Checkbox className="graph-pop-row" checked={layout.compact} onChange={(compact) => update((l) => ({ ...l, compact }))} label="Layout compacto" />
-        <button className="graph-pop-reset" onClick={() => update(() => DEFAULT_LAYOUT)}>Restaurar padrão</button>
+        <Button className="graph-pop-reset" onClick={() => update(() => DEFAULT_LAYOUT)}>Restaurar padrão</Button>
       </div>
     </>}
     {find && <FindBar text={find.text} label="Buscar branch, mensagem ou SHA" count={needle ? `${current + 1}/${hits.length}${page?.next ? '+' : ''}` : ''}
       disabled={!hits.length} onText={search} onStep={step} onClose={() => setFind(null)} />}
     <div className="graph-header graph-grid">
-      <button className="graph-gear" aria-label="Colunas do grafo" title="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)}><Icon name="sliders" size={15} /></button>
+      <IconButton className="graph-gear" icon="sliders" size={15} label="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)} />
       {cols.map((id) => <div key={id} className="graph-hcell">
         <span className="graph-title">{COLUMNS[id].label}
-            {id === 'message' && <button className="graph-tool" aria-label="Buscar branch, mensagem ou SHA" title="Buscar branch, mensagem ou SHA (Ctrl+F)" onClick={openFind}><Icon name="search" size={13} /></button>}
-            {id === 'author' && <button className={`graph-tool${authors?.length ? ' active' : ''}`} aria-label="Filtrar por autor" title="Filtrar por autor"
-              aria-expanded={!!authorAnchor} onClick={(e) => setAuthorAnchor(e.currentTarget.getBoundingClientRect())}><Icon name="filter" size={13} /></button>}
-            {id === 'message' && vis.solo && <button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} <Icon name="close" size={12} /></button>}
+            {id === 'message' && <IconButton className="graph-tool" icon="search" size={13} label="Buscar branch, mensagem ou SHA" title="Buscar branch, mensagem ou SHA (Ctrl+F)" onClick={openFind} />}
+            {id === 'author' && <IconButton className={`graph-tool${authors?.length ? ' active' : ''}`} icon="filter" size={13} label="Filtrar por autor"
+              aria-expanded={!!authorAnchor} onClick={(e) => setAuthorAnchor(e.currentTarget.getBoundingClientRect())} />}
+            {id === 'message' && vis.solo && <Button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} <Icon name="close" size={12} /></Button>}
           </span>
         {id !== 'message' && <div className={`col-handle ${cols.indexOf(id) < cols.indexOf('message') ? 'after' : 'before'}`} role="separator" aria-orientation="vertical"
           aria-label={`Redimensionar ${COLUMNS[id].label}`} onPointerDown={(e) => resize(id, e)} onDoubleClick={() => fit(id)} />}

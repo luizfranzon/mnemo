@@ -12,6 +12,7 @@ import { Code, SplitScroll } from './SplitScroll'
 import { ResultEditor, type ResultHandle } from './ResultEditor'
 import { Icon } from './Icon'
 import { Button } from './Button'
+import { IconButton } from './IconButton'
 import { FindBar, focusFind, useFindHighlight, useFindShortcut } from './FindBar'
 
 const ROW = 20
@@ -146,15 +147,15 @@ export function ConflictEditor({ path }: { path: string }) {
       disabled={!hits.length} onText={(t) => seek(t, 0)} onStep={(by) => seek(find.text, find.at + by)} onClose={() => setFind(null)} />}
     <div className="diff-head">
       <div className="diff-crumb"><span>{file}</span> <span className="diff-side">{info ? KIND[info.kind] : ''}</span></div>
-      <button className="diff-close" aria-label="Fechar editor de conflito (Esc)" title="Fechar (Esc)" onClick={() => actions.closeConflict(path)}>×</button>
+      <IconButton className="diff-close" icon="close" size={14} label="Fechar editor de conflito (Esc)" title="Fechar (Esc)" onClick={() => actions.closeConflict(path)} />
     </div>
     {info && !doc && <div className="conflict-choices">
       <p>{info.binary ? 'Arquivo binário: escolha uma das versões.' : `${file}: ${KIND[info.kind]}.`}</p>
       <div className="actions">
-        {info.kind !== 'both' && info.kind !== 'bothAdded' && !info.binary && info.kind !== 'addedByUs' && info.kind !== 'addedByThem' && <button onClick={() => take('base')}>Manter a versão base</button>}
-        {info.kind !== 'deletedByUs' && info.kind !== 'addedByThem' && <button onClick={() => take('ours')}>Usar o atual</button>}
-        {info.kind !== 'deletedByThem' && info.kind !== 'addedByUs' && <button onClick={() => take('theirs')}>Usar o que entra</button>}
-        {!info.binary && <button onClick={() => take('delete')}>Apagar o arquivo</button>}
+        {info.kind !== 'both' && info.kind !== 'bothAdded' && !info.binary && info.kind !== 'addedByUs' && info.kind !== 'addedByThem' && <Button onClick={() => take('base')}>Manter a versão base</Button>}
+        {info.kind !== 'deletedByUs' && info.kind !== 'addedByThem' && <Button onClick={() => take('ours')}>Usar o atual</Button>}
+        {info.kind !== 'deletedByThem' && info.kind !== 'addedByUs' && <Button onClick={() => take('theirs')}>Usar o que entra</Button>}
+        {!info.binary && <Button danger onClick={() => take('delete')}>Apagar o arquivo</Button>}
       </div>
     </div>}
     {doc && lay && <div className="conflict-main" ref={main}>
@@ -177,13 +178,13 @@ export function ConflictEditor({ path }: { path: string }) {
           <span className="muted">{locked ? 'editado à mão: Reset volta para a escolha por linhas' : pending > 0 ? `${pending} sem escolha` : 'todos os conflitos resolvidos'}{autoCount > 0 && !locked ? ` · ${autoCount} só de espaço em branco (Atual escolhido)` : ''}</span>
           <span className="spacer" />
           {chunks.length > 0 && <>
-            <button className="diff-nav" aria-label="Conflito anterior" disabled={current <= 0} onClick={() => goto(current - 1)}>‹</button>
+            <IconButton className="diff-nav prev" icon="chevron" size={14} label="Conflito anterior" disabled={current <= 0} onClick={() => goto(current - 1)} />
             <span className="muted">conflito {current + 1} de {chunks.length}</span>
-            <button className="diff-nav" aria-label="Próximo conflito" disabled={current >= chunks.length - 1} onClick={() => goto(current + 1)}>›</button>
+            <IconButton className="diff-nav" icon="chevron" size={14} label="Próximo conflito" disabled={current >= chunks.length - 1} onClick={() => goto(current + 1)} />
           </>}
           <span className="spacer" />
-          <button onClick={() => void core.conflictMergetool(path, file).then(() => actions.wipChanged(path), fail)}>Abrir na ferramenta externa</button>
-          <button onClick={reset}>Reset</button>
+          <Button onClick={() => void core.conflictMergetool(path, file).then(() => actions.wipChanged(path), fail)}>Abrir na ferramenta externa</Button>
+          <Button onClick={reset}>Reset</Button>
           <Button primary onClick={() => (pending > 0 && !locked ? setAsk(true) : save(false))}>Salvar</Button>
         </div>
         <ResultEditor key={file} file={file} value={manual ?? merged} layout={locked ? null : lay} onChange={setManual} handle={result} />
@@ -192,7 +193,7 @@ export function ConflictEditor({ path }: { path: string }) {
         <h2 id="conflict-ask">Há {pending} conflito(s) sem escolha</h2>
         <p>Dá para gravar o arquivo com os marcadores <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> e resolver depois. O arquivo gravado difere do Resultado exibido, e continua em conflito até você resolvê-lo.</p>
         <div className="actions">
-          <button onClick={() => setAsk(false)}>Voltar</button>
+          <Button onClick={() => setAsk(false)}>Voltar</Button>
           <Button primary autoFocus onClick={() => { setAsk(false); save(true) }}>Gravar com marcadores</Button>
         </div>
       </dialog>

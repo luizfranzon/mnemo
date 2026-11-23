@@ -13,6 +13,7 @@ import type { Rect } from './menuModel'
 import { diffParts, type Part } from './syntax'
 import { diffRows, findRows, hunkAt, hunkLines, hunkRows, LAYOUTS, markers, selectionArgs, type DiffLayout, type DiffRow } from './diffModel'
 import { Button } from './Button'
+import { IconButton } from './IconButton'
 import { anchorOf, lineLabel, reviewRows, visibleComments, type Draft } from './reviewModel'
 
 const LINE = 20
@@ -232,28 +233,25 @@ export function DiffView({ path }: { path: string }) {
       {diff && !diff.binary && <span className="mono"><span className="added">+{diff.added}</span> <span className="removed">−{diff.removed}</span></span>}
       {round && <Checkbox className="diff-reviewed" title={editable ? 'Marcar como revisado e abrir o próximo (V)' : 'Rodada concluída'}
         checked={reviewed} disabled={!editable} onChange={(v) => void actions.markReviewed(path, file, v, v)} label="Revisado" />}
-      <button className="diff-close" aria-label={round ? 'Sair da revisão e voltar ao grafo (Esc)' : 'Fechar diff e voltar ao grafo (Esc)'}
-        title={round ? 'Voltar ao grafo (Esc)' : 'Fechar diff (Esc)'} onClick={() => actions.closeDiff(path)}>
-        <Icon name="close" size={14} strokeWidth={2} /></button>
+      <IconButton className="diff-close" icon="close" size={14} strokeWidth={2} label={round ? 'Sair da revisão e voltar ao grafo (Esc)' : 'Fechar diff e voltar ao grafo (Esc)'}
+        title={round ? 'Voltar ao grafo (Esc)' : 'Fechar diff (Esc)'} onClick={() => actions.closeDiff(path)} />
     </div>
     <div className="diff-tools">
       {canStage && selected.size > 0 && <>
         <Button primary onClick={() => stage([...selected])}>{verb} {plural(selected.size, 'linha', 'linhas')}</Button>
-        <button onClick={() => setSelected(new Set())}>Limpar seleção</button>
+        <Button onClick={() => setSelected(new Set())}>Limpar seleção</Button>
       </>}
-      {editable && <button disabled={draft?.end === null && !draft.id} title="Comentário sobre o arquivo todo, sem linha"
-        onClick={() => { setRange(null); setNote(''); setDraft({ id: null, end: null, side: 'new' }); scroller.current?.scrollTo({ top: 0 }) }}>Comentar arquivo</button>}
+      {editable && <Button disabled={draft?.end === null && !draft.id} title="Comentário sobre o arquivo todo, sem linha"
+        onClick={() => { setRange(null); setNote(''); setDraft({ id: null, end: null, side: 'new' }); scroller.current?.scrollTo({ top: 0 }) }}>Comentar arquivo</Button>}
       {editable && !draft && <span className="muted">Clique ou arraste pelos números das linhas para comentar</span>}
       <span className="spacer" />
       {heads.length > 0 && <span className="muted">Trecho {Math.min(current + 1, heads.length)} de {heads.length}</span>}
-      <button className="diff-nav" aria-label="Trecho anterior" title="Trecho anterior" disabled={current <= 0} onClick={() => goTo(current - 1)}>
-        <Icon name="chevronUp" size={13} strokeWidth={2} /></button>
-      <button className="diff-nav" aria-label="Próximo trecho" title="Próximo trecho" disabled={current >= heads.length - 1} onClick={() => goTo(current + 1)}>
-        <Icon name="chevronDown" size={13} strokeWidth={2} /></button>
+      <IconButton className="diff-nav" icon="chevronUp" size={13} strokeWidth={2} label="Trecho anterior" disabled={current <= 0} onClick={() => goTo(current - 1)} />
+      <IconButton className="diff-nav" icon="chevronDown" size={13} strokeWidth={2} label="Próximo trecho" disabled={current >= heads.length - 1} onClick={() => goTo(current + 1)} />
       <Segmented label="Layout do diff" options={LAYOUTS} value={layout} onChange={pickLayout} />
       {wip && diff && !diff.stageable && <span className="muted" title="O texto foi convertido para UTF-8; os índices de linha não batem com o arquivo">Sem stage por trecho</span>}
-      {diff && <button className="diff-encoding mono muted" title="Codificação do arquivo (clique para trocar)" aria-haspopup="dialog" aria-expanded={!!encAnchor}
-        onClick={(e) => setEncAnchor(e.currentTarget.getBoundingClientRect())}>{diff.encoding}{diff.guessed ? ' (adivinhada)' : ''}</button>}
+      {diff && <Button className="diff-encoding mono muted" title="Codificação do arquivo (clique para trocar)" aria-haspopup="dialog" aria-expanded={!!encAnchor}
+        onClick={(e) => setEncAnchor(e.currentTarget.getBoundingClientRect())}>{diff.encoding}{diff.guessed ? ' (adivinhada)' : ''}</Button>}
     </div>
     {encAnchor && <EncodingPicker path={path} anchor={encAnchor} value={encoding} onClose={() => setEncAnchor(null)}
       onPick={(id) => setPick({ source, file, id })} />}
@@ -308,7 +306,7 @@ function NoteCard({ c, half, wide, editable, onEdit, onDelete }: { c: ReviewComm
       {agent && <span className="review-tag">IA</span>}
       <span>{lineLabel(c.lines)}</span>{wide && <span className="muted" title="Feito no diff da branch inteira">branch inteira</span>}
       <span className="spacer" />
-      {editable && <>{!agent && <button onClick={onEdit}>Editar</button>}<button onClick={onDelete}>Excluir</button></>}
+      {editable && <>{!agent && <Button onClick={onEdit}>Editar</Button>}<Button onClick={onDelete}>Excluir</Button></>}
     </div>
     <div className="review-note-body">{c.body}</div>
     {c.suggestion && <div className="review-suggestion">
@@ -329,7 +327,7 @@ function Composer({ half, label, text, editing, onText, onCancel, onSave }: { ha
       }} />
     <div className="review-note-actions">
       <span className="muted"><kbd>Ctrl Enter</kbd> salva · <kbd>Esc</kbd> cancela</span><span className="spacer" />
-      <button onClick={onCancel}>Cancelar</button>
+      <Button onClick={onCancel}>Cancelar</Button>
       <Button primary disabled={!text.trim()} onClick={onSave}>{editing ? 'Salvar' : 'Comentar'}</Button>
     </div>
   </div>
@@ -369,7 +367,7 @@ function DiffRowView({ r, diff, parts, selected, canStage, verb, onToggle, onSta
   if (r.type === 'hunk') {
     const h = diff.hunks[r.hunk]!
     return <div className="diff-hunk"><span>{h.header}</span>
-      {canStage && <button onClick={() => onStage(hunkLines(diff, r.hunk))}>{verb} trecho</button>}</div>
+      {canStage && <Button onClick={() => onStage(hunkLines(diff, r.hunk))}>{verb} trecho</Button>}</div>
   }
   if (r.type === 'split') return <div className="diff-split">{half(r.left, 'left')}{half(r.right, 'right')}</div>
   const l = diff.lines[r.line]!

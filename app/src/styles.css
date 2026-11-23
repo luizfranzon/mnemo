@@ -407,6 +407,7 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .graph-filter input { flex: 1; min-width: 0; }
 .graph-filter-count { min-width: 44px; text-align: right; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .graph-filter button { width: 26px; height: 26px; padding: 0; display: grid; place-items: center; }
+.diff-nav.prev svg { transform: rotate(180deg); }
 .graph-filter .up svg { transform: rotate(-90deg); }
 .graph-filter .down svg { transform: rotate(90deg); }
 .graph-header .graph-tool.active { color: var(--accent); }
