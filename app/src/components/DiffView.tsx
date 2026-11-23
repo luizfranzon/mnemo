@@ -11,6 +11,7 @@ import { actions, isActiveTab, selectDiff, selectReview, selectWipRevision, useA
 import type { Rect } from './menuModel'
 import { diffParts, type Part } from './syntax'
 import { diffRows, findRows, hunkAt, hunkLines, hunkRows, LAYOUTS, markers, selectionArgs, type DiffLayout, type DiffRow } from './diffModel'
+import { Button } from './Button'
 import { anchorOf, lineLabel, reviewRows, visibleComments, type Draft } from './reviewModel'
 
 const LINE = 20
@@ -236,7 +237,7 @@ export function DiffView({ path }: { path: string }) {
     </div>
     <div className="diff-tools">
       {canStage && selected.size > 0 && <>
-        <button className="primary" onClick={() => stage([...selected])}>{verb} {plural(selected.size, 'linha', 'linhas')}</button>
+        <Button primary onClick={() => stage([...selected])}>{verb} {plural(selected.size, 'linha', 'linhas')}</Button>
         <button onClick={() => setSelected(new Set())}>Limpar seleção</button>
       </>}
       {editable && <button disabled={draft?.end === null && !draft.id} title="Comentário sobre o arquivo todo, sem linha"
@@ -328,7 +329,7 @@ function Composer({ half, label, text, editing, onText, onCancel, onSave }: { ha
     <div className="review-note-actions">
       <span className="muted"><kbd>Ctrl Enter</kbd> salva · <kbd>Esc</kbd> cancela</span><span className="spacer" />
       <button onClick={onCancel}>Cancelar</button>
-      <button className="primary" disabled={!text.trim()} onClick={onSave}>{editing ? 'Salvar' : 'Comentar'}</button>
+      <Button primary disabled={!text.trim()} onClick={onSave}>{editing ? 'Salvar' : 'Comentar'}</Button>
     </div>
   </div>
 }

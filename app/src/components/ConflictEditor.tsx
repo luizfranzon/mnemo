@@ -11,6 +11,7 @@ import { highlightLines, type Part } from './syntax'
 import { Code, SplitScroll } from './SplitScroll'
 import { ResultEditor, type ResultHandle } from './ResultEditor'
 import { Icon } from './Icon'
+import { Button } from './Button'
 import { FindBar, focusFind, useFindHighlight, useFindShortcut } from './FindBar'
 
 const ROW = 20
@@ -183,7 +184,7 @@ export function ConflictEditor({ path }: { path: string }) {
           <span className="spacer" />
           <button onClick={() => void core.conflictMergetool(path, file).then(() => actions.wipChanged(path), fail)}>Abrir na ferramenta externa</button>
           <button onClick={reset}>Reset</button>
-          <button className="primary" onClick={() => (pending > 0 && !locked ? setAsk(true) : save(false))}>Salvar</button>
+          <Button primary onClick={() => (pending > 0 && !locked ? setAsk(true) : save(false))}>Salvar</Button>
         </div>
         <ResultEditor key={file} file={file} value={manual ?? merged} layout={locked ? null : lay} onChange={setManual} handle={result} />
       </div>
@@ -192,7 +193,7 @@ export function ConflictEditor({ path }: { path: string }) {
         <p>Dá para gravar o arquivo com os marcadores <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> e resolver depois. O arquivo gravado difere do Resultado exibido, e continua em conflito até você resolvê-lo.</p>
         <div className="actions">
           <button onClick={() => setAsk(false)}>Voltar</button>
-          <button className="primary" autoFocus onClick={() => { setAsk(false); save(true) }}>Gravar com marcadores</button>
+          <Button primary autoFocus onClick={() => { setAsk(false); save(true) }}>Gravar com marcadores</Button>
         </div>
       </dialog>
     </div>}

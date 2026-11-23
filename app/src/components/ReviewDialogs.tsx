@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { core } from '../bridge'
 import { actions, useApp } from '../store/app'
+import { Button } from './Button'
+import { Dialog, DialogActions } from './Dialog'
 
 /** Começar Revisão (ou a próxima Rodada) e encerrar. Cancelar nunca muda nada. */
 export function ReviewDialogs() {
@@ -12,19 +14,7 @@ export function ReviewDialogs() {
   </>
 }
 
-/** `<dialog>` modal enquanto o componente existe. */
-export function useModal() {
-  const ref = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    const element = ref.current
-    element?.showModal()
-    return () => element?.close()
-  }, [])
-  return ref
-}
-
 function StartReview({ prompt }: { prompt: { path: string; branch: string; base: string; round: number } }) {
-  const ref = useModal()
   const [base, setBase] = useState(prompt.base)
   const [names, setNames] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
@@ -41,7 +31,7 @@ function StartReview({ prompt }: { prompt: { path: string; branch: string; base:
     if (!(await actions.startReview(prompt.path, prompt.branch, base.trim()))) setBusy(false)
   }
   const first = prompt.round === 1
-  return <dialog ref={ref} className="push-dialog card" aria-labelledby="review-start-title" onCancel={(e) => { e.preventDefault(); if (!busy) actions.cancelReviewPrompt() }}>
+  return <Dialog titleId="review-start-title" onCancel={(e) => { e.preventDefault(); if (!busy) actions.cancelReviewPrompt() }}>
     <h2 id="review-start-title">{first ? `Revisar ${prompt.branch}` : `Rodada ${prompt.round} de ${prompt.branch}`}</h2>
     <p>{first ? 'O diff mostra só o que esta branch traz em relação à Base, sem os passos intermediários dos commits.'
       : 'A nova rodada mostra só o que mudou desde a última que você concluiu.'}</p>
@@ -50,22 +40,21 @@ function StartReview({ prompt }: { prompt: { path: string; branch: string; base:
       onKeyDown={(e) => { if (e.key === 'Enter') void confirm() }} onFocus={(e) => e.currentTarget.select()} />
     <datalist id="review-base-options">{names.map((n) => <option key={n} value={n} />)}</datalist>
     {base.trim() === prompt.branch && <p className="warning">A Base precisa ser outra branch.</p>}
-    <div className="actions">
-      <button disabled={busy} onClick={actions.cancelReviewPrompt}>Cancelar</button>
-      <button className="primary" disabled={!valid || busy} onClick={() => void confirm()}>
-        {busy ? `Buscando ${prompt.branch}…` : first ? 'Começar revisão' : `Começar rodada ${prompt.round}`}</button>
-    </div>
-  </dialog>
+    <DialogActions>
+      <Button disabled={busy} onClick={actions.cancelReviewPrompt}>Cancelar</Button>
+      <Button primary disabled={!valid} loading={busy} onClick={() => void confirm()}>
+        {first ? 'Começar revisão' : `Começar rodada ${prompt.round}`}</Button>
+    </DialogActions>
+  </Dialog>
 }
 
 function EndReview({ branch }: { branch: string }) {
-  const ref = useModal()
-  return <dialog ref={ref} className="push-dialog card" aria-labelledby="review-end-title" onCancel={actions.cancelEndReview}>
+  return <Dialog titleId="review-end-title" onCancel={actions.cancelEndReview}>
     <h2 id="review-end-title">Encerrar a revisão de {branch}?</h2>
     <p>As rodadas, as marcações e os comentários somem, e os marcadores saem do grafo. Não dá para desfazer. Copie o relatório antes, se ainda for precisar dele.</p>
-    <div className="actions">
-      <button autoFocus onClick={actions.cancelEndReview}>Cancelar</button>
-      <button className="primary danger" onClick={() => void actions.confirmEndReview()}>Encerrar revisão</button>
-    </div>
-  </dialog>
+    <DialogActions>
+      <Button autoFocus onClick={actions.cancelEndReview}>Cancelar</Button>
+      <Button primary danger onClick={() => void actions.confirmEndReview()}>Encerrar revisão</Button>
+    </DialogActions>
+  </Dialog>
 }

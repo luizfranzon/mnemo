@@ -19,4 +19,10 @@ export const Padrao: Story = {
   },
 }
 
+export const UmResultado: Story = { args: { count: '1 de 1' } }
+
+export const MuitosResultados: Story = { args: { count: '1.482 de 12.904' } }
+
+export const TextoLongo: Story = { args: { text: 'refatora a resolução de conflitos do rebase interativo para preservar o autor original' } }
+
 export const SemResultados: Story = { args: { text: 'zzz', count: 'Nenhum resultado', disabled: true } }

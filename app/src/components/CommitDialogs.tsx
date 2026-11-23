@@ -1,22 +1,18 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { core } from '../bridge'
 import { actions } from '../store/app'
+import { Button } from './Button'
 import type { CommitDialog } from './commitMenu'
+import { Dialog, DialogActions } from './Dialog'
 
 /** Tag, editar mensagem, restaurar e excluir arquivo. Cancelar (botão, Esc) nunca dispara uma Operação. */
 export function CommitDialogs({ path, dialog, close }: { path: string; dialog: CommitDialog; close: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    const element = ref.current
-    element?.showModal()
-    return () => element?.close()
-  }, [])
   const run = (kind: Parameters<typeof actions.execute>[1]) => { close(); void actions.execute(path, kind) }
-  return <dialog ref={ref} className="push-dialog card" aria-labelledby="commit-dialog-title" onCancel={close}>
+  return <Dialog titleId="commit-dialog-title" onCancel={close}>
     {dialog.type === 'tag' ? <Tag dialog={dialog} close={close} run={run} />
       : dialog.type === 'reword' ? <Reword path={path} sha={dialog.sha} close={close} run={run} />
         : <FileConfirm dialog={dialog} close={close} run={run} />}
-  </dialog>
+  </Dialog>
 }
 
 type Props = { close: () => void; run: (kind: Parameters<typeof actions.execute>[1]) => void }
@@ -34,10 +30,10 @@ function Tag({ dialog, close, run }: Props & { dialog: Extract<CommitDialog, { t
       <label htmlFor="tag-message">Mensagem</label>
       <textarea id="tag-message" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} />
     </>}
-    <div className="actions">
-      <button onClick={close}>Cancelar</button>
-      <button className="primary" disabled={!valid} onClick={confirm}>Criar tag</button>
-    </div>
+    <DialogActions>
+      <Button onClick={close}>Cancelar</Button>
+      <Button primary disabled={!valid} onClick={confirm}>Criar tag</Button>
+    </DialogActions>
   </>
 }
 
@@ -56,10 +52,10 @@ function Reword({ path, sha, close, run }: Props & { path: string; sha: string }
     <textarea id="reword-message" rows={6} autoFocus disabled={text === null} value={text ?? 'Carregando…'} onChange={(e) => setText(e.target.value)}
       onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey && valid) run({ type: 'reword', message: text.trim() }) }} />
     <p className="muted">O que está preparado não entra no commit. O hash do commit muda.</p>
-    <div className="actions">
-      <button onClick={close}>Cancelar</button>
-      <button className="primary" disabled={!valid} onClick={() => valid && run({ type: 'reword', message: text.trim() })}>Salvar</button>
-    </div>
+    <DialogActions>
+      <Button onClick={close}>Cancelar</Button>
+      <Button primary disabled={!valid} onClick={() => valid && run({ type: 'reword', message: text.trim() })}>Salvar</Button>
+    </DialogActions>
   </>
 }
 
@@ -71,11 +67,11 @@ function FileConfirm({ dialog, close, run }: Props & { dialog: Extract<CommitDia
       ? <>{dialog.file} volta a ser como era em {dialog.sha.slice(0, 7)}. Mudanças que você fez nele são substituídas.</>
       : <>{dialog.file} sai do diretório de trabalho e do index.</>}</p>
     <p className="muted">Dá para recuperar com Desfazer.</p>
-    <div className="actions">
-      <button autoFocus onClick={close}>Cancelar</button>
-      <button className="primary danger" onClick={() => run(restore ? { type: 'restoreFile', commit: dialog.sha, path: dialog.file } : { type: 'deleteFile', path: dialog.file })}>
+    <DialogActions>
+      <Button autoFocus onClick={close}>Cancelar</Button>
+      <Button primary danger onClick={() => run(restore ? { type: 'restoreFile', commit: dialog.sha, path: dialog.file } : { type: 'deleteFile', path: dialog.file })}>
         {restore ? 'Restaurar' : 'Excluir'}
-      </button>
-    </div>
+      </Button>
+    </DialogActions>
   </>
 }

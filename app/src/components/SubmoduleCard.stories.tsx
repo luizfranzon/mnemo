@@ -22,6 +22,10 @@ export const NaoIniciado: Story = {
   beforeEach: () => mockBackend({ open_repository: () => repoInfo(REPO_PATH, 'mnemo') }),
 }
 
+export const NomeLongo: Story = {
+  args: { name: 'vendor/bibliotecas/internas/uma-biblioteca-com-um-caminho-extremamente-longo-para-truncar' },
+}
+
 export const Ocupado: Story = {
   beforeEach: () => { useApp.setState({ running: { [`${REPO_PATH}/vendor/libgit-sys`]: 'fetch' } }) },
 }

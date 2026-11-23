@@ -11,6 +11,17 @@ button:hover:not(:disabled) { background: var(--hover); border-color: var(--bord
 button:disabled { color: var(--text-disabled); cursor: not-allowed; }
 button.primary { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--accent-text); }
 button.primary:hover:not(:disabled) { background: var(--accent-primary-hover); }
+button.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+button.danger:not(.primary) { border-color: var(--danger-border); color: var(--danger-text); }
+button.danger:not(.primary):hover:not(:disabled) { background: var(--danger-bg); }
+button.primary.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+button.tinted { background: var(--accent-tint); border-color: var(--accent-tint); color: var(--accent-text); }
+button.tinted:hover:not(:disabled) { background: var(--accent-tint); border-color: var(--accent); }
+button.small { height: 24px; padding: 0 8px; font-size: 11.5px; }
+button.btn-loading { position: relative; cursor: progress; }
+button.btn-loading .btn-label { visibility: hidden; }
+button.btn-loading .btn-spinner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
+button.primary.btn-loading .btn-spinner { color: var(--accent-text); }
 input, textarea, select { font: inherit; color: var(--text); background: var(--control); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; outline: none; }
 input:focus { border-color: var(--accent); }
 input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 14px; padding: 0; margin: 0; accent-color: var(--accent); }
@@ -420,7 +431,7 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 /* Painel WIP: valores do mockup */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; }
 .wip-panel { height: 100%; min-height: 0; display: flex; flex-direction: column; background: #121213; font-size: 13px; }
-.wip-panel button { padding: 0; border: 0; background: transparent; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.wip-panel button:not(:where(.btn)) { padding: 0; border: 0; background: transparent; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
 .wip-head { flex: none; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px 0 16px; border-bottom: 1px solid #1F1F21; }
 .wip-title { color: #C9C6C0; white-space: nowrap; }
 .wip-branch { font-family: var(--font-mono); font-size: 12px; padding: 1px 6px; border-radius: 4px; background: #4fb3d92e; border: 1px solid #4fb3d980; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -432,10 +443,6 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .wip-section.staged { border-top: 1px solid #1F1F21; }
 .wip-section-name { flex: 1; font-size: 12.5px; font-weight: 600; color: #C9C6C0; }
 .wip-section-name span { font-weight: 400; color: #8A877F; }
-.wip-panel .wip-neutral, .wip-panel .wip-ghost { height: 26px; padding: 0 10px; font-size: 12px; border: 1px solid #2C2C2F; }
-.wip-panel .wip-neutral { background: #1C1C1E; color: #E8E6E3; }
-.wip-panel .wip-ghost { color: #C9C6C0; }
-.wip-panel .wip-ghost.small { height: 24px; padding: 0 8px; font-size: 11.5px; }
 .wip-panel button:disabled { opacity: .45; cursor: not-allowed; }
 .wip-file { position: absolute; top: 0; left: 0; width: 100%; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 10px; border-radius: 6px; font-size: 12.5px; }
 .wip-file:hover { background: #1F1F21; }
@@ -448,7 +455,6 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .wip-file:hover .wip-actions, .wip-file:focus-within .wip-actions { display: flex; }
 .wip-file:hover .wip-lines, .wip-file:focus-within .wip-lines { display: none; }
 .wip-panel .wip-actions .wip-danger { width: 24px; height: 24px; border: 0; }
-.wip-panel .wip-stage { height: 24px; padding: 0 8px; background: #22325A; color: #DFE7FF; font-size: 11.5px; }
 .wip-compose { flex: none; border-top: 1px solid #232325; background: #141415; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 10px; }
 .wip-tabs { display: flex; gap: 2px; margin: 0 -4px; border-bottom: 1px solid #1F1F21; }
 .wip-panel .wip-tabs button { gap: 6px; height: 36px; padding: 0 10px; border-radius: 0; color: #9C9992; font-size: 12.5px; }
@@ -635,8 +641,7 @@ button.diff-gutter[aria-pressed="true"] { background: var(--accent-primary); col
 .wip-conflicts .conflict-file { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; font-size: 12px; cursor: pointer; }
 .wip-conflicts .conflict-file:hover { background: var(--hover); }
 .wip-conflicts .conflict-file > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wip-conflicts .conflict-file button, .wip-conflicts h3 button { flex: none; height: 24px; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: 11.5px; cursor: pointer; }
-.wip-conflicts .conflict-file button:hover, .wip-conflicts h3 button:hover { background: var(--hover); border-color: var(--text-muted); }
+.wip-conflicts .conflict-file button, .wip-conflicts h3 button { flex: none; }
 .wip-conflicts h3 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 12px; font-size: 12px; color: var(--warning-text, #eac17a); }
 .wip-conflicts h3 button { margin-left: auto; }
 

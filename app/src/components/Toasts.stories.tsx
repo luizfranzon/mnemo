@@ -29,6 +29,22 @@ export const ErroComAcoes: Story = {
   beforeEach: () => { useApp.setState({ toasts: [{ id: 1, title: 'mnemo', text: 'Pull barrado: arquivos locais seriam sobrescritos', error: true, buttons: [{ label: 'Stash e tentar de novo', run: async () => undefined }, { label: 'Descartar e tentar de novo', run: async () => undefined }] }] }) },
 }
 
+export const TextoLongo: Story = {
+  beforeEach: () => {
+    const text = `fatal: não foi possível acessar 'https://git.exemplo.dev/organizacao/projeto-com-nome-muito-comprido.git/': ${'a conexão foi encerrada pelo servidor remoto. '.repeat(6)}`
+    useApp.setState({ toasts: [{ id: 1, title: 'mnemo', text, error: true, retry: async () => undefined }] })
+  },
+}
+
+export const ErroEmVariosRepositorios: Story = {
+  beforeEach: () => {
+    useApp.setState({ toasts: [
+      { id: 1, title: 'mnemo', text: 'Fetch falhou: sem acesso à rede', error: true, retry: async () => undefined },
+      { id: 2, title: 'mnemo-docs', text: 'Push rejeitado: o remoto tem commits que você não tem', error: true },
+    ] })
+  },
+}
+
 export const Empilhados: Story = {
   beforeEach: () => {
     useApp.setState({ toasts: [{ id: 1, title: 'mnemo', text: 'Fetch concluído' }, { id: 2, title: 'mnemo', text: 'Push concluído', undoPath: REPO_PATH }, { id: 3, text: 'Preferências salvas' }] })

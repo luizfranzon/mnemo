@@ -12,6 +12,7 @@ import { Toolbar } from './Toolbar'
 import { PushDialog } from './PushDialog'
 import { ForcePushDialog } from './ForcePushDialog'
 import { PushRejectedBar } from './PushRejectedBar'
+import { Button } from './Button'
 import { ReviewDialogs } from './ReviewDialogs'
 
 export function Workspace() {
@@ -57,9 +58,7 @@ function Empty() {
       <div className="card">
         <h1>Mnemo</h1>
         <p className="muted">Abra uma pasta com um repositório git.</p>
-        <button className="primary" onClick={() => void actions.openRepository()}>
-          Abrir repositório
-        </button>
+        <Button primary onClick={() => void actions.openRepository()}>Abrir repositório</Button>
       </div>
     </div>
   )

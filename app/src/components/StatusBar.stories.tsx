@@ -19,4 +19,8 @@ export const AtualizacaoDisponivel: Story = { beforeEach: () => { useApp.setStat
 
 export const Baixando: Story = { beforeEach: () => { useApp.setState({ update: { status: 'downloading', version: '0.6.0', percent: 64 } }) } }
 
+export const BaixandoNoInicio: Story = { beforeEach: () => { useApp.setState({ update: { status: 'downloading', version: '0.6.0', percent: 0 } }) } }
+
+export const BaixandoQuaseConcluido: Story = { beforeEach: () => { useApp.setState({ update: { status: 'downloading', version: '0.6.0', percent: 99 } }) } }
+
 export const ProntoParaReiniciar: Story = { beforeEach: () => { useApp.setState({ update: { status: 'ready', version: '0.6.0' } }) } }

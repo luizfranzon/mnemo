@@ -6,6 +6,9 @@ import { REPO_PATH, SECOND_REPO_PATH, commitDetail, graphCommits, reviewState, w
 
 export { REPO_PATH, SECOND_REPO_PATH, mockBackend, withConflicts, withReviews, reviewState, wipStatus, graphCommits }
 
+export const forever = () => new Promise<never>(() => undefined)
+export const failing = (message: string) => () => Promise.reject(new Error(message))
+
 export function resetApp() {
   installMock()
   resetBackend()

@@ -27,6 +27,24 @@ type Story = StoryObj<typeof meta>
 
 export const Padrao: Story = {}
 
+export const ListaLonga: Story = {
+  args: {
+    label: 'Branches',
+    items: Array.from({ length: 60 }, (_, i): MenuEntry => ({ label: i === 3 ? 'feature/MNM-1234-ajusta-largura-das-colunas-do-grafo-quando-o-nome-e-muito-comprido' : `feature/tarefa-${i + 1}`, shortcut: i < 9 ? `Ctrl+${i + 1}` : undefined, run: () => undefined })),
+  },
+}
+
+export const ItensDesabilitados: Story = {
+  args: {
+    label: 'Ações',
+    items: [
+      { label: 'Merge em main', reason: 'Há mudanças não commitadas', run: () => undefined },
+      { label: 'Rebase em main', reason: 'Já existe um rebase em andamento', run: () => undefined },
+      { label: 'Excluir branch atual…', reason: 'Não dá para excluir a branch em que você está', danger: true, run: () => undefined },
+    ],
+  },
+}
+
 export const ComRadio: Story = {
   args: {
     label: 'Ordenar',

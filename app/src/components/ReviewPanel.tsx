@@ -3,9 +3,11 @@ import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import type { Review, ReviewFile, ReviewRound } from '../bridge/types'
 import { actions, selectDiff, selectGraphRevision, selectReview, useApp } from '../store/app'
+import { Button } from './Button'
+import { Checkbox } from './Checkbox'
+import { Dialog, DialogActions } from './Dialog'
 import { Icon, type IconName } from './Icon'
 import { copyText } from './menuBase'
-import { useModal } from './ReviewDialogs'
 import { agentRef, reportName, reviewReport } from './reviewModel'
 import { Segmented } from './Segmented'
 
@@ -77,7 +79,7 @@ export function ReviewPanel({ path }: { path: string }) {
     <div className="commit-tools">
       {round.from && <Segmented label="Diff mostrado" options={SCOPES} value={review.scope} onChange={(s) => actions.setReviewScope(path, s)} />}
       <span className="spacer" />
-      <label><input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /> Esconder revisados</label>
+      <Checkbox checked={hideDone} onChange={setHideDone} label="Esconder revisados" />
     </div>
     <div className="commit-files" ref={scroller}>
       {!files.length && <p className="review-empty muted">{total ? 'Todos os arquivos foram revisados.' : 'Nenhum arquivo para revisar nesta rodada.'}</p>}
@@ -110,7 +112,7 @@ export function ReviewPanel({ path }: { path: string }) {
       {open && <button onClick={() => { copyText(agentRef(path, state, round)); actions.info('Referência da rodada copiada', path) }}
         title="Repositório, rodada, diff e arquivos pendentes, para a IA comentar esta rodada">Copiar para IA</button>}
       <span className="spacer" />
-      {open ? <button className="primary" onClick={() => (missing > 0 ? setConfirm(true) : void conclude())}>Concluir rodada</button>
+      {open ? <Button primary onClick={() => (missing > 0 ? setConfirm(true) : void conclude())}>Concluir rodada</Button>
         : <button onClick={() => setReport({ review: state.review, round })}>Ver relatório</button>}
     </div>
     {confirm && <ConfirmConclude missing={missing} onCancel={() => setConfirm(false)} onConfirm={() => void conclude()} />}
@@ -119,19 +121,17 @@ export function ReviewPanel({ path }: { path: string }) {
 }
 
 function ConfirmConclude({ missing, onCancel, onConfirm }: { missing: number; onCancel: () => void; onConfirm: () => void }) {
-  const ref = useModal()
-  return <dialog ref={ref} className="push-dialog card" aria-labelledby="review-conclude-title" onCancel={onCancel}>
+  return <Dialog titleId="review-conclude-title" onCancel={onCancel}>
     <h2 id="review-conclude-title">Concluir a rodada?</h2>
     <p>{plural(missing, 'arquivo ainda não foi revisado', 'arquivos ainda não foram revisados')}. Depois de concluir, os comentários desta rodada não mudam mais.</p>
-    <div className="actions">
-      <button autoFocus onClick={onCancel}>Continuar revisando</button>
-      <button className="primary" onClick={onConfirm}>Concluir mesmo assim</button>
-    </div>
-  </dialog>
+    <DialogActions>
+      <Button autoFocus onClick={onCancel}>Continuar revisando</Button>
+      <Button primary onClick={onConfirm}>Concluir mesmo assim</Button>
+    </DialogActions>
+  </Dialog>
 }
 
 function ReportDialog({ path, review, round, files, onClose }: { path: string; review: Review; round: ReviewRound; files: ReviewFile[]; onClose: () => void }) {
-  const ref = useModal()
   const text = reviewReport(review, round, files)
   const save = async () => {
     try {
@@ -139,13 +139,13 @@ function ReportDialog({ path, review, round, files, onClose }: { path: string; r
       if (saved) actions.info(`Relatório salvo em ${saved}`, path)
     } catch (err) { actions.reportError(err, path) }
   }
-  return <dialog ref={ref} className="push-dialog card review-report" aria-labelledby="review-report-title" onCancel={onClose}>
+  return <Dialog titleId="review-report-title" className="review-report" onCancel={onClose}>
     <h2 id="review-report-title">Relatório da rodada {round.number}</h2>
     <pre className="review-report-text" tabIndex={0}>{text}</pre>
-    <div className="actions">
-      <button onClick={onClose}>Fechar</button>
-      <button onClick={() => void save()}>Salvar .md</button>
-      <button className="primary" autoFocus onClick={() => { copyText(text); actions.info('Relatório copiado', path) }}>Copiar</button>
-    </div>
-  </dialog>
+    <DialogActions>
+      <Button onClick={onClose}>Fechar</Button>
+      <Button onClick={() => void save()}>Salvar .md</Button>
+      <Button primary autoFocus onClick={() => { copyText(text); actions.info('Relatório copiado', path) }}>Copiar</Button>
+    </DialogActions>
+  </Dialog>
 }

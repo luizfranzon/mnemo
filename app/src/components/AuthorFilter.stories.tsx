@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { actions } from '../store/app'
-import { frame, openRepo, REPO_PATH } from '../stories/mock/scenario'
+import { manyAuthors } from '../stories/mock/fixtures'
+import { forever, frame, mockBackend, openRepo, REPO_PATH } from '../stories/mock/scenario'
 import { AuthorFilter } from './AuthorFilter'
 
 const meta = {
@@ -16,5 +17,11 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Padrao: Story = {}
+
+export const Carregando: Story = { beforeEach: () => mockBackend({ list_authors: forever }) }
+
+export const SemAutores: Story = { beforeEach: () => mockBackend({ list_authors: () => [] }) }
+
+export const MuitosAutores: Story = { beforeEach: () => mockBackend({ list_authors: () => manyAuthors(120) }) }
 
 export const ComSelecao: Story = { beforeEach: () => actions.setAuthorFilter(REPO_PATH, ['marina@exemplo.dev']) }

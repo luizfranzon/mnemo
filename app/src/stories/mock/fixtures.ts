@@ -99,6 +99,50 @@ export const graphCommits = buildGraph(NODES)
 
 export const graphPage = (wip = { changed: 2, untracked: 1 }): GraphPage => ({ commits: graphCommits, next: null, wip })
 
+export const LONG_NAME = 'Maria Fernanda de Albuquerque Santos Figueiredo'
+export const LONG_SUBJECT = 'Refatora a resolução de conflitos do rebase interativo para preservar o autor original e as datas dos commits reaplicados em ramos longos'
+export const LONG_BRANCH = 'feature/MNM-1234-ajusta-largura-das-colunas-do-grafo-quando-o-nome-do-ramo-e-muito-comprido'
+export const LONG_PATH = 'app/src/components/internal/very/deeply/nested/directory/structure/WithAVeryLongComponentFileNameThatOverflows.test.tsx'
+
+const hex = (n: number) => Math.imul(n, 2654435761).toString(16).padStart(8, '0').padEnd(40, '0')
+
+export const manyCommits = (count: number, wip = { changed: 2, untracked: 1 }): GraphPage => {
+  const nodes: Node[] = Array.from({ length: count }, (_, i) => ({
+    sha: hex(count - i),
+    parents: i === count - 1 ? [] : [hex(count - i - 1)],
+    author: i % AUTHORS.length,
+    ago: i + 1,
+    subject: i % 7 === 3 ? LONG_SUBJECT : `Ajuste ${count - i} no módulo de grafo`,
+    refs: i === 0 ? [{ name: 'feature/storybook', kind: 'local', current: true, upstream: 'origin/feature/storybook' }] : undefined,
+    head: i === 0,
+  }))
+  return { commits: buildGraph(nodes), next: null, wip }
+}
+
+export const singleCommit = (): GraphPage => ({
+  commits: buildGraph([{ sha: NODES[8]!.sha, parents: [], author: 0, ago: 300, subject: 'Commit inicial', refs: [{ name: 'main', kind: 'local', current: true, upstream: null }], head: true }]),
+  next: null,
+  wip: { changed: 0, untracked: 0 },
+})
+
+export const emptyGraph = (): GraphPage => ({ commits: [], next: null, wip: { changed: 0, untracked: 0 } })
+
+export const manyAuthors = (count: number) => Array.from({ length: count }, (_, i) => ({ name: i === 0 ? LONG_NAME : `Pessoa Colaboradora ${i + 1}`, email: `pessoa${i + 1}@exemplo.dev` }))
+
+export const manyRefs = (count: number): RefListing => ({
+  ...refListing,
+  local: Array.from({ length: count }, (_, i) => ({
+    name: i === 1 ? LONG_BRANCH : `feature/tarefa-${i + 1}`, sha: NODES[i % NODES.length]!.sha, current: i === 0,
+    upstream: i % 3 === 0 ? `origin/feature/tarefa-${i + 1}` : null, ahead: i % 3 === 0 ? i % 4 : null, behind: i % 3 === 0 ? i % 2 : null,
+  })),
+  tags: Array.from({ length: count }, (_, i) => ({ name: `v0.${count - i}.0`, sha: NODES[i % NODES.length]!.sha })),
+})
+
+export const emptyRefs = (): RefListing => ({
+  local: [{ name: 'main', sha: NODES[8]!.sha, current: true, upstream: null, ahead: null, behind: null }],
+  remotes: [], worktrees: [], stashes: [], tags: [], submodules: [],
+})
+
 export const branches: BranchInfo[] = [
   { name: 'feature/storybook', sha: NODES[0]!.sha, current: true },
   { name: 'main', sha: NODES[2]!.sha, current: false },
@@ -130,6 +174,16 @@ const file = (path: string, status: FileChange['status'], added: number | null, 
 export const wipStatus: WipStatus = {
   unstaged: [file('app/src/components/Palette.tsx', 'M', 12, 3), file('app/src/styles.css', 'M', 4, 1), file('app/.storybook/preview.ts', 'U', null, null)],
   staged: [file('app/package.json', 'M', 2, 0), file('app/.storybook/main.ts', 'A', 9, 0)],
+}
+
+export const manyFiles = (count: number, status: FileChange['status'] = 'M'): FileChange[] =>
+  Array.from({ length: count }, (_, i) => file(i === 2 ? LONG_PATH : `app/src/modulos/grupo-${i % 9}/Arquivo${i}.tsx`, status, (i * 7) % 40, (i * 3) % 15))
+
+export const manyWip = (unstaged: number, staged: number): WipStatus => ({ unstaged: manyFiles(unstaged), staged: manyFiles(staged, 'A') })
+
+export const mixedWip: WipStatus = {
+  unstaged: [file('app/src/old/Legacy.tsx', 'D', 0, 31), file('app/src/components/Menu.tsx', 'R', 3, 1, 'app/src/components/ContextMenu.tsx'), file('app/assets/logo.png', 'M', null, null), file(LONG_PATH, 'M', 8, 2)],
+  staged: [],
 }
 
 export const commitDetail = (sha: string): CommitDetail => {

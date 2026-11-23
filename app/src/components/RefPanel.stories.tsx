@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { frame, openRepo, REPO_PATH } from '../stories/mock/scenario'
+import { emptyRefs, manyRefs } from '../stories/mock/fixtures'
+import { frame, mockBackend, openRepo, REPO_PATH } from '../stories/mock/scenario'
 import { RefPanel } from './RefPanel'
 
 const meta = {
@@ -15,5 +16,12 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Padrao: Story = {}
+
+export const SoUmaBranch: Story = { beforeEach: () => mockBackend({ list_refs: emptyRefs }) }
+
+export const MuitasRefs: Story = {
+  beforeEach: () => mockBackend({ list_refs: () => manyRefs(80) }),
+  parameters: { docs: { description: { story: '80 branches e 80 tags, uma branch com nome muito longo.' } } },
+}
 
 export const Recolhido: Story = { args: { rail: true }, decorators: [frame(560, 44)] }

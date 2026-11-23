@@ -1,18 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { actions } from '../store/app'
 import type { BranchDialog } from './branchMenu'
+import { Button } from './Button'
+import { Checkbox } from './Checkbox'
+import { Dialog, DialogActions } from './Dialog'
 
 /** Renomear e excluir branch. Cancelar (botão, Esc) nunca dispara uma Operação. */
 export function BranchDialogs({ path, dialog, close }: { path: string; dialog: BranchDialog; close: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    const element = ref.current
-    element?.showModal()
-    return () => element?.close()
-  }, [])
-  return <dialog ref={ref} className="push-dialog card" aria-labelledby="branch-dialog-title" onCancel={close}>
+  return <Dialog titleId="branch-dialog-title" onCancel={close}>
     {dialog.type === 'rename' ? <Rename path={path} from={dialog.from} close={close} /> : <Delete path={path} dialog={dialog} close={close} />}
-  </dialog>
+  </Dialog>
 }
 
 function Rename({ path, from, close }: { path: string; from: string; close: () => void }) {
@@ -28,10 +25,10 @@ function Rename({ path, from, close }: { path: string; from: string; close: () =
     <label htmlFor="branch-new-name">Novo nome</label>
     <input id="branch-new-name" autoFocus value={to} onChange={(e) => setTo(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirm() }}
       onFocus={(e) => e.currentTarget.select()} />
-    <div className="actions">
-      <button onClick={close}>Cancelar</button>
-      <button className="primary" disabled={!valid} onClick={confirm}>Renomear</button>
-    </div>
+    <DialogActions>
+      <Button onClick={close}>Cancelar</Button>
+      <Button primary disabled={!valid} onClick={confirm}>Renomear</Button>
+    </DialogActions>
   </>
 }
 
@@ -45,15 +42,15 @@ function Delete({ path, dialog, close }: { path: string; dialog: Extract<BranchD
     if (dropLocal && local) await actions.execute(path, { type: 'branchDelete', name: local.name, force: false })
     if (dropRemote && remote) await actions.execute(path, { type: 'deleteRemoteBranch', remote: remote.remote, branch: remote.branch })
   }
+  const localLabel = <>Local: {local?.name}{local?.current && <span className="muted"> (branch atual, não dá para excluir)</span>}</>
   return <>
     <h2 id="branch-dialog-title">Excluir branch</h2>
-    {local && <label><input type="checkbox" checked={dropLocal} disabled={local.current} onChange={(e) => setDropLocal(e.target.checked)} /> Local: {local.name}
-      {local.current && <span className="muted"> (branch atual, não dá para excluir)</span>}</label>}
-    {remote && <label><input type="checkbox" checked={dropRemote} onChange={(e) => setDropRemote(e.target.checked)} /> Remota: {remote.remote}/{remote.branch}</label>}
+    {local && <Checkbox checked={dropLocal} disabled={local.current} onChange={setDropLocal} label={localLabel} />}
+    {remote && <Checkbox checked={dropRemote} onChange={setDropRemote} label={`Remota: ${remote.remote}/${remote.branch}`} />}
     {dropRemote && <p className="warning">A parte remota some do servidor. Não dá para desfazer: mexe no remoto.</p>}
-    <div className="actions">
-      <button autoFocus onClick={close}>Cancelar</button>
-      <button className="primary danger" disabled={none} onClick={() => void confirm()}>Excluir</button>
-    </div>
+    <DialogActions>
+      <Button autoFocus onClick={close}>Cancelar</Button>
+      <Button primary danger disabled={none} onClick={() => void confirm()}>Excluir</Button>
+    </DialogActions>
   </>
 }
