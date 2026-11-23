@@ -6,3 +6,4 @@ dist-electron/
 native/
 release/
 storybook-static/
+.vitest/
