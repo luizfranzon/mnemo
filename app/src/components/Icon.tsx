@@ -5,7 +5,7 @@ import {
   SlidersVertical, Square, Tag, Trash2, TriangleAlert, Undo2, X, type LucideIcon,
 } from 'lucide-react'
 
-const ICONS = {
+export const ICONS = {
   branch: GitBranch, check: Check, laptop: Laptop, cloud: Cloud, folder: Folder, repo: FolderGit2, search: Search, collapse: PanelLeftClose,
   highlight: Flag, worktrees: LayoutGrid, stashes: Archive, tags: Tag, submodules: Package, edit: PenLine, filter: Funnel, sliders: SlidersVertical,
   undo: Undo2, redo: Redo2, pull: ArrowDownToLine, push: ArrowUpFromLine, stash: Inbox, warning: TriangleAlert, chevron: ChevronRight,

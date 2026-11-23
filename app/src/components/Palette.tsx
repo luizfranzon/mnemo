@@ -19,19 +19,28 @@ const PLACEHOLDER: Record<PaletteMode, string> = {
   createBranch: 'Nome da nova branch…',
 }
 
-function load(mode: PaletteMode, path: string, prompt: boolean): Promise<Item[]> {
-  if (mode === 'createBranch') return Promise.resolve([])
-  return core.listBranches(path).then((bs) =>
-    bs.map((b) => ({
-      name: b.name,
-      current: b.current,
-      pick: () => {
-        if (b.current) return
-        const kind = { type: 'checkout', target: b.name } as const
-        void (prompt ? actions.checkoutRef(path, kind) : actions.execute(path, kind)) // submódulo: mudanças locais pedem confirmação
-      },
-    })),
-  )
+async function load(mode: PaletteMode, path: string, prompt: boolean): Promise<Item[]> {
+  if (mode === 'createBranch') return []
+  const branches = await core.listBranches(path)
+  const locals: Item[] = branches.map((b) => ({
+    name: b.name,
+    current: b.current,
+    pick: () => {
+      if (b.current) return
+      const kind = { type: 'checkout', target: b.name } as const
+      void (prompt ? actions.checkoutRef(path, kind) : actions.execute(path, kind)) // submódulo: mudanças locais pedem confirmação
+    },
+  }))
+  if (!prompt) return locals
+  const remoteBranches = await core.listRemoteBranches(path).catch(() => [])
+  const localNames = new Set(branches.map((b) => b.name))
+  const withoutLocal = remoteBranches.filter((r) => !localNames.has(r.name))
+  const remotes: Item[] = withoutLocal.map((r) => ({
+    name: `${r.remote}/${r.name}`,
+    current: false,
+    pick: () => void actions.checkoutRef(path, { type: 'checkoutRemote', remote: r.remote, branch: r.name }),
+  }))
+  return [...locals, ...remotes]
 }
 
 /** Paleta: checkout de branch local (Ctrl+P) ou nome da nova branch. */
