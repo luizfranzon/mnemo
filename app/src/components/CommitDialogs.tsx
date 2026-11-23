@@ -4,6 +4,7 @@ import { actions } from '../store/app'
 import { Button } from './Button'
 import type { CommitDialog } from './commitMenu'
 import { Dialog, DialogActions } from './Dialog'
+import { TextArea, TextField } from './Field'
 
 /** Tag, editar mensagem, restaurar e excluir arquivo. Cancelar (botão, Esc) nunca dispara uma Operação. */
 export function CommitDialogs({ path, dialog, close }: { path: string; dialog: CommitDialog; close: () => void }) {
@@ -24,12 +25,8 @@ function Tag({ dialog, close, run }: Props & { dialog: Extract<CommitDialog, { t
   const confirm = () => valid && run({ type: 'tagCreate', name: name.trim(), target: dialog.sha, message: dialog.annotated ? message.trim() : null })
   return <>
     <h2 id="commit-dialog-title">{dialog.annotated ? 'Criar tag anotada' : 'Criar tag'} em {dialog.sha.slice(0, 7)}</h2>
-    <label htmlFor="tag-name">Nome da tag</label>
-    <input id="tag-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirm() }} />
-    {dialog.annotated && <>
-      <label htmlFor="tag-message">Mensagem</label>
-      <textarea id="tag-message" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} />
-    </>}
+    <TextField id="tag-name" label="Nome da tag" autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirm() }} />
+    {dialog.annotated && <TextArea id="tag-message" label="Mensagem" rows={3} value={message} onChange={(e) => setMessage(e.target.value)} />}
     <DialogActions>
       <Button onClick={close}>Cancelar</Button>
       <Button primary disabled={!valid} onClick={confirm}>Criar tag</Button>
@@ -48,8 +45,7 @@ function Reword({ path, sha, close, run }: Props & { path: string; sha: string }
   const valid = text !== null && text.trim() !== ''
   return <>
     <h2 id="commit-dialog-title">Editar mensagem de {sha.slice(0, 7)}</h2>
-    <label htmlFor="reword-message">Mensagem</label>
-    <textarea id="reword-message" rows={6} autoFocus disabled={text === null} value={text ?? 'Carregando…'} onChange={(e) => setText(e.target.value)}
+    <TextArea id="reword-message" label="Mensagem" rows={6} autoFocus disabled={text === null} value={text ?? 'Carregando…'} onChange={(e) => setText(e.target.value)}
       onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey && valid) run({ type: 'reword', message: text.trim() }) }} />
     <p className="muted">O que está preparado não entra no commit. O hash do commit muda.</p>
     <DialogActions>

@@ -4,6 +4,7 @@ import type { BranchDialog } from './branchMenu'
 import { Button } from './Button'
 import { Checkbox } from './Checkbox'
 import { Dialog, DialogActions } from './Dialog'
+import { TextField } from './Field'
 
 /** Renomear e excluir branch. Cancelar (botão, Esc) nunca dispara uma Operação. */
 export function BranchDialogs({ path, dialog, close }: { path: string; dialog: BranchDialog; close: () => void }) {
@@ -22,8 +23,7 @@ function Rename({ path, from, close }: { path: string; from: string; close: () =
   }
   return <>
     <h2 id="branch-dialog-title">Renomear {from}</h2>
-    <label htmlFor="branch-new-name">Novo nome</label>
-    <input id="branch-new-name" autoFocus value={to} onChange={(e) => setTo(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirm() }}
+    <TextField id="branch-new-name" label="Novo nome" autoFocus value={to} onChange={(e) => setTo(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') confirm() }}
       onFocus={(e) => e.currentTarget.select()} />
     <DialogActions>
       <Button onClick={close}>Cancelar</Button>

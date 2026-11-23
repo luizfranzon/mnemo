@@ -8,7 +8,9 @@ import { Avatar } from './avatar'
 import { dirMenu, fileMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
 import { Menu } from './Menu'
+import { Button } from './Button'
 import { Checkbox } from './Checkbox'
+import { IconButton } from './IconButton'
 import { copyText, menuBase } from './menuBase'
 import { fileRows } from './fileTree'
 import type { MenuEntry, Rect } from './menuModel'
@@ -122,7 +124,7 @@ export function CommitPanel({ path }: { path: string }) {
   return <div className="commit-panel">
     <div className="commit-head">
       <div className="commit-sha"><code title={detail.sha}>{detail.sha.slice(0, 10)}</code>
-        <button onClick={copy} aria-label="Copiar SHA" title="Copiar SHA">{copied ? 'Copiado' : <Icon name="copy" size={13} />}</button></div>
+        {copied ? <Button onClick={copy}>Copiado</Button> : <IconButton icon="copy" size={13} label="Copiar SHA" onClick={copy} />}</div>
       <div className="commit-msg">
         <AutoTextarea className="commit-subject" aria-label="Título do commit" value={draft.subject}
           onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault() }}
@@ -131,9 +133,9 @@ export function CommitPanel({ path }: { path: string }) {
           onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
       </div>
       <div className="commit-msg-actions">
-        <button className="wip-commit" disabled={!dirty || !draft.subject.trim() || busy} aria-busy={busy} onClick={() => void update()}>
-          {busy ? <><Icon name="refresh" size={14} spin />Atualizando…</> : 'Atualizar mensagem'}</button>
-        <button className="commit-msg-cancel" disabled={!dirty || busy}onClick={() => setDraft({ subject: detail.subject, body: detail.body })}>Cancelar</button>
+        <Button success className="wip-commit" disabled={!dirty || !draft.subject.trim() || busy} aria-busy={busy} onClick={() => void update()}>
+          {busy ? <><Icon name="refresh" size={14} spin />Atualizando…</> : 'Atualizar mensagem'}</Button>
+        <Button disabled={!dirty || busy} onClick={() => setDraft({ subject: detail.subject, body: detail.body })}>Cancelar</Button>
       </div>
       <div className="commit-author">
         <Avatar name={detail.author} email={detail.email} />
@@ -148,7 +150,7 @@ export function CommitPanel({ path }: { path: string }) {
     </div>
     <div className="commit-tools">
       <Segmented label="Exibição dos arquivos" options={FILE_VIEWS} value={view} onChange={setView} />
-      <button aria-label="Ordenar arquivos" title={`Ordenado por ${sort === 'path' ? 'caminho' : 'status'}`} onClick={() => setSort(sort === 'path' ? 'status' : 'path')}><Icon name="sort" size={13} /> {sort === 'path' ? 'Caminho' : 'Status'}</button>
+      <Button aria-label="Ordenar arquivos" title={`Ordenado por ${sort === 'path' ? 'caminho' : 'status'}`} onClick={() => setSort(sort === 'path' ? 'status' : 'path')}><Icon name="sort" size={13} /> {sort === 'path' ? 'Caminho' : 'Status'}</Button>
       <span className="spacer" />
       <Checkbox checked={all} onChange={setAll} label="Todos os arquivos" />
     </div>
@@ -174,8 +176,8 @@ export function CommitPanel({ path }: { path: string }) {
             <span className={`commit-status ${st.cls}`}><Icon name={st.icon} size={12} strokeWidth={2.2} /></span>
             <span className="commit-path"><span className="commit-dirpath">{row.dir}</span><span className="commit-name">{row.name}</span></span>
             {row.file.added !== null && row.file.status !== 'U' && <span className="mono commit-lines"><span className="added">+{row.file.added}</span> <span className="removed">−{row.file.removed}</span></span>}
-            <button className="refs-more" aria-label="Menu do arquivo" title="Menu do arquivo"
-              onClick={(e) => { e.stopPropagation(); void openMenu(row.file, e.currentTarget.getBoundingClientRect()) }}><Icon name="more" size={14} /></button>
+            <IconButton className="refs-more" icon="more" size={14} label="Menu do arquivo"
+              onClick={(e) => { e.stopPropagation(); void openMenu(row.file, e.currentTarget.getBoundingClientRect()) }} />
           </div>
         })}
       </div>

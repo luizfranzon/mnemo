@@ -3,6 +3,7 @@ import { core } from '../bridge'
 import { actions, useApp } from '../store/app'
 import { Button } from './Button'
 import { Dialog, DialogActions } from './Dialog'
+import { TextField } from './Field'
 
 /** Começar Revisão (ou a próxima Rodada) e encerrar. Cancelar nunca muda nada. */
 export function ReviewDialogs() {
@@ -35,8 +36,7 @@ function StartReview({ prompt }: { prompt: { path: string; branch: string; base:
     <h2 id="review-start-title">{first ? `Revisar ${prompt.branch}` : `Rodada ${prompt.round} de ${prompt.branch}`}</h2>
     <p>{first ? 'O diff mostra só o que esta branch traz em relação à Base, sem os passos intermediários dos commits.'
       : 'A nova rodada mostra só o que mudou desde a última que você concluiu.'}</p>
-    <label htmlFor="review-base">Base</label>
-    <input id="review-base" list="review-base-options" autoFocus value={base} disabled={busy} onChange={(e) => setBase(e.target.value)}
+    <TextField id="review-base" label="Base" list="review-base-options" autoFocus value={base} disabled={busy} onChange={(e) => setBase(e.target.value)}
       onKeyDown={(e) => { if (e.key === 'Enter') void confirm() }} onFocus={(e) => e.currentTarget.select()} />
     <datalist id="review-base-options">{names.map((n) => <option key={n} value={n} />)}</datalist>
     {base.trim() === prompt.branch && <p className="warning">A Base precisa ser outra branch.</p>}

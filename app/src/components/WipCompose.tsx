@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button } from './Button'
 import { Checkbox } from './Checkbox'
 import { Dialog, DialogActions } from './Dialog'
+import { TextArea, TextField } from './Field'
 import { Icon } from './Icon'
 import { Spinner } from './Spinner'
 import { Tabs } from './Tabs'
@@ -45,14 +46,10 @@ export function WipCompose({ tab, onTab, summary, onSummary, description, onDesc
     {commit && <Checkbox className="wip-amend" checked={amend} onChange={onAmend} label="Emendar o último commit (amend)" />}
     <div className="wip-box">
       <div className="wip-summary">
-        <label htmlFor="wip-sum" className="sr-only">Resumo</label>
-        <input id="wip-sum" type="text" value={summary} placeholder={commit ? 'Resumo' : 'Mensagem do stash (opcional)'} onChange={(e) => onSummary(e.target.value)} />
-        {commit && <span title="Limite recomendado de 72 caracteres" className="wip-count" style={summary.length > SUMMARY_LIMIT ? { color: '#F0C06A' } : undefined}>{summary.length}/{SUMMARY_LIMIT}</span>}
+        <TextField id="wip-sum" label="Resumo" hideLabel value={summary} placeholder={commit ? 'Resumo' : 'Mensagem do stash (opcional)'} onChange={(e) => onSummary(e.target.value)} />
+        {commit && <span title="Limite recomendado de 72 caracteres" className="wip-count" style={summary.length > SUMMARY_LIMIT ? { color: 'var(--warning-text)' } : undefined}>{summary.length}/{SUMMARY_LIMIT}</span>}
       </div>
-      {commit && <>
-        <label htmlFor="wip-desc" className="sr-only">Descrição</label>
-        <textarea id="wip-desc" rows={3} placeholder="Descrição (opcional)" value={description} onChange={(e) => onDescription(e.target.value)} />
-      </>}
+      {commit && <TextArea id="wip-desc" label="Descrição" hideLabel rows={3} placeholder="Descrição (opcional)" value={description} onChange={(e) => onDescription(e.target.value)} />}
     </div>
     {commit && <button className="wip-options" type="button" aria-expanded={optsOpen} onClick={() => setOptsOpen((v) => !v)}>
       <Icon name={optsOpen ? 'chevronDown' : 'chevron'} size={12} strokeWidth={2} />Opções<span>· assinar: {opts.sign ? 'sim' : 'não'} · hooks: {opts.hooks ? 'sim' : 'não'} · push depois: {opts.pushAfter ? 'sim' : 'não'}</span></button>}
@@ -63,10 +60,10 @@ export function WipCompose({ tab, onTab, summary, onSummary, description, onDesc
     </div>}
     <div className="wip-buttons">
       {commit
-        ? <Button className="wip-commit" disabled={!!why || busy} aria-busy={busy} title={why ?? undefined} onClick={onCommit}>
+        ? <Button success className="wip-commit" disabled={!!why || busy} aria-busy={busy} title={why ?? undefined} onClick={onCommit}>
           {busy ? <Spinner label={merging ? 'Concluindo…' : 'Commitando…'} /> : commitLabel}
           {!why && !busy && <kbd>Ctrl Enter</kbd>}</Button>
-        : <Button className="wip-commit" disabled={!changed || busy} aria-busy={busy} title={changed ? undefined : 'Não há mudanças para guardar'} onClick={onStash}>
+        : <Button success className="wip-commit" disabled={!changed || busy} aria-busy={busy} title={changed ? undefined : 'Não há mudanças para guardar'} onClick={onStash}>
           {busy ? <Spinner label="Guardando…" /> : <>Guardar {plural(changed, 'arquivo', 'arquivos')} no stash<kbd>Ctrl Enter</kbd></>}</Button>}
     </div>
     {commit && unstagedCount > 0 && stagedCount > 0 &&

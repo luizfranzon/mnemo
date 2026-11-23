@@ -471,10 +471,11 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .wip-opts { display: flex; flex-direction: column; gap: 6px; padding: 2px 12px 8px; font-size: 12px; color: var(--text-secondary); }
 .wip-opts label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .wip-buttons { display: flex; gap: 8px; }
-.wip-panel .wip-commit { flex: 1; gap: 8px; height: 40px; background: var(--success-button); color: #fff; font-size: 13.5px; font-weight: 500; border-radius: 8px; }
-.wip-panel .wip-commit:disabled { background: var(--control); color: var(--text-subtle); opacity: 1; }
-.wip-panel .wip-commit[aria-busy="true"]:disabled { background: var(--success-button); color: #fff; opacity: .75; cursor: progress; }
-.wip-panel .wip-commit:hover:not(:disabled), .commit-msg-actions .wip-commit:hover:not(:disabled) { background: var(--success-solid); }
+button.success { background: var(--success-button); border-color: transparent; color: #fff; }
+button.success:hover:not(:disabled) { background: var(--success-solid); border-color: transparent; }
+button.success:disabled { background: var(--control); color: var(--text-subtle); }
+button.success[aria-busy="true"]:disabled { background: var(--success-button); color: #fff; opacity: .75; cursor: progress; }
+.wip-commit { flex: 1; height: var(--btn-lg); font-size: 13.5px; font-weight: 500; border-radius: var(--radius-md); }
 .wip-commit kbd { font-family: var(--font-mono); font-size: 10.5px; color: var(--success-text); border: 1px solid var(--success-solid); border-radius: 4px; padding: 0 5px; }
 .wip-compose p { margin: 0; font-size: 11.5px; color: var(--text-subtle); }
 .toolbar .icon, .toolbar .behind .icon { flex: none; }
@@ -486,13 +487,8 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 .commit-subject { font-size: 14px; font-weight: 600; line-height: 1.35; border-bottom: 1px solid var(--border-subtle); }
 .commit-body { font-size: 12px; line-height: 1.45; }
 .commit-msg-actions { height: 40px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
-.commit-msg-actions button { display: inline-flex; align-items: center; justify-content: center; border: 0; font: inherit; cursor: pointer; }
-.commit-msg-actions .wip-commit { flex: 1; height: 40px; background: var(--success-button); color: #fff; font-size: 13.5px; font-weight: 500; border-radius: 8px; }
-.commit-msg-actions .wip-commit:disabled { background: var(--control); color: var(--text-subtle); cursor: default; }
-.commit-msg-actions .wip-commit[aria-busy="true"]:disabled { gap: 8px; background: var(--success-button); color: #fff; opacity: .75; cursor: progress; }
-.push-dialog .actions button[aria-busy="true"] { display: inline-flex; align-items: center; gap: 8px; cursor: progress; }
-.commit-msg-cancel { height: 40px; padding: 0 14px; border: 1px solid var(--border) !important; border-radius: 8px; background: transparent; color: var(--text-secondary); font-size: 13px; }
-.commit-msg-cancel:disabled { opacity: .48; cursor: default !important; }
+.commit-msg-actions .btn { height: var(--btn-lg); font-size: 13px; }
+.commit-msg-actions .wip-commit { gap: 8px; }
 
 /* Preferências: tela cheia sobre o workspace (que continua montado, com o scroll do grafo) */
 .prefs { position: absolute; inset: var(--h-titlebar) 0 0 0; z-index: 5; display: flex; background: var(--bg); }
