@@ -13,6 +13,7 @@ import type { BranchTarget } from './branchMenu'
 import { commitMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
 import { Menu } from './Menu'
+import { Checkbox } from './Checkbox'
 import { useBranchActions } from './useBranchActions'
 import { Icon } from './Icon'
 import { copyText, menuBase } from './menuBase'
@@ -465,13 +466,13 @@ export function Graph({ path }: { path: string }) {
       <div className="graph-pop-overlay" onMouseDown={() => setGear(false)} />
       <div className="graph-pop" role="dialog" aria-label="Colunas do grafo" onKeyDown={(e) => { if (e.key === 'Escape') setGear(false) }}>
         {layout.order.map((id, i) => <div key={id} className="graph-pop-row">
-          <label><input type="checkbox" checked={!layout.hidden.includes(id)} disabled={!COLUMNS[id].hideable}
-            onChange={(e) => update((l) => ({ ...l, hidden: e.target.checked ? l.hidden.filter((h) => h !== id) : [...l.hidden, id] }))} /> {COLUMNS[id].label}</label>
+          <Checkbox checked={!layout.hidden.includes(id)} disabled={!COLUMNS[id].hideable} label={COLUMNS[id].label}
+            onChange={(v) => update((l) => ({ ...l, hidden: v ? l.hidden.filter((h) => h !== id) : [...l.hidden, id] }))} />
           <button aria-label={`Subir ${COLUMNS[id].label}`} disabled={i === 0} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, -1) }))}><Icon name="chevronUp" size={13} strokeWidth={2} /></button>
           <button aria-label={`Descer ${COLUMNS[id].label}`} disabled={i === layout.order.length - 1} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, 1) }))}><Icon name="chevronDown" size={13} strokeWidth={2} /></button>
         </div>)}
-        <label className="graph-pop-row"><input type="checkbox" checked={vis.smart} onChange={(e) => updateVisibility(path, (v) => ({ ...v, smart: e.target.checked }))} /> Visibilidade inteligente</label>
-        <label className="graph-pop-row"><input type="checkbox" checked={layout.compact} onChange={(e) => update((l) => ({ ...l, compact: e.target.checked }))} /> Layout compacto</label>
+        <Checkbox className="graph-pop-row" checked={vis.smart} onChange={(smart) => updateVisibility(path, (v) => ({ ...v, smart }))} label="Visibilidade inteligente" />
+        <Checkbox className="graph-pop-row" checked={layout.compact} onChange={(compact) => update((l) => ({ ...l, compact }))} label="Layout compacto" />
         <button className="graph-pop-reset" onClick={() => update(() => DEFAULT_LAYOUT)}>Restaurar padrão</button>
       </div>
     </>}

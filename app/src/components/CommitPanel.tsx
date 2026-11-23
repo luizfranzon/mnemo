@@ -8,6 +8,7 @@ import { Avatar } from './avatar'
 import { dirMenu, fileMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
 import { Menu } from './Menu'
+import { Checkbox } from './Checkbox'
 import { copyText, menuBase } from './menuBase'
 import { fileRows } from './fileTree'
 import type { MenuEntry, Rect } from './menuModel'
@@ -149,7 +150,7 @@ export function CommitPanel({ path }: { path: string }) {
       <Segmented label="Exibição dos arquivos" options={FILE_VIEWS} value={view} onChange={setView} />
       <button aria-label="Ordenar arquivos" title={`Ordenado por ${sort === 'path' ? 'caminho' : 'status'}`} onClick={() => setSort(sort === 'path' ? 'status' : 'path')}><Icon name="sort" size={13} /> {sort === 'path' ? 'Caminho' : 'Status'}</button>
       <span className="spacer" />
-      <label><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Todos os arquivos</label>
+      <Checkbox checked={all} onChange={setAll} label="Todos os arquivos" />
     </div>
     <div className="commit-files" ref={scroller}>
       <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>

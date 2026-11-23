@@ -4,6 +4,7 @@ import { FindBar, focusFind, useFindHighlight, useFindShortcut } from './FindBar
 import { Icon, type IconName } from './Icon'
 import { Code, SplitScroll } from './SplitScroll'
 import { Segmented } from './Segmented'
+import { Checkbox } from './Checkbox'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { core } from '../bridge'
 import type { DiffLine, DiffSource, FileDiff, ReviewComment } from '../bridge/types'
@@ -229,8 +230,8 @@ export function DiffView({ path }: { path: string }) {
         <span className="muted">{file.slice(0, slash + 1)}</span><span>{file.slice(slash + 1)}</span></span>
       {wip && <span className="diff-side">{unstage ? 'Preparado' : 'Não preparado'}</span>}
       {diff && !diff.binary && <span className="mono"><span className="added">+{diff.added}</span> <span className="removed">−{diff.removed}</span></span>}
-      {round && <label className="diff-reviewed" title={editable ? 'Marcar como revisado e abrir o próximo (V)' : 'Rodada concluída'}>
-        <input type="checkbox" checked={reviewed} disabled={!editable} onChange={(e) => void actions.markReviewed(path, file, e.target.checked, e.target.checked)} /> Revisado</label>}
+      {round && <Checkbox className="diff-reviewed" title={editable ? 'Marcar como revisado e abrir o próximo (V)' : 'Rodada concluída'}
+        checked={reviewed} disabled={!editable} onChange={(v) => void actions.markReviewed(path, file, v, v)} label="Revisado" />}
       <button className="diff-close" aria-label={round ? 'Sair da revisão e voltar ao grafo (Esc)' : 'Fechar diff e voltar ao grafo (Esc)'}
         title={round ? 'Voltar ao grafo (Esc)' : 'Fechar diff (Esc)'} onClick={() => actions.closeDiff(path)}>
         <Icon name="close" size={14} strokeWidth={2} /></button>

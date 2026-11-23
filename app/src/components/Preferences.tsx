@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { RepoPrefs } from '../bridge/types'
 import { actions, selectActiveTab, selectRepoPrefs, useApp, type Prefs } from '../store/app'
 import { RadioGroup } from './RadioGroup'
+import { Checkbox } from './Checkbox'
 import { Icon } from './Icon'
 
 /** Só entram seções com ajuste real; as demais do mockup chegam com as features (docs/01-features.md § 12). */
@@ -46,13 +47,7 @@ function Screen() {
 
 function Check({ pref, label, help }: { pref: { [K in keyof Prefs]: Prefs[K] extends boolean ? K : never }[keyof Prefs]; label: string; help?: ReactNode }) {
   const value = useApp((s) => s.prefs[pref])
-  return <>
-    <label className="field">
-      <input type="checkbox" checked={value} onChange={(e) => actions.setPref(pref, e.target.checked)} />
-      {label}
-    </label>
-    {help && <p className="help">{help}</p>}
-  </>
+  return <Checkbox className="field" checked={value} onChange={(v) => actions.setPref(pref, v)} label={label} help={help} />
 }
 
 const AUTO_FETCH_OPTIONS = [0, 1, 5, 10, 30]
@@ -86,11 +81,8 @@ function Appearance() {
   return <div>
     <h1>Aparência</h1>
     <h2>Grafo</h2>
-    <label className="field">
-      <input type="checkbox" checked={initialsOnly} onChange={(e) => actions.setPref('gravatar', !e.target.checked)} />
-      Iniciais no lugar de avatares
-    </label>
-    <p className="help">Sem foto do Gravatar e sem nenhum request: o hash do email de cada Autor não é enviado a gravatar.com.</p>
+    <Checkbox className="field" checked={initialsOnly} onChange={(v) => actions.setPref('gravatar', !v)} label="Iniciais no lugar de avatares"
+      help="Sem foto do Gravatar e sem nenhum request: o hash do email de cada Autor não é enviado a gravatar.com." />
     <Check pref="ghostRefs" label="Mostrar a branch ao passar o mouse ou selecionar um commit"
       help="Commits sem branch própria mostram, apagada, a branch a que pertencem." />
     <h2>Ordem dos commits</h2>
@@ -108,10 +100,7 @@ function RepoCommit({ path }: { path: string }) {
   const prefs = useApp(selectRepoPrefs(path))
   useEffect(() => { void actions.loadRepoPrefs(path) }, [path])
   const check = (key: keyof RepoPrefs, label: string) =>
-    <label className="field">
-      <input type="checkbox" disabled={!prefs} checked={prefs?.[key] ?? false} onChange={(e) => void actions.setRepoPref(path, key, e.target.checked)} />
-      {label}
-    </label>
+    <Checkbox className="field" disabled={!prefs} checked={prefs?.[key] ?? false} onChange={(v) => void actions.setRepoPref(path, key, v)} label={label} />
   return <div>
     <h1>Commit</h1>
     <p className="help">Padrão das Opções do painel de commit neste repositório. Fica no .git/config, não é commitado.</p>
