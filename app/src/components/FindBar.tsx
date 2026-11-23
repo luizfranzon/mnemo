@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from 'react'
-import { Icon } from './Icon'
+import { IconButton } from './IconButton'
 import { isActiveTab } from '../store/app'
 import { matchesShortcut } from './menuModel'
 
@@ -16,9 +16,9 @@ export function FindBar({ text, label, count, disabled, onText, onStep, onClose 
   }}>
     <input value={text} onChange={(e) => onText(e.target.value)} placeholder={`${label}…`} aria-label={label} />
     <span className="graph-filter-count" aria-live="polite">{count}</span>
-    <button className="up" aria-label="Ocorrência anterior" title="Anterior (Shift+Enter)" disabled={disabled} onClick={() => onStep(-1)}><Icon name="chevron" size={14} /></button>
-    <button className="down" aria-label="Próxima ocorrência" title="Próxima (Enter)" disabled={disabled} onClick={() => onStep(1)}><Icon name="chevron" size={14} /></button>
-    <button aria-label="Fechar busca" onClick={onClose}><Icon name="close" size={14} /></button>
+    <IconButton className="up" icon="chevron" size={14} label="Ocorrência anterior" title="Anterior (Shift+Enter)" disabled={disabled} onClick={() => onStep(-1)} />
+    <IconButton className="down" icon="chevron" size={14} label="Próxima ocorrência" title="Próxima (Enter)" disabled={disabled} onClick={() => onStep(1)} />
+    <IconButton icon="close" size={14} label="Fechar busca" onClick={onClose} />
   </div>
 }
 

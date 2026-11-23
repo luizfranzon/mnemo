@@ -72,10 +72,10 @@ export function ReviewPanel({ path }: { path: string }) {
     {(state.status.rewritten || state.status.ahead > 0) && <p className={state.status.rewritten ? 'review-notice warning' : 'review-notice'}>
       {state.status.rewritten ? 'A branch foi reescrita (rebase ou force push) depois do início desta rodada. A próxima compara o conteúdo, não o histórico.'
         : `${plural(state.status.ahead, 'commit novo chegou', 'commits novos chegaram')} depois do início desta rodada.${open ? ' Eles entram na próxima.' : ''}`}
-      {!open && <button onClick={() => void actions.requestReview(path, branch)}>Começar rodada {round.number + 1}</button>}</p>}
+      {!open && <Button onClick={() => void actions.requestReview(path, branch)}>Começar rodada {round.number + 1}</Button>}</p>}
     {state.status.tip === null && <p className="review-notice warning">{branch} não existe mais aqui nem no remoto.</p>}
     {state.status.merged && <p className="review-notice">{branch} já entrou em {round.base}.
-      <button onClick={() => actions.requestEndReview(path, branch)}>Encerrar revisão</button></p>}
+      <Button onClick={() => actions.requestEndReview(path, branch)}>Encerrar revisão</Button></p>}
     <div className="commit-tools">
       {round.from && <Segmented label="Diff mostrado" options={SCOPES} value={review.scope} onChange={(s) => actions.setReviewScope(path, s)} />}
       <span className="spacer" />
@@ -107,13 +107,13 @@ export function ReviewPanel({ path }: { path: string }) {
       </div>
     </div>
     <div className="review-actions">
-      <button onClick={copyReport} title="Arquivo, trecho e comentário de cada anotação, em Markdown">
-        <Icon name="copy" size={13} /> Copiar relatório</button>
-      {open && <button onClick={() => { copyText(agentRef(path, state, round)); actions.info('Referência da rodada copiada', path) }}
-        title="Repositório, rodada, diff e arquivos pendentes, para a IA comentar esta rodada">Copiar para IA</button>}
+      <Button onClick={copyReport} title="Arquivo, trecho e comentário de cada anotação, em Markdown">
+        <Icon name="copy" size={13} /> Copiar relatório</Button>
+      {open && <Button onClick={() => { copyText(agentRef(path, state, round)); actions.info('Referência da rodada copiada', path) }}
+        title="Repositório, rodada, diff e arquivos pendentes, para a IA comentar esta rodada">Copiar para IA</Button>}
       <span className="spacer" />
       {open ? <Button primary onClick={() => (missing > 0 ? setConfirm(true) : void conclude())}>Concluir rodada</Button>
-        : <button onClick={() => setReport({ review: state.review, round })}>Ver relatório</button>}
+        : <Button onClick={() => setReport({ review: state.review, round })}>Ver relatório</Button>}
     </div>
     {confirm && <ConfirmConclude missing={missing} onCancel={() => setConfirm(false)} onConfirm={() => void conclude()} />}
     {report && <ReportDialog path={path} review={report.review} round={report.round} files={state.files} onClose={() => setReport(null)} />}
