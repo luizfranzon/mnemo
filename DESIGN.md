@@ -32,6 +32,8 @@ Nenhuma informada (assumed: nenhuma). Pedir quando houver.
 - 2026-11-24: entrevista pulada a pedido; brief mínimo.
 - 2026-11-24: tokens de cor e espaçamento do `tokens.css` importados no Doop.
 - 2026-11-24: abas de repositório viram pílulas de duas linhas (repo + ponto de status em cima, branch embaixo), com chip WORKTREE nas abas de worktree. Escolhida entre pílulas, duas linhas e rail vertical, pedindo uma abordagem mais moderna e com mais informação. Aplicada nos componentes Repo Tab e Tab Bar do Doop; o código do app ainda não mudou.
+- 2026-11-24: primitivos e padrões reutilizáveis redesenhados no Doop a partir do código (Button, Icon Button, Checkbox, Radio, Text Field, Select, Segmented, Count Badge, Avatar, Breadcrumb, Tab, Menu Item, Menu, Toast, Dialog, Popover). Tokens `--font-mono`, `--fs-*` e `--h-*` que faltavam foram adicionados. Telas e painéis grandes ficaram de fora.
+- 2026-11-24: padrões de tela redesenhados no Doop a partir do código, compostos com os primitivos via `<doop-use>`: Title Bar, Toolbar, Toolbar Button, Status Bar, Banner, Empty State, Chip, Palette, Palette Row, Refs Panel, Refs Section Head, Refs Row, Submodule Card, Graph Header, Graph Row, Graph Pill, Find Bar, Author Row, Encoding Row, Commit Head, File Row, WIP Head, WIP Section Head, WIP Compose, Diff Head, Diff Line, Diff Hunk, Review Note, Conflict Head, Prefs Nav Item e os diálogos Confirm, Force Push, Push, Checkout, Name, Delete Branch, Stash Apply e Review Start.
 
 ## Open questions
 
@@ -39,4 +41,7 @@ Nenhuma informada (assumed: nenhuma). Pedir quando houver.
 - Público e mood são suposição (assumed).
 - Tema claro existe na v1? (assumed: não)
 - Overflow da barra de abas com muitas abas (encolher até um mínimo e rolar?) e estados de sistema (spinner de operação, pasta ausente) ainda não desenhados.
-- Import dos demais componentes do código para o Doop: só Repo Tab e Tab Bar foram desenhados.
+- Só no código, sem componente no Doop: composições de tela inteira (App, Workspace, Panels, SplitScroll), o editor de resultado do conflito (ResultEditor, CodeMirror), Preferences e ReviewPanel completos, o painel de detalhes do commit montado, e as linhas virtualizadas (WipRows, árvore de arquivos) além do File Row. Viram frames montados com os componentes quando houver tela para desenhar.
+- Estados não desenhados: hover de `.refs-more` e `.refs-eye`, Graph Row com refs múltiplas (`+N`), Segmented com 3+ opções, Toolbar em largura estreita (menu "mais"), Review Note com sugestão e composer.
+- `--h-tabs` no canvas (36px) diverge do código (56px).
+- Storybook só roda local: import_storybook não alcança. Publicar o build ou usar a CLI do Doop daria variantes reais.
