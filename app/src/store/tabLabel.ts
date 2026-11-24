@@ -24,3 +24,18 @@ export function tabLabel(tabs: readonly LabelTab[], path: string): string | unde
   }
   return `${myName} — ${mine.join('/')}`
 }
+
+export interface TabParts { name: string; branch: string; worktree: boolean }
+
+/** Partes da aba em duas linhas: repo (com o trecho do pai quando há gêmeas) e branch do HEAD; HEAD destacado mostra o sha curto, e em worktree a pasta. */
+export function tabParts(tabs: readonly LabelTab[], path: string): TabParts | undefined {
+  const me = tabs.find((t) => t.path === path)
+  const label = tabLabel(tabs, path)
+  if (!me || label === undefined) return undefined
+  const disambiguation = label.slice(baseName(me).length)
+  const worktree = Boolean(me.mainRepoName)
+  const repo = me.mainRepoName ?? me.name
+  if (me.head?.kind === 'branch') return { name: repo + disambiguation, branch: me.head.name, worktree }
+  const detached = worktree ? me.name : (me.head?.sha.slice(0, 7) ?? '')
+  return { name: repo + disambiguation, branch: detached, worktree }
+}

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tabLabel } from './tabLabel'
+import { tabLabel, tabParts } from './tabLabel'
 import type { HeadInfo } from '../bridge/types'
 
 const tab = (path: string) => ({ path, name: path.split(/[\\/]/).pop()! })
@@ -40,4 +40,32 @@ test('worktree com HEAD destacado vira repo - pasta', () => {
 test('rótulos de worktree iguais ganham o trecho do pai', () => {
   const tabs = [worktree('/a/w', onBranch('feat/x')), worktree('/b/w', onBranch('feat/x'))]
   assert.equal(tabLabel(tabs, '/a/w'), 'mnemo - feat/x — a')
+})
+
+test('partes da aba de repositório: pasta e branch do HEAD', () => {
+  const main = { ...tab('/r/mnemo'), head: onBranch('main') }
+  assert.deepEqual(tabParts([main], '/r/mnemo'), { name: 'mnemo', branch: 'main', worktree: false })
+})
+
+test('partes da aba de worktree: repo principal, branch e marca de worktree', () => {
+  const tabs = [worktree('/w/mnemo-x', onBranch('feat/x'))]
+  assert.deepEqual(tabParts(tabs, '/w/mnemo-x'), { name: 'mnemo', branch: 'feat/x', worktree: true })
+})
+
+test('partes com HEAD destacado: sha curto no repositório e pasta no worktree', () => {
+  const detached: HeadInfo = { kind: 'detached', sha: 'abc1234def' }
+  assert.equal(tabParts([{ ...tab('/r/mnemo'), head: detached }], '/r/mnemo')?.branch, 'abc1234')
+  assert.equal(tabParts([worktree('/w/hotfix-tmp', detached)], '/w/hotfix-tmp')?.branch, 'hotfix-tmp')
+})
+
+test('partes de abas com o mesmo nome ganham o trecho do pai no repo', () => {
+  const tabs = [
+    { ...tab('/r/docs/MobileCore'), head: onBranch('develop') },
+    { ...tab('/r/projects/MobileCore'), head: onBranch('develop') },
+  ]
+  assert.equal(tabParts(tabs, '/r/projects/MobileCore')?.name, 'MobileCore — projects')
+})
+
+test('aba que não está aberta não tem partes', () => {
+  assert.equal(tabParts([], '/r/x'), undefined)
 })

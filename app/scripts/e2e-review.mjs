@@ -43,7 +43,8 @@ try {
   await click('Começar revisão')
 
   // modo Revisão: rótulo da aba, lista com os dois arquivos e o primeiro aberto
-  await until(() => ev(`document.querySelector('.tab.active .tab-label')?.textContent`), `Revisão: ${path.basename(repo)} - feature`)
+  await until(() => ev(`document.querySelector('.tab.active .tab-repo')?.textContent`), path.basename(repo))
+  await until(() => ev(`document.querySelector('.tab.active .tab-branch-text')?.textContent`), 'Revisão · feature')
   await until(() => ev(`document.querySelectorAll('.review-file').length`), 2)
   assert.equal(await ev(`document.querySelector('.review-count').textContent`), '0 de 2 revisados')
   await until(() => exists('.diff-view .diff-line'), true)
