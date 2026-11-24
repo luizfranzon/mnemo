@@ -48,8 +48,12 @@ export const Pasta: Story = {
   render: () => <WipDirRow row={dirRow(false)} open style={style} onToggle={noop} onContextMenu={noop} onMenu={noop} onStage={noop} />,
 }
 
-export const CabecalhoNaoPreparados: Story = { render: () => <WipSectionHead staged={false} count={12} style={{ ...style, height: 32 }} onStageAll={noop} /> }
+export const CabecalhoNaoPreparados: Story = { render: () => <WipSectionHead staged={false} count={12} open filtered={false} style={{ ...style, height: 32 }} onToggle={noop} onStageAll={noop} /> }
 
-export const CabecalhoPreparados: Story = { render: () => <WipSectionHead staged count={4} style={{ ...style, height: 32 }} onStageAll={noop} /> }
+export const CabecalhoPreparados: Story = { render: () => <WipSectionHead staged count={4} open filtered={false} style={{ ...style, height: 32 }} onToggle={noop} onStageAll={noop} /> }
 
-export const CabecalhoVazio: Story = { render: () => <WipSectionHead staged={false} count={0} style={{ ...style, height: 32 }} onStageAll={noop} /> }
+export const CabecalhoVazio: Story = { render: () => <WipSectionHead staged={false} count={0} open filtered={false} style={{ ...style, height: 32 }} onToggle={noop} onStageAll={noop} /> }
+
+export const CabecalhoRecolhido: Story = { render: () => <WipSectionHead staged={false} count={12} open={false} filtered={false} style={{ ...style, height: 32 }} onToggle={noop} onStageAll={noop} /> }
+
+export const CabecalhoFiltrado: Story = { render: () => <WipSectionHead staged={false} count={3} open filtered style={{ ...style, height: 32 }} onToggle={noop} onStageAll={noop} /> }

@@ -32,5 +32,21 @@ export function fileRows<T extends { path: string }>(files: T[], view: 'path' | 
   return rows
 }
 
+export type FileSort = 'path' | 'name' | 'status'
+export const FILE_SORTS: readonly { id: FileSort; label: string }[] = [{ id: 'path', label: 'caminho' }, { id: 'name', label: 'nome' }, { id: 'status', label: 'status' }]
+const STATUS_ORDER = 'UMADRCT'
+
+/** `path` mantém a ordem recebida; `name` ordena pelo nome do arquivo; `status` agrupa por M/A/D/R… e desempata pelo caminho. */
+export function sortFiles<T extends { path: string; status: string }>(files: T[], sort: FileSort): T[] {
+  if (sort === 'path') return files
+  const name = (f: T) => f.path.slice(f.path.lastIndexOf('/') + 1)
+  const rank = (f: T) => { const i = STATUS_ORDER.indexOf(f.status); return i < 0 ? STATUS_ORDER.length : i }
+  const order = sort === 'name' ? (a: T, b: T) => name(a).localeCompare(name(b)) || a.path.localeCompare(b.path) : (a: T, b: T) => rank(a) - rank(b) || a.path.localeCompare(b.path)
+  return [...files].sort(order)
+}
+
+/** `needle` já em minúsculas; vazio não filtra. */
+export const filterFiles = <T extends { path: string }>(files: T[], needle: string) => (needle ? files.filter((f) => f.path.toLocaleLowerCase().includes(needle)) : files)
+
 /** Arquivos que estão dentro de `dir` (em qualquer profundidade). */
 export const filesUnder = <T extends { path: string }>(files: T[], dir: string) => files.filter((f) => f.path.startsWith(`${dir}/`))

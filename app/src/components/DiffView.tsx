@@ -42,7 +42,10 @@ export function DiffView({ path }: { path: string }) {
   const [current, setCurrent] = useState(0)
   const [find, setFind] = useState<{ text: string; at: number } | null>(null)
   const anchor = useRef<number | null>(null)
-  const loaded = useRef<{ diff: FileDiff; source: DiffSource; layout: DiffLayout } | null>(null)
+  const loaded = useRef<{ diff: FileDiff; source: DiffSource; file: string; layout: DiffLayout } | null>(null)
+  const shownFor = useRef<{ source: DiffSource; file: string } | null>(null)
+  const hunkNow = useRef(0)
+  const resumeAt = useRef<number | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const root = useRef<HTMLDivElement>(null)
   const source = target?.source
@@ -72,7 +75,7 @@ export function DiffView({ path }: { path: string }) {
       const old = loaded.current
       const same = (i: number) => old?.source === source && old.layout === layout
         && old.diff.lines[i]?.kind === next.lines[i]?.kind && old.diff.lines[i]?.text === next.lines[i]?.text
-      loaded.current = { diff: next, source, layout }
+      loaded.current = { diff: next, source, file, layout }
       setDiff(next)
       setSelected((sel) => new Set([...sel].filter(same)))
     }, (err) => { if (active) actions.reportError(err, path) })
@@ -101,7 +104,7 @@ export function DiffView({ path }: { path: string }) {
     for (let k = Math.min(range.from, range.to); k <= Math.max(range.from, range.to); k++) all.add(k)
     return all
   }, [range, selected])
-  const heads = useMemo(() => hunkRows(rows), [rows])
+  const heads = useMemo(() => hunkRows(rows, diff ?? undefined), [rows, diff])
   const parts = useMemo(() => (rows.length ? diffParts(diff!) : []), [diff, rows])
   // largura de meia tela no split: a linha mais longa em colunas (fonte mono), para as duas metades rolarem juntas
   const cols = useMemo(() => (diff ? diff.lines.reduce((m, l) => Math.max(m, l.text.length), 0) : 0), [diff])
@@ -121,15 +124,28 @@ export function DiffView({ path }: { path: string }) {
   }
 
   const pickLayout = (next: DiffLayout) => { setLayout(next); try { localStorage.setItem(LAYOUT_KEY, next) } catch { /* sem storage */ } }
-  const goTo = (n: number) => { if (heads[n] !== undefined) virtual.scrollToIndex(heads[n]!, { align: 'start' }); setCurrent(n) }
+  const markHunk = (n: number) => { hunkNow.current = n; setCurrent(n) }
+  const goTo = (n: number, align: 'start' | 'center' = 'start') => { if (heads[n] !== undefined) virtual.scrollToIndex(heads[n]!, { align }); markHunk(n) }
   const onScroll = () => {
     const at = virtual.getVirtualItemForOffset(scroller.current?.scrollTop ?? 0)?.index ?? 0
-    setCurrent(hunkAt(heads, at + 1))
+    markHunk(hunkAt(heads, at + 1))
   }
+  // arquivo novo: abre no 1º trecho; depois de preparar/tirar: no próximo trecho que sobrou; recarga comum não mexe no scroll
+  useEffect(() => {
+    const ready = loaded.current?.source === source && loaded.current?.file === file
+    if (!source || !heads.length || !ready) return
+    const fresh = shownFor.current?.source !== source || shownFor.current?.file !== file
+    const resume = resumeAt.current
+    shownFor.current = { source, file }
+    resumeAt.current = null
+    if (fresh) goTo(0, 'center')
+    else if (resume !== null) goTo(Math.min(resume, heads.length - 1), 'center')
+  }, [heads])
   // estáveis entre renders do scroll, senão toda DiffRowView desenha de novo
   const stage = useCallback((lines: number[]) => {
     if (!diff) return
     void core.stageLines(path, file, unstage, selectionArgs(diff, new Set(lines))).then(() => {
+      resumeAt.current = hunkNow.current
       setSelected(new Set()); actions.wipChanged(path)
     }, (err) => actions.reportError(err, path))
   }, [diff, path, file, unstage])

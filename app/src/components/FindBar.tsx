@@ -23,7 +23,9 @@ export function FindBar({ text, label, count, disabled, onText, onStep, onClose 
 }
 
 /** Ctrl+F na aba ativa chama `open`. Com a busca aberta, `open` só devolve o foco e seleciona o texto, como no navegador. */
-export function useFindShortcut(path: string, open: () => void, skip: () => boolean = () => false) {
+export const inWipPanel = () => !!document.activeElement?.closest('.wip-panel')
+
+export function useFindShortcut(path: string, open: () => void, skip: () => boolean = inWipPanel) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!isActiveTab(path) || e.defaultPrevented || !matchesShortcut('Ctrl+F', e) || skip()) return

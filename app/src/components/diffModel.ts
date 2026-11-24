@@ -47,8 +47,19 @@ export function diffRows(diff: FileDiff, layout: DiffLayout): DiffRow[] {
   return rows
 }
 
-/** Índices (em `rows`) dos cabeçalhos de trecho, para "Trecho 1 de 2" e anterior/próximo. */
-export const hunkRows = (rows: DiffRow[]) => rows.flatMap((r, i) => (r.type === 'hunk' ? [i] : []))
+/** Índices (em `rows`) do início de cada trecho, para "Trecho 1 de 2" e anterior/próximo. Lado a lado não tem cabeçalho: vale a 1ª linha do trecho. */
+export function hunkRows(rows: DiffRow[], diff?: FileDiff) {
+  const seen = new Set<number>()
+  return rows.flatMap((r, i) => {
+    if (r.type === 'hunk') return [i]
+    if (r.type !== 'split' || !diff) return []
+    const hunks = [r.left, r.right].flatMap((k) => (k === null ? [] : [diff.lines[k]!.hunk]))
+    const hunk = hunks.find((h) => h !== null)
+    if (hunk === undefined || hunk === null || seen.has(hunk)) return []
+    seen.add(hunk)
+    return [i]
+  })
+}
 
 /** Linhas (índice em `rows`) com `needle` (já minúsculo) em algum lado; cabeçalho de trecho não conta. */
 export function findRows(diff: FileDiff, rows: DiffRow[], needle: string) {

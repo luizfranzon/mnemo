@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { DiffLine, FileDiff } from '../bridge/types'
-import { diffRows, findRows, highlight, hunkAt, markers, selectionArgs } from './diffModel'
+import { diffRows, findRows, highlight, hunkAt, hunkRows, markers, selectionArgs } from './diffModel'
 
 const line = (kind: DiffLine['kind'], text: string, hunk: number | null = 0): DiffLine =>
   ({ kind, text, old: kind === 'add' ? null : 1, new: kind === 'del' ? null : 1, noNewline: false, hunk })
@@ -28,6 +28,11 @@ test('lado a lado: remoções e adições do mesmo bloco ficam na mesma linha; s
 test('inline: linhas fora de trecho entram sem cabeçalho próprio', () => {
   const d = diff([line('context', 'x', null), line('add', 'y', 0), line('context', 'z', null)])
   assert.deepEqual(diffRows(d, 'inline').map((r) => r.type), ['line', 'hunk', 'line', 'line'])
+})
+
+test('lado a lado: o início de cada trecho vira uma parada de navegação', () => {
+  const d = diff([line('context', 'a', null), line('context', 'b', null), line('add', 'c', 0), line('context', 'd', null), line('del', 'e', 1)])
+  assert.deepEqual(hunkRows(diffRows(d, 'split'), d), [2, 4])
 })
 
 test('marcadores juntam linhas seguidas do mesmo tipo, em fração da altura', () => {

@@ -1,10 +1,11 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Segmented, FILE_VIEWS } from './Segmented'
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react'
 import { core } from '../bridge'
 import type { ConflictFile, FileChange, WipStatus } from '../bridge/types'
-import { actions, commitOptions, selectDiff, selectRepoPrefs, selectWipRevision, useApp } from '../store/app'
-import { fileRows } from './fileTree'
+import { actions, commitOptions, selectConflict, selectDiff, selectRepoPrefs, selectWipRevision, useApp } from '../store/app'
+import { FILE_SORTS, fileRows, filterFiles, sortFiles, type FileSort } from './fileTree'
+import { FindBar, focusFind, inWipPanel, useFindShortcut } from './FindBar'
 import { Icon } from './Icon'
 import { IconButton } from './IconButton'
 import { Menu } from './Menu'
@@ -14,7 +15,10 @@ import { plural, StashConfirm, WipCompose, type ComposeTab } from './WipCompose'
 import { pickFiles, wipFilesMenu, wipFolderMenu, type WipMenuContext } from './wipMenu'
 import { pointOf, WipConflicts, WipDirRow, WipFileRow, WipSectionHead, type WipFileRowData, type WipRow as Row } from './WipRows'
 
-type FileRowData = WipFileRowData
+const SORT_KEY = (path: string) => `mnemo.wip.sort:${path}`
+const loadSort = (path: string): FileSort => {
+  try { const s = localStorage.getItem(SORT_KEY(path)); return FILE_SORTS.some((o) => o.id === s) ? (s as FileSort) : 'path' } catch { return 'path' }
+}
 
 /** Painel direito com o nó WIP selecionado: preparar, tirar, commitar; seleção múltipla e ações por pasta. */
 export function WipPanel({ path }: { path: string }) {
@@ -26,6 +30,12 @@ export function WipPanel({ path }: { path: string }) {
   const [view, setView] = useState<'path' | 'tree'>('path')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [closed, setClosed] = useState<Set<string>>(new Set())
+  const [filter, setFilter] = useState<string | null>(null)
+  const [sort, setSort] = useState<FileSort>(() => loadSort(path))
+  useEffect(() => { setSort(loadSort(path)) }, [path])
+  const panel = useRef<HTMLDivElement>(null)
+  const conflictOpen = useApp((s) => selectConflict(path)(s)?.file ?? null)
   const anchor = useRef<string | null>(null)
   const [menu, setMenu] = useState<{ items: MenuEntry[]; anchor: Rect } | null>(null)
   const [stashAsk, setStashAsk] = useState<string[] | null>(null)
@@ -49,12 +59,26 @@ export function WipPanel({ path }: { path: string }) {
 
   const stage = (paths: string[], on: boolean) => void core.stage(path, paths, on).then(() => actions.wipChanged(path), (err) => actions.reportError(err, path))
   const { unstaged, staged } = status
-  const rows: Row[] = [
-    { type: 'head', key: 'h:u', staged: false, count: unstaged.length },
-    ...fileRows(unstaged, view, collapsed, 'u:').map((r): Row => ({ ...r, staged: false })),
-    { type: 'head', key: 'h:s', staged: true, count: staged.length },
-    ...fileRows(staged, view, collapsed, 's:').map((r): Row => ({ ...r, staged: true })),
-  ]
+  const needle = filter?.trim().toLocaleLowerCase() ?? ''
+  const order = view === 'path' ? sort : 'path'
+  const shownUnstaged = sortFiles(filterFiles(unstaged, needle), order)
+  const shownStaged = sortFiles(filterFiles(staged, needle), order)
+  const section = (files: FileChange[], isStaged: boolean): Row[] => {
+    const id = isStaged ? 's' : 'u'
+    const open = !closed.has(id)
+    const head: Row = { type: 'head', key: `h:${id}`, staged: isStaged, count: files.length, open, filtered: !!needle }
+    const items = open ? fileRows(files, view, collapsed, `${id}:`).map((r): Row => ({ ...r, staged: isStaged })) : []
+    return [head, ...items]
+  }
+  const rows: Row[] = [...section(shownUnstaged, false), ...section(shownStaged, true)]
+  const fileRowsOnly = rows.filter((r): r is Extract<Row, { type: 'file' }> => r.type === 'file')
+  const toggleSection = (id: string) => setClosed((old) => { const next = new Set(old); if (next.has(id)) next.delete(id); else next.add(id); return next })
+  const cycleSort = () => {
+    const next = FILE_SORTS[(FILE_SORTS.findIndex((o) => o.id === sort) + 1) % FILE_SORTS.length]!.id
+    setSort(next)
+    try { localStorage.setItem(SORT_KEY(path), next) } catch { /* sem storage */ }
+  }
+  useFindShortcut(path, () => { setFilter((f) => f ?? ''); focusFind(panel) }, () => !inWipPanel())
   const virtual = useVirtualizer({ count: rows.length, getScrollElement: () => scroller.current, overscan: 10,
     estimateSize: (i) => (rows[i]!.type === 'head' ? 40 : 36), getItemKey: (i) => rows[i]!.key })
 
@@ -74,6 +98,44 @@ export function WipPanel({ path }: { path: string }) {
     if (!e.shiftKey) anchor.current = row.key
     if (!e.ctrlKey && !e.metaKey && !e.shiftKey) openDiff(row.file, row.staged)
   }
+  const focusFile = (row: Extract<Row, { type: 'file' }>) => {
+    virtual.scrollToIndex(rows.indexOf(row))
+    setSelected(new Set([row.key])); anchor.current = row.key
+    openDiff(row.file, row.staged)
+    requestAnimationFrame(() => requestAnimationFrame(() => scroller.current?.querySelector<HTMLElement>(`[data-key="${CSS.escape(row.key)}"]`)?.focus()))
+  }
+  const onFilesKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const el = e.target instanceof HTMLElement ? e.target.closest<HTMLElement>('.wip-file[data-key]') : null
+    const row = el && e.target === el ? fileRowsOnly.find((r) => r.key === el.dataset.key) : undefined
+    if (!row || e.ctrlKey || e.metaKey || e.altKey) return
+    const at = fileRowsOnly.indexOf(row)
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      const next = fileRowsOnly[at + (e.key === 'ArrowDown' ? 1 : -1)]
+      if (next) focusFile(next)
+    } else if (e.key === ' ' || e.key.toLowerCase() === 's') {
+      e.preventDefault()
+      const paths = targets(row).map((f) => f.path)
+      const rest = fileRowsOnly.filter((r) => r.staged === row.staged && !paths.includes(r.file.path))
+      const after = rest.find((r) => fileRowsOnly.indexOf(r) > at) ?? rest.at(-1)
+      stage(paths, !row.staged)
+      if (after) focusFile(after)
+    }
+  }
+  // o arquivo do diff aberto saiu da seção (preparou o último trecho, descartou): abre o que ocupa o lugar dele
+  const place = useRef<{ staged: boolean; index: number } | null>(null)
+  useEffect(() => {
+    if (!opened) { place.current = null; return }
+    const isStaged = opened.startsWith('s:')
+    const files = sortFiles(isStaged ? staged : unstaged, order)
+    const index = files.findIndex((f) => `${isStaged ? 's' : 'u'}:${f.path}` === opened)
+    if (index >= 0) { place.current = { staged: isStaged, index }; return }
+    const at = place.current
+    if (!at || at.staged !== isStaged) return
+    const left = sortFiles(at.staged ? staged : unstaged, order)
+    const next = left[Math.min(at.index, left.length - 1)]
+    if (next) openDiff(next, at.staged)
+  }, [opened, status])
   const fileMenu = (row: Extract<Row, { type: 'file' }>, at: Rect) => {
     if (!selected.has(row.key)) { setSelected(new Set([row.key])); anchor.current = row.key }
     setMenu({ anchor: at, items: wipFilesMenu(targets(row), row.staged, ctx(row.staged)) })
@@ -123,9 +185,12 @@ export function WipPanel({ path }: { path: string }) {
     setSummary('')
   }
 
-  return <div className="wip-panel" onKeyDown={(e) => {
+  const sortLabel = FILE_SORTS.find((o) => o.id === sort)!.label
+  return <div className="wip-panel" ref={panel} onKeyDown={(e) => {
     if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); if (tab === 'commit') commit(); else stash() }
   }}>
+    {filter !== null && <FindBar text={filter} label="Filtrar arquivos" count={needle ? `${shownUnstaged.length + shownStaged.length}/${unstaged.length + staged.length}` : ''}
+      disabled onText={setFilter} onStep={() => {}} onClose={() => setFilter(null)} />}
     <div className="wip-head">
       <span className="wip-title">{plural(changed, 'arquivo alterado', 'arquivos alterados')} em</span>
       <span className="wip-branch">{branch}</span>
@@ -135,16 +200,21 @@ export function WipPanel({ path }: { path: string }) {
     </div>
     <div className="wip-tools">
       <Segmented label="Exibição dos arquivos" options={FILE_VIEWS} value={view} onChange={setView} />
-      <IconButton className="wip-icon" icon="sortDown" size={14} strokeWidth={2} label="Ordenar arquivos" />
+      <IconButton className="wip-icon" icon="sortDown" size={14} strokeWidth={2} disabled={view === 'tree'} label={`Ordenar arquivos (por ${sortLabel})`}
+        title={view === 'tree' ? 'Na árvore os arquivos seguem o caminho' : `Ordenados por ${sortLabel}; clique para trocar`} onClick={cycleSort} />
       {selected.size > 1 && <span className="wip-picked">{plural(selected.size, 'selecionado', 'selecionados')} · botão direito para agir</span>}
     </div>
-    {conflicts.length > 0 && <WipConflicts conflicts={conflicts} onOpen={(file) => actions.openConflict(path, file)} onResolve={(paths) => stage(paths, true)} />}
-    <div className="wip-files" ref={scroller}>
+    {conflicts.length > 0 && <WipConflicts conflicts={conflicts} active={conflictOpen} onOpen={(file) => actions.openConflict(path, file)} onResolve={(paths) => stage(paths, true)} />}
+    <div className="wip-files" ref={scroller} onKeyDown={onFilesKey}>
       <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
         {virtual.getVirtualItems().map((item) => {
           const row = rows[item.index]!
           const style = { transform: `translateY(${item.start}px)`, height: item.size }
-          if (row.type === 'head') return <WipSectionHead key={row.key} staged={row.staged} count={row.count} style={style} onStageAll={() => stage([], !row.staged)} />
+          if (row.type === 'head') {
+            const shown = row.staged ? shownStaged : shownUnstaged
+            return <WipSectionHead key={row.key} staged={row.staged} count={row.count} open={row.open} filtered={row.filtered} style={style}
+              onToggle={() => toggleSection(row.staged ? 's' : 'u')} onStageAll={() => stage(row.filtered ? shown.map((f) => f.path) : [], !row.staged)} />
+          }
           if (row.type === 'dir') {
             const folderMenu = (at: Rect) => setMenu({ anchor: at, items: wipFolderMenu(row.path, row.staged, ctx(row.staged)) })
             return <WipDirRow key={row.key} row={row} open={!collapsed.has(row.key)} style={style} onToggle={() => toggleDir(row.key)}

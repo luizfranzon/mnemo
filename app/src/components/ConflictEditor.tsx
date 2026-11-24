@@ -81,8 +81,14 @@ export function ConflictEditor({ path }: { path: string }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [ask, !find])
 
-  const done = () => { actions.wipChanged(path); actions.closeConflict(path) }
   const fail = (err: unknown) => actions.reportError(err, path)
+  const done = () => core.conflictList(path).then((list) => {
+    const others = list.filter((c) => c.path !== file)
+    const next = others.find((c) => c.path > file) ?? others[0]
+    actions.wipChanged(path)
+    if (next) actions.openConflict(path, next.path)
+    else actions.closeConflict(path)
+  }, fail)
   const take = (choice: ConflictChoice) => void core.conflictTake(path, file, choice).then(done, fail)
   const save = (markers: boolean) => {
     if (!doc) return
@@ -119,10 +125,11 @@ export function ConflictEditor({ path }: { path: string }) {
     if (starts[next] !== undefined) virtual.scrollToIndex(starts[next]!, { align: 'center' })
     if (lay?.starts[next] !== undefined) result.current?.reveal(lay.starts[next]!)
   }
-  // ao abrir (ou recarregar) o arquivo, já mostra o primeiro conflito
+  // ao abrir (ou recarregar) o arquivo, já mostra o primeiro conflito sem escolha, nos painéis e no Resultado
   useEffect(() => {
-    setCurrent(0)
-    if (starts[0] !== undefined) virtual.scrollToIndex(starts[0], { align: 'center' })
+    if (!picks.length) return
+    const firstOpen = picks.findIndex((p) => !p.touched)
+    goto(firstOpen >= 0 ? firstOpen : 0)
   }, [doc])
   // estável entre renders do scroll, senão toda ConflictRowView desenha de novo
   const change = useCallback((n: number, fn: (p: Pick) => Pick) => { setManual(null); setCurrent(n); setPicks((all) => all.map((p, i) => (i === n ? fn(p) : p))) }, [])

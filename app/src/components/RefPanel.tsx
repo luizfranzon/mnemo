@@ -164,6 +164,8 @@ export function RefPanel({ path, rail, expand, collapse }: { path: string; rail:
   const groups: { head: SectionRow; body: BodyRow[] }[] = []
   for (const row of rows) { if (row.type === 'section') groups.push({ head: row, body: [] }); else groups.at(-1)?.body.push(row) }
   const checkout = (row: Row) => {
+    const worktree = row.type === 'local' ? refs?.worktrees.find((w) => w.branch === row.ref.name && w.path !== path) : undefined
+    if (worktree) { void actions.openRepository(worktree.path); return }
     const target = targetOf(row)
     if (target) branch.checkout(target)
   }

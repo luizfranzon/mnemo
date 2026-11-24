@@ -5,7 +5,7 @@ import { core } from '../bridge'
 import type { GraphCommit, GraphPage } from '../bridge/types'
 import { actions, firstGraphPage, GRAPH_PAGE, isActiveTab, selectConflict, selectDiff, selectReviewList, selectSha, useApp } from '../store/app'
 import { reviewMarks } from './reviewModel'
-import { FindBar, focusFind, useFindShortcut } from './FindBar'
+import { FindBar, focusFind, inWipPanel, useFindShortcut } from './FindBar'
 import { graphVisibility, localRef, selectVisibility, updateVisibility, useVisibility } from '../store/visibility'
 import { AuthorFilter } from './AuthorFilter'
 import { Avatar, initials, useGravatar } from './avatar'
@@ -344,7 +344,7 @@ export function Graph({ path }: { path: string }) {
     return () => window.removeEventListener('keydown', copy)
   }, [selectedSha, path])
   // com diff ou conflito aberto, o Ctrl+F é deles
-  useFindShortcut(path, () => openFind(), () => !!(selectDiff(path)(useApp.getState()) || selectConflict(path)(useApp.getState())))
+  useFindShortcut(path, () => openFind(), () => inWipPanel() || !!(selectDiff(path)(useApp.getState()) || selectConflict(path)(useApp.getState())))
   // Esc fecha a busca mesmo com o foco fora dela (ex.: depois de clicar num commit)
   useEffect(() => {
     if (!find) return
@@ -411,7 +411,16 @@ export function Graph({ path }: { path: string }) {
     return remote ? { kind: 'remote', ref: remote, local: refs.local.find((b) => b.name === remote.name) } : null
   }
   const pillHandlers: PillsHandlers = {
-    checkout: (pill) => { if (doubleClickCheckout) void targetOf(pill).then((t) => { if (t) branchActions.checkout(t) }) },
+    checkout: (pill) => {
+      if (!doubleClickCheckout) return
+      void (async () => {
+        const refs = await core.listRefs(path).catch(() => null)
+        const worktree = pill.local ? refs?.worktrees.find((w) => w.branch === pill.local && w.path !== path) : undefined
+        if (worktree) { void actions.openRepository(worktree.path); return }
+        const target = await targetOf(pill)
+        if (target) branchActions.checkout(target)
+      })()
+    },
     menu: (pill, e, onClosed) => {
       const anchor = { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }
       void targetOf(pill).then((t) => { if (t) void branchActions.open(t, anchor, onClosed); else onClosed() })

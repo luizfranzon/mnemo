@@ -89,6 +89,7 @@ function createWindow() {
     minHeight: 560,
     frame: false, // menus e controles da janela moram na barra de título da UI
     backgroundColor: '#0E0E0F',
+    icon: join(__dirname, '..', 'build', 'icon.png'),
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false },
   })
   mark('main: janela criada')
@@ -201,6 +202,8 @@ function parseError(err: unknown): { code: string; message: string } {
 
 // ANGLE escolhe Vulkan, incompatível com ozone/wayland; forçar GL evita o erro no log.
 app.commandLine.appendSwitch('use-angle', 'gl')
+
+if (process.env.MNEMO_DEV_URL) app.setDesktopName('mnemo-dev.desktop')
 
 void app.whenReady().then(() => {
   mark('main: app ready')

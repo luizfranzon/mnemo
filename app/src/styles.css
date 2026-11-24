@@ -147,6 +147,7 @@ input[type="checkbox"], input[type="radio"] { flex: none; width: 14px; height: 1
 .spin { display: inline-block; animation: toolbar-spin 1s linear infinite; }
 .icon { flex: none; vertical-align: -2px; }
 .wip-section-chevron { display: flex; color: var(--text-subtle); }
+.wip-section button.wip-section-chevron { padding: 4px; background: none; border: 0; }
 @keyframes toolbar-spin { to { transform: rotate(360deg); } }
 @media (max-width: 1240px) { .toolbar .temporary-action { display: none; } .toolbar-more { display: block; } .toolbar .repo-name { max-width: 90px; } }
 @media (max-width: 1099px) { .toolbar .fetch-time { display: none; } .toolbar-search kbd, .toolbar-search span { display: none; } .toolbar-search { flex: 0 0 30px !important; min-width: 30px; } }
@@ -448,7 +449,9 @@ span.removed, .commit-status.removed { color: var(--danger-text); }
 
 /* Painel WIP: valores do mockup */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; }
-.wip-panel { height: 100%; min-height: 0; display: flex; flex-direction: column; background: var(--surface-1); font-size: 13px; }
+.wip-panel .graph-filter { top: 8px; left: 12px; right: 12px; width: auto; }
+.wip-conflicts .conflict-file.active { background: var(--menu-highlight); }
+.wip-panel { position: relative; height: 100%; min-height: 0; display: flex; flex-direction: column; background: var(--surface-1); font-size: 13px; }
 .wip-panel button:not(:where(.btn)) { padding: 0; border: 0; background: transparent; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
 .wip-head { flex: none; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px 0 16px; border-bottom: 1px solid var(--border-subtle); }
 .wip-title { color: var(--text-secondary); white-space: nowrap; }
