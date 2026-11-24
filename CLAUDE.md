@@ -4,6 +4,12 @@
 
 A `main` é protegida (ver "Fluxo de mudança" no AGENTS.md). Sempre que terminar uma tarefa, commite numa branch própria e abra a PR com `gh pr create`; o merge é do usuário. Só depois do merge, verifique se alguma issue ficou concluída. Se sim, feche com `gh issue close <n> --comment "..."` citando o commit. Issue só parcialmente atendida continua aberta, com um comentário do que falta.
 
+## Design (Doop)
+
+O design do Mnemo está no Doop: https://doop.design/c/CiixHLSCX3
+
+Ainda incompleto: o canvas está quase vazio e vai ganhando telas aos poucos. Não tratar como fonte única; o que não estiver lá segue o código e as stories existentes.
+
 <!-- rtk-instructions v2 -->
 # RTK (Rust Token Killer) - Token-Optimized Commands
 
