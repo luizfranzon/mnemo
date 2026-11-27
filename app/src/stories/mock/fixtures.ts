@@ -90,7 +90,7 @@ function buildGraph(nodes: Node[]): GraphCommit[] {
     const laneCount = Math.max(lane + 1, active.length, ...segments.flatMap((s) => [s.fromLane + 1, s.toLane + 1]))
     return {
       sha: node.sha, parents: node.parents, author: author.name, email: author.email, timestamp: NOW - node.ago * HOUR, subject: node.subject,
-      description: node.description ?? '', lane, color: laneColor(lane), laneCount, segments, refs: node.refs ?? [], head: node.head === true, ghost: null,
+      description: node.description ?? '', lane, color: laneColor(lane), laneCount, segments, refs: node.refs ?? [], head: node.head === true, ghost: null, stash: false,
     }
   })
 }

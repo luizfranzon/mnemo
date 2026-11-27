@@ -556,6 +556,13 @@ impl Mnemo {
                 priority.push(head.clone());
             }
         }
+        let stashes: HashSet<String> = if visibility.solo.is_none() && !visibility.smart {
+            refs.stashes.iter().map(|s| s.sha.clone()).collect()
+        } else {
+            HashSet::new()
+        };
+        let stash_helpers = stash_helpers(&git, &stashes)?;
+        revs.extend(stashes.iter().cloned());
         let wip = graph_wip(&git)?;
         if revs.is_empty() {
             return Ok(GraphPage { commits: Vec::new(), next: None, wip });
@@ -599,14 +606,21 @@ impl Mnemo {
         }
         let has_more = inputs.len() > limit;
         let by_sha = refs_by_sha(labels);
-        let commits = inputs
-            .into_iter()
-            .take(limit)
-            .map(|input| {
-                let labels = by_sha.get(&input.sha).cloned().unwrap_or_default();
-                cursor.layout(input, labels, head_sha.as_deref(), current_name, &priority)
-            })
-            .collect();
+        let mut commits = Vec::new();
+        for mut input in inputs.into_iter().take(limit) {
+            if stash_helpers.contains(&input.sha) {
+                cursor.offset += 1;
+                continue;
+            }
+            let stash = stashes.contains(&input.sha);
+            if stash {
+                input.parents.truncate(1);
+            }
+            let labels = by_sha.get(&input.sha).cloned().unwrap_or_default();
+            let mut commit = cursor.layout(input, labels, head_sha.as_deref(), current_name, &priority);
+            commit.stash = stash;
+            commits.push(commit);
+        }
         Ok(GraphPage { commits, next: has_more.then_some(cursor), wip })
     }
 
@@ -1013,6 +1027,20 @@ fn smart_refs(git: &RepoGit, refs: &RefListing) -> HashSet<String> {
         set.extend(merged.unwrap_or_default().lines().map(str::to_string));
     }
     set
+}
+
+fn stash_helpers(git: &RepoGit, stashes: &HashSet<String>) -> Result<HashSet<String>> {
+    if stashes.is_empty() {
+        return Ok(HashSet::new());
+    }
+    let mut args = vec!["log".to_string(), "--no-walk".into(), "--format=%P".into()];
+    args.extend(stashes.iter().cloned());
+    let output = git.text(args)?;
+    let mut helpers = HashSet::new();
+    for line in output.lines() {
+        helpers.extend(line.split_whitespace().skip(1).map(str::to_string));
+    }
+    Ok(helpers)
 }
 
 fn graph_wip(git: &RepoGit) -> Result<WipSummary> {

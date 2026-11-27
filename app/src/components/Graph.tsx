@@ -17,7 +17,7 @@ import { Button } from './Button'
 import { Checkbox } from './Checkbox'
 import { IconButton } from './IconButton'
 import { useBranchActions } from './useBranchActions'
-import { Icon } from './Icon'
+import { Icon, ICONS } from './Icon'
 import { copyText, menuBase } from './menuBase'
 import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
 import {
@@ -42,7 +42,12 @@ function CommitSvg({ row, width, geo, compact, wipLink, wipColor, wipX }: { row:
       d={segmentPath(segment, geo)} fill="none" stroke={segment.color} strokeWidth="2" />)}
     {wipLink && <path d={`M${wipX} 0 V${wipLink === 'end' ? 14 : 28}`} fill="none" stroke={wipColor} strokeWidth="2" strokeDasharray="3 3" />}
     {row.head && <circle cx={x} cy="14" r={compact ? 8 : 12} fill="none" stroke="#5b8def" strokeWidth="2" />}
-    {compact
+    {row.stash
+      ? <>
+        <circle cx={x} cy="14" r={compact ? 6 : 10} fill="var(--surface-2)" stroke={row.color} strokeWidth="2" strokeDasharray="3 2" />
+        {!compact && <ICONS.stashes x={x - 6} y="8" width="12" height="12" stroke="var(--text)" strokeWidth={2} aria-hidden="true" />}
+      </>
+      : compact
       ? row.parents.length > 1
         ? <circle cx={x} cy="14" r="4" fill="none" stroke={row.color} strokeWidth="2" />
         : <circle cx={x} cy="14" r="5" fill={row.color} />
