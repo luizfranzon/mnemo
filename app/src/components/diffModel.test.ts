@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { DiffLine, FileDiff } from '../bridge/types'
-import { diffRows, highlight, markers, selectionArgs } from './diffModel'
+import { diffRows, findRows, highlight, hunkAt, hunkRows, markers, selectionArgs } from './diffModel'
 
 const line = (kind: DiffLine['kind'], text: string, hunk: number | null = 0): DiffLine =>
   ({ kind, text, old: kind === 'add' ? null : 1, new: kind === 'del' ? null : 1, noNewline: false, hunk })
@@ -30,6 +30,11 @@ test('inline: linhas fora de trecho entram sem cabeçalho próprio', () => {
   assert.deepEqual(diffRows(d, 'inline').map((r) => r.type), ['line', 'hunk', 'line', 'line'])
 })
 
+test('lado a lado: o início de cada trecho vira uma parada de navegação', () => {
+  const d = diff([line('context', 'a', null), line('context', 'b', null), line('add', 'c', 0), line('context', 'd', null), line('del', 'e', 1)])
+  assert.deepEqual(hunkRows(diffRows(d, 'split'), d), [2, 4])
+})
+
 test('marcadores juntam linhas seguidas do mesmo tipo, em fração da altura', () => {
   const d = diff([line('context', 'a'), line('del', 'b'), line('add', 'c'), line('add', 'd')])
   const rows = diffRows(d, 'hunks')
@@ -55,4 +60,17 @@ test('highlight marca chamada, this, literal, número, operador e nome declarado
     ['keyword:private', 'keyword:readonly', 'constant:node', 'keyword:=', 'function:computed', 'keyword:<', 'type:Node', 'keyword:|',
       'constant:null', 'keyword:>', 'keyword:=>', 'constant:this', 'function:data', 'keyword:??', 'constant:1'])
   assert.equal(parts.map((p) => p.t).join(''), text)
+})
+
+test('trecho atual: o último cabeçalho na linha ou antes dela', () => {
+  const heads = [0, 5, 9]
+  assert.deepEqual([0, 4, 5, 8, 9, 50].map((r) => hunkAt(heads, r)), [0, 0, 1, 1, 2, 2])
+  assert.equal(hunkAt([], 3), 0)
+})
+
+test('busca: devolve as linhas com o texto em qualquer lado, sem diferenciar maiúsculas', () => {
+  const d = diff([line('context', 'Alpha'), line('del', 'beta'), line('add', 'BETA'), line('context', 'gama')])
+  assert.deepEqual(findRows(d, diffRows(d, 'hunks'), 'beta'), [2, 3])
+  assert.deepEqual(findRows(d, diffRows(d, 'split'), 'beta'), [1])
+  assert.deepEqual(findRows(d, diffRows(d, 'hunks'), ''), [])
 })

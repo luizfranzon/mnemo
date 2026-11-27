@@ -1,4 +1,5 @@
 import { actions, useApp } from '../store/app'
+import { Button } from './Button'
 
 export function GitMissing() {
   const message = useApp((s) => (s.git.phase === 'missing' ? s.git.message : ''))
@@ -14,9 +15,7 @@ export function GitMissing() {
           <br />
           Debian/Ubuntu: <code>sudo apt install git</code> · Fedora: <code>sudo dnf install git</code>
         </p>
-        <button className="primary" onClick={() => void actions.checkGit()}>
-          Verificar de novo
-        </button>
+        <Button primary onClick={() => void actions.checkGit()}>Verificar de novo</Button>
       </div>
     </div>
   )

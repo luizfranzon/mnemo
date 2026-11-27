@@ -1,9 +1,11 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { createPortal } from 'react-dom'
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { core } from '../bridge'
 import type { GraphCommit, GraphPage } from '../bridge/types'
-import { actions, firstGraphPage, GRAPH_PAGE, useApp } from '../store/app'
+import { actions, firstGraphPage, GRAPH_PAGE, isActiveTab, selectConflict, selectDiff, selectReviewList, selectSha, useApp } from '../store/app'
+import { reviewMarks } from './reviewModel'
+import { FindBar, focusFind, inWipPanel, useFindShortcut } from './FindBar'
 import { graphVisibility, localRef, selectVisibility, updateVisibility, useVisibility } from '../store/visibility'
 import { AuthorFilter } from './AuthorFilter'
 import { Avatar, initials, useGravatar } from './avatar'
@@ -11,8 +13,11 @@ import type { BranchTarget } from './branchMenu'
 import { commitMenu, type CommitDialog } from './commitMenu'
 import { CommitDialogs } from './CommitDialogs'
 import { Menu } from './Menu'
+import { Button } from './Button'
+import { Checkbox } from './Checkbox'
+import { IconButton } from './IconButton'
 import { useBranchActions } from './useBranchActions'
-import { Icon } from './Icon'
+import { Icon, ICONS } from './Icon'
 import { copyText, menuBase } from './menuBase'
 import { matchesShortcut, type MenuEntry, type Rect } from './menuModel'
 import {
@@ -37,7 +42,12 @@ function CommitSvg({ row, width, geo, compact, wipLink, wipColor, wipX }: { row:
       d={segmentPath(segment, geo)} fill="none" stroke={segment.color} strokeWidth="2" />)}
     {wipLink && <path d={`M${wipX} 0 V${wipLink === 'end' ? 14 : 28}`} fill="none" stroke={wipColor} strokeWidth="2" strokeDasharray="3 3" />}
     {row.head && <circle cx={x} cy="14" r={compact ? 8 : 12} fill="none" stroke="#5b8def" strokeWidth="2" />}
-    {compact
+    {row.stash
+      ? <>
+        <circle cx={x} cy="14" r={compact ? 6 : 10} fill="var(--surface-2)" stroke={row.color} strokeWidth="2" strokeDasharray="3 2" />
+        {!compact && <ICONS.stashes x={x - 6} y="8" width="12" height="12" stroke="var(--text)" strokeWidth={2} aria-hidden="true" />}
+      </>
+      : compact
       ? row.parents.length > 1
         ? <circle cx={x} cy="14" r="4" fill="none" stroke={row.color} strokeWidth="2" />
         : <circle cx={x} cy="14" r="5" fill={row.color} />
@@ -103,6 +113,10 @@ interface PillHandlers {
   menu(pill: Pill, e: React.MouseEvent): void
 }
 
+interface PillsHandlers extends Omit<PillHandlers, 'menu'> {
+  menu(pill: Pill, e: React.MouseEvent, onClosed: () => void): void
+}
+
 function PillView({ pill, on, highlight }: { pill: Pill; on: PillHandlers; highlight: string | null }) {
   const highlighted = !!highlight && (highlight === (pill.local && localRef(pill.local)) || highlight === (pill.remote && `refs/remotes/${pill.remote}`))
   return <span className={`graph-pill ${pill.kind}${pill.current ? ' current' : ''}`} title={highlighted ? `${pill.title}\nBranch em destaque` : pill.title}
@@ -117,9 +131,11 @@ function PillView({ pill, on, highlight }: { pill: Pill; on: PillHandlers; highl
 }
 
 /** Mostra só a primeira pill; as demais abrem numa lista sobreposta (portal, fora do clip da linha e sem mudar a altura dela). */
-function Pills({ refs, color, on, highlight }: { refs: GraphCommit['refs']; color: string; on: PillHandlers; highlight: string | null }) {
+function Pills({ refs, color, on, highlight }: { refs: GraphCommit['refs']; color: string; on: PillsHandlers; highlight: string | null }) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  const [dim, setDim] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  const pinned = useRef(false)
   const pills = pillsOf(refs)
   useEffect(() => {
     if (!anchor) return
@@ -129,15 +145,19 @@ function Pills({ refs, color, on, highlight }: { refs: GraphCommit['refs']; colo
   }, [anchor])
   if (!pills.length) return null
   const [first, ...rest] = pills
-  const open = () => { if (rest.length && box.current) setAnchor(box.current.getBoundingClientRect()) }
+  const open = () => {
+    if (!rest.length || !box.current) return
+    setDim(!!box.current.closest('.dim')) // a lista está num portal, fora da linha esmaecida pela busca
+    setAnchor(box.current.getBoundingClientRect())
+  }
   const style = { '--pill': color } as CSSProperties
-  const close: PillHandlers = { checkout: (p) => { setAnchor(null); on.checkout(p) }, menu: (p, e) => { setAnchor(null); on.menu(p, e) } }
-  return <div ref={box} className="graph-pills" style={style} onMouseEnter={open} onMouseLeave={() => setAnchor(null)}>
+  const close: PillHandlers = { checkout: (p) => { setAnchor(null); on.checkout(p) }, menu: (p, e) => { pinned.current = true; on.menu(p, e, () => { pinned.current = false; setAnchor(null) }) } }
+  return <div ref={box} className="graph-pills" style={style} onMouseEnter={open} onMouseLeave={() => { if (!pinned.current) setAnchor(null) }}>
     <PillView pill={first!} on={close} highlight={highlight} />
-    {rest.length > 0 && <button className="graph-pill-more" aria-haspopup="true" aria-expanded={!!anchor} aria-label={`Mais ${rest.length} refs`}
+    {rest.length > 0 && <button className={anchor ? 'graph-pill-more open' : 'graph-pill-more'} aria-haspopup="true" aria-expanded={!!anchor} aria-label={`Mais ${rest.length} refs`}
       onFocus={open} onBlur={() => setAnchor(null)}>+{rest.length}</button>}
-    {anchor && createPortal(<div className="graph-pill-list" style={{ ...style, left: anchor.left, top: anchor.bottom - 4 }}>
-      {rest.map((pill) => <PillView key={pill.key} pill={pill} on={close} highlight={highlight} />)}
+    {anchor && createPortal(<div className={dim ? 'graph-pill-list dim' : 'graph-pill-list'} style={{ ...style, left: anchor.left, top: anchor.top }}>
+      {pills.map((pill) => <PillView key={pill.key} pill={pill} on={close} highlight={highlight} />)}
     </div>, document.body)}
   </div>
 }
@@ -162,7 +182,7 @@ export function Graph({ path }: { path: string }) {
   const lastSelection = useRef<string | null>(null)
   const hbar = useRef<HTMLDivElement>(null)
   const pendingSelection = useRef<string | null>(null)
-  const selectedSha = useApp((s) => s.selectedSha)
+  const selectedSha = useApp(selectSha(path))
   const revision = useApp((s) => s.graphRevision[path.replace(/\\/g, '/').toLowerCase()] ?? s.graphRevision[path.replace(/\\/g, '/')] ?? 0)
   const head = useApp((s) => s.tabs.find((t) => t.path === path)?.head)
   const vis = useVisibility(selectVisibility(path))
@@ -176,7 +196,9 @@ export function Graph({ path }: { path: string }) {
   const geo = geometry(layout.compact)
   const contentWidth = geo.first * 2 + maxLanes * geo.lane
   const cols = visibleColumns(layout)
-  const refsMin = refsMinWidth(page?.commits ?? NO_COMMITS) + (vis.highlight ? 17 : 0) // ícone da Branch em destaque (12 + gap 5)
+  // useMemo manual: o Compiler pula componente com useVirtualizer, e medir todas as pills a cada frame de scroll trava o grafo
+  const pillsMin = useMemo(() => refsMinWidth(page?.commits ?? NO_COMMITS), [page])
+  const refsMin = pillsMin + (vis.highlight ? 17 : 0) // ícone da Branch em destaque (12 + gap 5)
   const bounds = { graphMax: contentWidth, refsMin }
   const update = (fn: (l: GraphLayout) => GraphLayout) => setLayout((l) => {
     const next = fn(l)
@@ -210,6 +232,10 @@ export function Graph({ path }: { path: string }) {
     void core.conflictList(path).then((list) => active && setConflicts(list.length), () => active && setConflicts(0))
     return () => { active = false }
   }, [path, revision])
+  // Commits revisados: o marcador acompanha refs que mudam (rodada concluída, push do dev, rebase)
+  useEffect(() => { void actions.loadReviews(path) }, [path, revision])
+  const reviews = useApp(selectReviewList(path))
+  const marks = useMemo(() => reviewMarks(reviews), [reviews])
 
   useEffect(() => {
     const current = ++generation.current
@@ -230,8 +256,8 @@ export function Graph({ path }: { path: string }) {
       setPage(next)
       setVersion((v) => v + 1)
       setMaxLanes(Math.max(1, ...next.commits.map((commit) => commit.laneCount)))
-      if (!useApp.getState().selectedSha && next.commits[0]) actions.selectCommit(next.commits[0].sha)
-    }, (err) => { if (generation.current === current) actions.reportError(err) }).finally(() => {
+      if (!selectSha(path)(useApp.getState()) && next.commits[0]) actions.selectCommit(path, next.commits[0].sha)
+    }, (err) => { if (generation.current === current) actions.reportError(err, path) }).finally(() => {
       if (generation.current === current) { busy.current = false; setLoading(false); setReloading(false) }
     })
     return () => { generation.current++ }
@@ -249,7 +275,7 @@ export function Graph({ path }: { path: string }) {
       pageRef.current = merged
       setPage(merged)
       setMaxLanes((lanes) => Math.max(lanes, ...next.commits.map((commit) => commit.laneCount)))
-    }, (err) => { if (generation.current === current) actions.reportError(err) }).finally(() => {
+    }, (err) => { if (generation.current === current) actions.reportError(err, path) }).finally(() => {
       if (generation.current === current) { busy.current = false; setLoading(false) }
     })
   }
@@ -314,23 +340,25 @@ export function Graph({ path }: { path: string }) {
 
   useEffect(() => {
     const copy = (e: KeyboardEvent) => {
-      if (!selectedSha || selectedSha === 'wip' || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (!isActiveTab(path) || !selectedSha || selectedSha === 'wip' || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (!matchesShortcut('Ctrl+Shift+C', e)) return
       e.preventDefault()
       copyText(selectedSha)
     }
     window.addEventListener('keydown', copy)
     return () => window.removeEventListener('keydown', copy)
-  }, [selectedSha])
+  }, [selectedSha, path])
+  // com diff ou conflito aberto, o Ctrl+F é deles
+  useFindShortcut(path, () => openFind(), () => inWipPanel() || !!(selectDiff(path)(useApp.getState()) || selectConflict(path)(useApp.getState())))
+  // Esc fecha a busca mesmo com o foco fora dela (ex.: depois de clicar num commit)
   useEffect(() => {
-    const open = (e: KeyboardEvent) => {
-      if (!matchesShortcut('Ctrl+F', e)) return
-      e.preventDefault()
-      openFind()
+    if (!find) return
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !e.defaultPrevented && isActiveTab(path) && !selectDiff(path)(useApp.getState()) && !selectConflict(path)(useApp.getState())) setFind(null)
     }
-    window.addEventListener('keydown', open)
-    return () => window.removeEventListener('keydown', open)
-  }, [])
+    window.addEventListener('keydown', onEsc)
+    return () => window.removeEventListener('keydown', onEsc)
+  }, [!find, path])
   const hasText = (c: GraphCommit, needle: string) => `${c.subject}\n${c.description}\n${c.sha}\n${c.refs.map((r) => r.name).join('\n')}`.toLocaleLowerCase().includes(needle)
   const byAuthor = (c: GraphCommit) => !authors?.length || authors.includes(c.email.toLowerCase())
   const needle = find?.text.trim().toLocaleLowerCase() ?? ''
@@ -344,24 +372,24 @@ export function Graph({ path }: { path: string }) {
   const hits = hitsFor(find?.text ?? '')
   const current = hits.findIndex((c) => c.sha === selectedSha)
   const step = (by: 1 | -1) => {
-    if (hits.length) actions.selectCommit(hits[current < 0 ? (by > 0 ? 0 : hits.length - 1) : (current + by + hits.length) % hits.length]!.sha)
+    if (hits.length) actions.selectCommit(path, hits[current < 0 ? (by > 0 ? 0 : hits.length - 1) : (current + by + hits.length) % hits.length]!.sha)
   }
   const search = (text: string) => {
     setFind({ text })
     const first = hitsFor(text)[0]
-    if (first) return actions.selectCommit(first.sha)
+    if (first) return actions.selectCommit(path, first.sha)
     // o tip da branch pode estar numa página ainda não carregada: o efeito de seleção carrega até achar
     const n = text.trim().toLocaleLowerCase()
     if (!n) return
     void core.listRefs(path).then((refs) => {
       const remotes = refs.remotes.flatMap((g) => [...g.branches, ...g.folders.flatMap((f) => f.branches)]).map((r) => ({ name: `${r.remote}/${r.name}`, sha: r.sha }))
       const tip = [...refs.local, ...remotes].find((r) => r.name.toLocaleLowerCase().includes(n))
-      if (tip) actions.selectCommit(tip.sha)
+      if (tip) actions.selectCommit(path, tip.sha)
     }, () => {})
   }
   const openMenu = async (commit: GraphCommit, e: React.MouseEvent) => {
     e.preventDefault()
-    actions.selectCommit(commit.sha)
+    actions.selectCommit(path, commit.sha)
     const anchor = { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }
     const base = await menuBase(path)
     if (!base) return
@@ -375,7 +403,7 @@ export function Graph({ path }: { path: string }) {
   /** Ctrl+F com a busca aberta só devolve o foco e seleciona o texto, como no navegador. */
   function openFind() {
     setFind((f) => f ?? { text: '' })
-    requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>('.graph-filter input')?.select())
+    focusFind(root)
   }
   const branchActions = useBranchActions(path)
   /** Resolve a pill na ref completa (a lista de refs traz upstream e se a local existe) antes de agir. */
@@ -387,11 +415,20 @@ export function Graph({ path }: { path: string }) {
     const remote = refs.remotes.flatMap((g) => [...g.branches, ...g.folders.flatMap((f) => f.branches)]).find((r) => `${r.remote}/${r.name}` === pill.remote)
     return remote ? { kind: 'remote', ref: remote, local: refs.local.find((b) => b.name === remote.name) } : null
   }
-  const pillHandlers: PillHandlers = {
-    checkout: (pill) => { if (doubleClickCheckout) void targetOf(pill).then((t) => { if (t) branchActions.checkout(t) }) },
-    menu: (pill, e) => {
+  const pillHandlers: PillsHandlers = {
+    checkout: (pill) => {
+      if (!doubleClickCheckout) return
+      void (async () => {
+        const refs = await core.listRefs(path).catch(() => null)
+        const worktree = pill.local ? refs?.worktrees.find((w) => w.branch === pill.local && w.path !== path) : undefined
+        if (worktree) { void actions.openRepository(worktree.path); return }
+        const target = await targetOf(pill)
+        if (target) branchActions.checkout(target)
+      })()
+    },
+    menu: (pill, e, onClosed) => {
       const anchor = { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }
-      void targetOf(pill).then((t) => { if (t) void branchActions.open(t, anchor) })
+      void targetOf(pill).then((t) => { if (t) void branchActions.open(t, anchor, onClosed); else onClosed() })
     },
   }
   const branch = head?.kind === 'branch' ? head.name : head?.sha ?? 'HEAD'
@@ -422,7 +459,10 @@ export function Graph({ path }: { path: string }) {
         ? <span key={id} className="graph-message graph-wip"><em>// WIP</em>
           <span className="wip-chip changed"><Icon name="edit" size={11} />{page?.wip.changed ?? 0}</span>
           <span className="wip-chip added">+ {page?.wip.untracked ?? 0}</span></span>
-        : <span key={id} className={`graph-message${commit && commit.parents.length > 1 ? ' merge' : ''}`} title={commit?.subject}>{commit?.subject}</span>
+        : <span key={id} className={`graph-message${commit && commit.parents.length > 1 ? ' merge' : ''}`} title={commit?.subject}>
+          {commit && marks.get(commit.sha)?.map((m) => <button key={m.branch} className={m.rewritten ? 'graph-review-mark rewritten' : 'graph-review-mark'} title={m.title}
+            aria-label={m.title} onClick={(e) => { e.stopPropagation(); void actions.openReview(path, m.branch) }}><Icon name="shown" size={12} strokeWidth={2} /></button>)}
+          {commit?.subject}</span>
       case 'description': return <span key={id} className="graph-description" title={commit?.description}>{commit?.description}</span>
       case 'author': return <span key={id} className="graph-author" title={commit?.email}>
         {commit && layout.compact && <Avatar small name={commit.author} email={commit.email} />}{commit?.author}</span>
@@ -442,34 +482,26 @@ export function Graph({ path }: { path: string }) {
       <div className="graph-pop-overlay" onMouseDown={() => setGear(false)} />
       <div className="graph-pop" role="dialog" aria-label="Colunas do grafo" onKeyDown={(e) => { if (e.key === 'Escape') setGear(false) }}>
         {layout.order.map((id, i) => <div key={id} className="graph-pop-row">
-          <label><input type="checkbox" checked={!layout.hidden.includes(id)} disabled={!COLUMNS[id].hideable}
-            onChange={(e) => update((l) => ({ ...l, hidden: e.target.checked ? l.hidden.filter((h) => h !== id) : [...l.hidden, id] }))} /> {COLUMNS[id].label}</label>
-          <button aria-label={`Subir ${COLUMNS[id].label}`} disabled={i === 0} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, -1) }))}><Icon name="chevronUp" size={13} strokeWidth={2} /></button>
-          <button aria-label={`Descer ${COLUMNS[id].label}`} disabled={i === layout.order.length - 1} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, 1) }))}><Icon name="chevronDown" size={13} strokeWidth={2} /></button>
+          <Checkbox checked={!layout.hidden.includes(id)} disabled={!COLUMNS[id].hideable} label={COLUMNS[id].label}
+            onChange={(v) => update((l) => ({ ...l, hidden: v ? l.hidden.filter((h) => h !== id) : [...l.hidden, id] }))} />
+          <IconButton icon="chevronUp" size={13} strokeWidth={2} label={`Subir ${COLUMNS[id].label}`} disabled={i === 0} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, -1) }))} />
+          <IconButton icon="chevronDown" size={13} strokeWidth={2} label={`Descer ${COLUMNS[id].label}`} disabled={i === layout.order.length - 1} onClick={() => update((l) => ({ ...l, order: moveColumn(l.order, id, 1) }))} />
         </div>)}
-        <label className="graph-pop-row"><input type="checkbox" checked={vis.smart} onChange={(e) => updateVisibility(path, (v) => ({ ...v, smart: e.target.checked }))} /> Visibilidade inteligente</label>
-        <label className="graph-pop-row"><input type="checkbox" checked={layout.compact} onChange={(e) => update((l) => ({ ...l, compact: e.target.checked }))} /> Layout compacto</label>
-        <button className="graph-pop-reset" onClick={() => update(() => DEFAULT_LAYOUT)}>Restaurar padrão</button>
+        <Checkbox className="graph-pop-row" checked={vis.smart} onChange={(smart) => updateVisibility(path, (v) => ({ ...v, smart }))} label="Visibilidade inteligente" />
+        <Checkbox className="graph-pop-row" checked={layout.compact} onChange={(compact) => update((l) => ({ ...l, compact }))} label="Layout compacto" />
+        <Button className="graph-pop-reset" onClick={() => update(() => DEFAULT_LAYOUT)}>Restaurar padrão</Button>
       </div>
     </>}
-    {find && <div className="graph-filter" role="search" onKeyDown={(e) => {
-      if (e.key === 'Escape') setFind(null)
-      else if (e.key === 'Enter') { e.preventDefault(); step(e.shiftKey ? -1 : 1) }
-    }}>
-      <input value={find.text} onChange={(e) => search(e.target.value)} placeholder="Buscar branch, mensagem ou SHA…" aria-label="Buscar branch, mensagem ou SHA" />
-      <span className="graph-filter-count" aria-live="polite">{needle ? `${current + 1}/${hits.length}${page?.next ? '+' : ''}` : ''}</span>
-      <button className="up" aria-label="Ocorrência anterior" title="Anterior (Shift+Enter)" disabled={!hits.length} onClick={() => step(-1)}><Icon name="chevron" size={14} /></button>
-      <button className="down" aria-label="Próxima ocorrência" title="Próxima (Enter)" disabled={!hits.length} onClick={() => step(1)}><Icon name="chevron" size={14} /></button>
-      <button aria-label="Fechar busca" onClick={() => setFind(null)}><Icon name="close" size={14} /></button>
-    </div>}
+    {find && <FindBar text={find.text} label="Buscar branch, mensagem ou SHA" count={needle ? `${current + 1}/${hits.length}${page?.next ? '+' : ''}` : ''}
+      disabled={!hits.length} onText={search} onStep={step} onClose={() => setFind(null)} />}
     <div className="graph-header graph-grid">
-      <button className="graph-gear" aria-label="Colunas do grafo" title="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)}><Icon name="sliders" size={15} /></button>
+      <IconButton className="graph-gear" icon="sliders" size={15} label="Colunas do grafo" aria-expanded={gear} onClick={() => setGear(!gear)} />
       {cols.map((id) => <div key={id} className="graph-hcell">
         <span className="graph-title">{COLUMNS[id].label}
-            {id === 'message' && <button className="graph-tool" aria-label="Buscar branch, mensagem ou SHA" title="Buscar branch, mensagem ou SHA (Ctrl+F)" onClick={openFind}><Icon name="search" size={13} /></button>}
-            {id === 'author' && <button className={`graph-tool${authors?.length ? ' active' : ''}`} aria-label="Filtrar por autor" title="Filtrar por autor"
-              aria-expanded={!!authorAnchor} onClick={(e) => setAuthorAnchor(e.currentTarget.getBoundingClientRect())}><Icon name="filter" size={13} /></button>}
-            {id === 'message' && vis.solo && <button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} <Icon name="close" size={12} /></button>}
+            {id === 'message' && <IconButton className="graph-tool" icon="search" size={13} label="Buscar branch, mensagem ou SHA" title="Buscar branch, mensagem ou SHA (Ctrl+F)" onClick={openFind} />}
+            {id === 'author' && <IconButton className={`graph-tool${authors?.length ? ' active' : ''}`} icon="filter" size={13} label="Filtrar por autor"
+              aria-expanded={!!authorAnchor} onClick={(e) => setAuthorAnchor(e.currentTarget.getBoundingClientRect())} />}
+            {id === 'message' && vis.solo && <Button className="graph-chip" title="Sair do Solo" onClick={() => updateVisibility(path, (v) => ({ ...v, solo: null }))}>Solo: {vis.solo.replace(/^refs\/(heads|remotes)\//, '')} <Icon name="close" size={12} /></Button>}
           </span>
         {id !== 'message' && <div className={`col-handle ${cols.indexOf(id) < cols.indexOf('message') ? 'after' : 'before'}`} role="separator" aria-orientation="vertical"
           aria-label={`Redimensionar ${COLUMNS[id].label}`} onPointerDown={(e) => resize(id, e)} onDoubleClick={() => fit(id)} />}
@@ -489,7 +521,7 @@ export function Graph({ path }: { path: string }) {
           const wip = item.index < top
           const selected = commit ? selectedSha === commit.sha : selectedSha === 'wip'
           return <div key={item.key} className={`graph-row graph-grid${wip && conflicts > 0 ? ' conflict' : ''}${selected ? ' selected' : ''}${commit && !matches(commit) ? ' dim' : ''}`} style={{ height: ROW, transform: `translateY(${item.start}px)`, '--lane': commit?.color ?? headColor } as CSSProperties}
-            onClick={() => actions.selectCommit(commit?.sha ?? 'wip')}
+            onClick={() => actions.selectCommit(path, commit?.sha ?? 'wip')}
             onContextMenu={(e) => { if (commit) void openMenu(commit, e) }}
             >
             {cells(commit, wip)}

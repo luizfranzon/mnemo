@@ -1,10 +1,13 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { core } from '../bridge'
 import type { AuthorInfo } from '../bridge/types'
 import { actions, useApp } from '../store/app'
 import { Avatar } from './avatar'
-import { placeMenu, type Rect } from './menuModel'
+import { Button } from './Button'
+import { EmptyState } from './EmptyState'
+import type { Rect } from './menuModel'
+import { Popover } from './Popover'
 
 const ROW = 44
 const NONE: string[] = []
@@ -14,7 +17,6 @@ export function AuthorFilter({ path, anchor, onClose }: { path: string; anchor: 
   const selected = useApp((s) => s.tabs.find((t) => t.path === path)?.authors ?? NONE)
   const [authors, setAuthors] = useState<AuthorInfo[] | null>(null)
   const [query, setQuery] = useState('')
-  const box = useRef<HTMLDivElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -27,15 +29,9 @@ export function AuthorFilter({ path, anchor, onClose }: { path: string; anchor: 
       const current = useApp.getState().tabs.find((t) => t.path === path)?.authors ?? NONE
       const kept = current.filter((e) => emails.has(e))
       if (kept.length !== current.length) actions.setAuthorFilter(path, kept)
-    }, (err) => { if (active) actions.reportError(err) })
+    }, (err) => { if (active) actions.reportError(err, path) })
     return () => { active = false }
   }, [path])
-  useLayoutEffect(() => {
-    const el = box.current!
-    const { left, top } = placeMenu(anchor, el.offsetWidth, el.offsetHeight, 'below', innerWidth, innerHeight)
-    el.style.left = `${left}px`
-    el.style.top = `${top}px`
-  }, [anchor, authors])
 
   const needle = query.trim().toLocaleLowerCase()
   const shown = (authors ?? []).filter((a) => !needle || `${a.name}\n${a.email}`.toLocaleLowerCase().includes(needle))
@@ -46,12 +42,11 @@ export function AuthorFilter({ path, anchor, onClose }: { path: string; anchor: 
     actions.setAuthorFilter(path, selected.includes(key) ? selected.filter((e) => e !== key) : [...selected, key])
   }
 
-  return <div className="menu-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-    <div ref={box} className="author-filter" role="dialog" aria-label="Filtrar por autor" onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}>
+  return <Popover anchor={anchor} label="Filtrar por autor" onClose={onClose}>
       <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar autor…" aria-label="Buscar autor" />
       <div ref={scroller} className="author-list">
-        {!authors && <div className="author-empty" role="status">Carregando autores…</div>}
-        {authors && !shown.length && <div className="author-empty">Nenhum autor encontrado.</div>}
+        {!authors && <EmptyState className="author-empty" loading>Carregando autores…</EmptyState>}
+        {authors && !shown.length && <EmptyState className="author-empty">Nenhum autor encontrado.</EmptyState>}
         <div style={{ height: virtual.getTotalSize(), position: 'relative' }}>
           {virtual.getVirtualItems().map((item) => {
             const a = shown[item.index]!
@@ -64,7 +59,6 @@ export function AuthorFilter({ path, anchor, onClose }: { path: string; anchor: 
           })}
         </div>
       </div>
-      {selected.length > 0 && <button className="author-clear" onClick={() => actions.setAuthorFilter(path, [])}>Limpar</button>}
-    </div>
-  </div>
+      {selected.length > 0 && <Button className="author-clear" onClick={() => actions.setAuthorFilter(path, [])}>Limpar</Button>}
+  </Popover>
 }

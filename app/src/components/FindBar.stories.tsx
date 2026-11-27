@@ -1,0 +1,28 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { useState } from 'react'
+import { FindBar } from './FindBar'
+
+const meta = {
+  title: 'Componentes/Base/FindBar',
+  component: FindBar,
+  args: { text: 'storybook', label: 'Buscar no grafo', count: '2 de 5', disabled: false, onText: () => undefined, onStep: () => undefined, onClose: () => undefined },
+  decorators: [(Story) => <div style={{ position: 'relative', height: 120 }}><Story /></div>],
+} satisfies Meta<typeof FindBar>
+
+export default meta
+type Story = StoryObj<typeof meta>
+
+export const Padrao: Story = {
+  render: (args) => {
+    const [text, setText] = useState(args.text)
+    return <FindBar {...args} text={text} onText={setText} />
+  },
+}
+
+export const UmResultado: Story = { args: { count: '1 de 1' } }
+
+export const MuitosResultados: Story = { args: { count: '1.482 de 12.904' } }
+
+export const TextoLongo: Story = { args: { text: 'refatora a resolução de conflitos do rebase interativo para preservar o autor original' } }
+
+export const SemResultados: Story = { args: { text: 'zzz', count: 'Nenhum resultado', disabled: true } }

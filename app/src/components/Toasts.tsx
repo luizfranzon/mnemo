@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { actions, dismissToast, useApp } from '../store/app'
-import { Icon } from './Icon'
+import { Button } from './Button'
+import { IconButton } from './IconButton'
 
 export function Toasts() {
   const toasts = useApp((s) => s.toasts)
@@ -10,15 +11,14 @@ export function Toasts() {
         <div className={t.error ? 'toast error' : t.info ? 'toast info' : 'toast'} key={t.id} role={t.error ? 'alert' : undefined}
           style={{ '--toast-dur': `${t.error ? 12000 : 6000}ms` } as CSSProperties}>
           <span className="toast-node" aria-hidden="true" />
-          <span className="toast-text">{t.text}</span>
-          {(t.undoPath || t.pullPath || t.retry) && <span className="toast-actions">
-            {t.undoPath && <button onClick={() => { dismissToast(t.id); void actions.undo(t.undoPath!) }}>Desfazer</button>}
-            {t.retry && <button onClick={() => { dismissToast(t.id); void t.retry!() }}>Tentar de novo</button>}
-            {t.pullPath && <button onClick={() => { dismissToast(t.id); void actions.pullNow(t.pullPath!) }}>Pull agora</button>}
+          <span className="toast-text">{t.title && <span className="toast-title">{t.title}</span>}{t.text}</span>
+          {(t.undoPath || t.pullPath || t.retry || t.buttons) && <span className={t.buttons ? "toast-actions below" : "toast-actions"}>
+            {t.buttons?.map((b) => <Button key={b.label} onClick={() => { dismissToast(t.id); void b.run() }}>{b.label}</Button>)}
+            {t.undoPath && <Button onClick={() => { dismissToast(t.id); void actions.undo(t.undoPath!) }}>Desfazer</Button>}
+            {t.retry && <Button onClick={() => { dismissToast(t.id); void t.retry!() }}>Tentar de novo</Button>}
+            {t.pullPath && <Button onClick={() => { dismissToast(t.id); void actions.pullNow(t.pullPath!) }}>Pull agora</Button>}
           </span>}
-          <button className="toast-close" aria-label="Fechar" onClick={() => dismissToast(t.id)}>
-            <Icon name="close" size={12} strokeWidth={2.4} />
-          </button>
+          <IconButton className="toast-close" icon="close" size={12} strokeWidth={2.4} label="Fechar" onClick={() => dismissToast(t.id)} />
           <span className="toast-rail" aria-hidden="true" />
         </div>
       ))}

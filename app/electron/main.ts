@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { benchWindow, mark, now } from './bench'
+import { unwatchRepository, watchRepository } from './repoWatcher'
 import { checkForUpdate, downloadUpdate, installUpdate, startUpdater, updateState } from './updater'
 
 mark('main: módulo carregado')
@@ -88,6 +89,7 @@ function createWindow() {
     minHeight: 560,
     frame: false, // menus e controles da janela moram na barra de título da UI
     backgroundColor: '#0E0E0F',
+    icon: join(__dirname, '..', 'build', 'icon.png'),
     webPreferences: { preload: join(__dirname, 'preload.cjs'), contextIsolation: true, sandbox: true, nodeIntegration: false },
   })
   mark('main: janela criada')
@@ -112,6 +114,13 @@ const appCommands: Record<string, (args: Record<string, unknown>) => Promise<unk
     const r = await dialog.showOpenDialog(window ?? undefined!, { properties: ['openDirectory'], title: 'Abrir repositório' })
     return r.canceled ? null : (r.filePaths[0] ?? null)
   },
+  /** Grava um texto onde o usuário escolher; `null` = cancelado. */
+  async save_text(args) {
+    const r = await dialog.showSaveDialog(window ?? undefined!, { defaultPath: String(args.name), filters: [{ name: 'Markdown', extensions: ['md'] }] })
+    if (r.canceled || !r.filePath) return null
+    writeFileSync(r.filePath, String(args.text))
+    return r.filePath
+  },
   /** Pastas passadas na linha de comando (`mnemo <pasta>`): abrem como Abas. */
   initial_paths() {
     const args = app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)
@@ -133,6 +142,13 @@ const appCommands: Record<string, (args: Record<string, unknown>) => Promise<unk
       const error = await shell.openPath(full)
       if (error) throw new Error(error)
     }
+    return null
+  },
+  /** Observa o repositório da aba ativa; `path` nulo para de observar. */
+  watch_repository(args) {
+    const path = typeof args.path === 'string' ? args.path : null
+    if (path) watchRepository(path, () => send('mnemo:event', { type: 'repoChanged', workdir: path }))
+    else unwatchRepository()
     return null
   },
   update_state: () => updateState(),
@@ -183,6 +199,11 @@ function parseError(err: unknown): { code: string; message: string } {
   }
   return { code: 'internal', message: text }
 }
+
+// ANGLE escolhe Vulkan, incompatível com ozone/wayland; forçar GL evita o erro no log.
+app.commandLine.appendSwitch('use-angle', 'gl')
+
+if (process.env.MNEMO_DEV_URL) app.setDesktopName('mnemo-dev.desktop')
 
 void app.whenReady().then(() => {
   mark('main: app ready')

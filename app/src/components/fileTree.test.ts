@@ -1,6 +1,25 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { fileRows, filesUnder } from './fileTree'
+import { fileRows, filesUnder, filterFiles, sortFiles } from './fileTree'
+
+const changes = [{ path: 'src/b.ts', status: 'D' }, { path: 'lib/a.ts', status: 'M' }, { path: 'z/c.ts', status: 'A' }]
+
+test('ordenar por nome usa só o nome do arquivo', () => {
+  assert.deepEqual(sortFiles(changes, 'name').map((f) => f.path), ['lib/a.ts', 'src/b.ts', 'z/c.ts'])
+})
+
+test('ordenar por status agrupa M, A, D nessa ordem', () => {
+  assert.deepEqual(sortFiles(changes, 'status').map((f) => f.status), ['M', 'A', 'D'])
+})
+
+test('ordenar por caminho mantém a ordem recebida', () => {
+  assert.equal(sortFiles(changes, 'path'), changes)
+})
+
+test('filtrar ignora maiúsculas e vazio devolve tudo', () => {
+  assert.deepEqual(filterFiles(changes, 'lib/').map((f) => f.path), ['lib/a.ts'])
+  assert.equal(filterFiles(changes, ''), changes)
+})
 
 const files = [{ path: 'a/b/x.ts' }, { path: 'a/y.ts' }, { path: 'z.ts' }]
 

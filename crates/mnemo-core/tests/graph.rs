@@ -334,3 +334,33 @@ fn precedencia_das_lanes_e_destaque_depois_branch_atual_depois_o_resto() {
     assert_eq!(lane(&destaque, "da atual"), 1, "a branch atual vem logo depois do destaque");
     assert!(lane(&destaque, "da outra") >= 2);
 }
+
+#[test]
+fn stash_aparece_como_filho_do_commit_base_sem_os_commits_auxiliares() {
+    let repo = TestRepo::new();
+    repo.write("base.txt", "base");
+    let base = repo.commit_all("base");
+    repo.write("base.txt", "alterado");
+    repo.write("novo.txt", "não rastreado");
+    repo.git(&["stash", "push", "-u", "-q", "-m", "guardado"]);
+    repo.write("depois.txt", "depois");
+    repo.commit_all("depois");
+    let path = repo.path().to_string_lossy();
+    let all = repo.core.graph_page(&path, None, 50, &GraphVisibility::default()).expect("grafo");
+    let stashes: Vec<_> = all.commits.iter().filter(|c| c.stash).collect();
+    assert_eq!(stashes.len(), 1);
+    assert_eq!(stashes[0].parents, vec![base.trim().to_string()]);
+    assert!(stashes[0].subject.contains("guardado"));
+    assert!(!all.commits.iter().any(|c| c.subject.starts_with("index on") || c.subject.starts_with("untracked files on")));
+    let mut paged = Vec::new();
+    let mut cursor = None;
+    loop {
+        let page = repo.core.graph_page(&path, cursor, 1, &GraphVisibility::default()).expect("página");
+        paged.extend(page.commits);
+        match page.next {
+            Some(next) => cursor = Some(next),
+            None => break,
+        }
+    }
+    assert_eq!(serde_json::to_value(&paged).expect("json"), serde_json::to_value(&all.commits).expect("json"));
+}

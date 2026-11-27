@@ -38,6 +38,9 @@ pub enum CoreError {
     StashConflicted { paths: Vec<String> },
     #[error("Não há nada para fazer: {reason}")]
     NothingToDo { reason: String },
+    /// O pedido faz sentido, mas o estado atual impede (a frase já é a mensagem para o usuário).
+    #[error("{reason}")]
+    Unavailable { reason: String },
     #[error("Entrada inválida: {reason}")]
     InvalidInput { reason: String },
     #[error("Falha de E/S: {message}")]

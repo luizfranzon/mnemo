@@ -17,7 +17,7 @@ const key = (k, shiftKey = false) => ev(`document.querySelector('.graph-filter i
 try {
   await until(() => ev(`document.querySelectorAll('.graph-row').length`), 5)
   await ev(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', ctrlKey: true, bubbles: true }))`)
-  await until(() => ev(`document.activeElement?.getAttribute('aria-label')`), 'Buscar na mensagem')
+  await until(() => ev(`document.activeElement?.getAttribute('aria-label')`), 'Buscar branch, mensagem ou SHA')
   await type('fix')
   await until(count, '1/3')
   assert.equal(await selected(), 'fix c')

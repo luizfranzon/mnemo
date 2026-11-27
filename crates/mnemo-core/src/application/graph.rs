@@ -86,6 +86,7 @@ pub struct GraphCommit {
     pub head: bool,
     /// Branch mostrada em opacidade baixa no hover/seleção; só em commit sem pill própria.
     pub ghost: Option<GhostRef>,
+    pub stash: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -279,6 +280,7 @@ impl GraphCursor {
             refs,
             head: head_sha == Some(input.sha.as_str()),
             ghost,
+            stash: false,
         }
     }
 

@@ -19,35 +19,49 @@ const PLACEHOLDER: Record<PaletteMode, string> = {
   createBranch: 'Nome da nova branch…',
 }
 
-function load(mode: PaletteMode, path: string): Promise<Item[]> {
-  if (mode === 'createBranch') return Promise.resolve([])
-  return core.listBranches(path).then((bs) =>
-    bs.map((b) => ({
-      name: b.name,
-      current: b.current,
-      pick: () => {
-        if (!b.current) void actions.execute(path, { type: 'checkout', target: b.name })
-      },
-    })),
-  )
+async function load(mode: PaletteMode, path: string, prompt: boolean): Promise<Item[]> {
+  if (mode === 'createBranch') return []
+  const branches = await core.listBranches(path)
+  const locals: Item[] = branches.map((b) => ({
+    name: b.name,
+    current: b.current,
+    pick: () => {
+      if (b.current) return
+      const kind = { type: 'checkout', target: b.name } as const
+      void (prompt ? actions.checkoutRef(path, kind) : actions.execute(path, kind)) // submódulo: mudanças locais pedem confirmação
+    },
+  }))
+  if (!prompt) return locals
+  const remoteBranches = await core.listRemoteBranches(path).catch(() => [])
+  const localNames = new Set(branches.map((b) => b.name))
+  const withoutLocal = remoteBranches.filter((r) => !localNames.has(r.name))
+  const remotes: Item[] = withoutLocal.map((r) => ({
+    name: `${r.remote}/${r.name}`,
+    current: false,
+    pick: () => void actions.checkoutRef(path, { type: 'checkoutRemote', remote: r.remote, branch: r.name }),
+  }))
+  return [...locals, ...remotes]
 }
 
 /** Paleta: checkout de branch local (Ctrl+P) ou nome da nova branch. */
 export function Palette({ mode }: { mode: PaletteMode }) {
-  const path = useApp((s) => selectActiveTab(s)?.path)
+  const target = useApp((s) => s.paletteTarget)
+  const activePath = useApp((s) => selectActiveTab(s)?.path)
+  const path = target ?? activePath
   const head = useApp((s) => selectActiveTab(s)?.head)
   const toolbar = useApp((s) => selectActiveTab(s)?.toolbar)
   const start = useApp((s) => s.paletteStart)
-  const running = useApp((s) => s.activePath ? runningLabel(s, s.activePath) : undefined)
-  const reason = head && toolbar ? toolbarAvailability(head, toolbar, running).mutation : 'Abra um repositório'
+  const running = useApp((s) => path ? runningLabel(s, path) : undefined)
+  // submódulo não é aba: sem HEAD/toolbar em mãos, só barra se já há Operação nele
+  const reason = target ? (running ? 'Aguarde a Operação terminar' : undefined) : head && toolbar ? toolbarAvailability(head, toolbar, running).mutation : 'Abra um repositório'
   const [items, setItems] = useState<Item[]>([])
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
   const scroller = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (path) void load(mode, path).then(setItems, () => setItems([]))
-  }, [mode, path])
+    if (path) void load(mode, path, !!target).then(setItems, () => setItems([]))
+  }, [mode, path, target])
 
   const q = query.trim().toLowerCase()
   const shown = q ? items.filter((b) => b.name.toLowerCase().includes(q)) : items

@@ -23,6 +23,8 @@ pub struct ExecCtx<'a> {
 
 pub enum HandlerOutcome {
     Done(UndoPlan),
+    /// Rodou e não mudou nada que o Histórico veja (ex.: fetch sem novidade).
+    NoEffect,
     /// Parou em conflito: ainda não é Operação.
     Conflict {
         kind: ProgressKind,

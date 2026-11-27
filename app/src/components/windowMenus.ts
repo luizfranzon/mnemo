@@ -2,6 +2,7 @@
 // um retrato da store: a barra de título não assina estado que muda a cada Operação.
 import { core } from '../bridge'
 import { actions, runningLabel, selectActiveTab, useApp, type Tab } from '../store/app'
+import { tabLabel } from '../store/tabLabel'
 import type { ActionState } from '../bridge/types'
 import type { MenuEntry } from './menuModel'
 import { PULL_MODES, toolbarAvailability } from './toolbarModel'
@@ -90,7 +91,7 @@ export function windowMenus({ tab, tabs, running, textFocus }: MenuContext): { l
         {
           label: 'Abas',
           reason: tabs.length ? undefined : 'Nenhuma aba aberta',
-          submenu: tabs.map((t) => ({ label: t.name, run: () => actions.focusTab(t.path) })),
+          submenu: tabs.map((t) => ({ label: tabLabel(tabs, t.path) ?? t.name, run: () => actions.focusTab(t.path) })),
         },
         soonSub('Favoritos'),
         '-',

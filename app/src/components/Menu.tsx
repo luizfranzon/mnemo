@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { placeMenu, type MenuEntry, type Rect } from './menuModel'
 import { Icon } from './Icon'
 
@@ -31,10 +32,11 @@ export function Menu({ items, anchor, label, onClose }: { items: MenuEntry[]; an
     e.preventDefault()
     close()
   }
-  return (
+  return createPortal(
     <div className="menu-overlay" onMouseDown={dismiss} onContextMenu={dismiss}>
       <MenuList items={items} anchor={anchor} side="below" label={label} close={close} />
-    </div>
+    </div>,
+    document.body,
   )
 }
 
